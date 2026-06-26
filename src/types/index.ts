@@ -11,6 +11,7 @@ export interface VInspeccion {
   patente: string
   conductor: string
   fundo: string
+  contrato: string | null
   operativo: boolean
   obs_general: string | null
   p1: boolean
@@ -60,13 +61,6 @@ export interface Fundo {
   nombre: string
   contrato: string
   activo: boolean
-}
-
-export interface KPIs {
-  totalInspecciones: number
-  conFallas: number
-  noOperativos: number
-  resueltas: number
 }
 
 export type TipoResolucion = 'resuelto' | 'derivado' | 'pendiente'

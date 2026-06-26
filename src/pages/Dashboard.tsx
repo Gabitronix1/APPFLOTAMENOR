@@ -1,133 +1,135 @@
-import { useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
-import type { VInspeccion, KPIs } from '../types'
+import { useMemo } from 'react'
+import { FiltersProvider, useFilters } from '../hooks/useFilters'
+import type { Filters } from '../hooks/useFilters'
+import { useInspecciones } from '../hooks/useInspecciones'
+import { CollapsibleSection } from '../components/dashboard/CollapsibleSection'
+import { FilterBar } from '../components/dashboard/FilterBar'
+import { SecSistemas } from '../components/dashboard/SecSistemas'
+import { SecPrioridades } from '../components/dashboard/SecPrioridades'
+import { SecOperadores } from '../components/dashboard/SecOperadores'
+import { SecCalendario } from '../components/dashboard/SecCalendario'
+import { SecCobertura } from '../components/dashboard/SecCobertura'
+import { SecVisualizacion } from '../components/dashboard/SecVisualizacion'
+import { fmtDate } from '../lib/constants'
+import type { VInspeccion } from '../types'
 
-function KpiCard({ label, value, color }: { label: string; value: number; color: string }) {
+function applyFilters(data: VInspeccion[], f: Filters): VInspeccion[] {
+  return data.filter(r => {
+    if (f.fundo && r.fundo !== f.fundo) return false
+    if (f.contrato && r.contrato !== f.contrato) return false
+    if (f.conductor && r.conductor !== f.conductor) return false
+    if (f.patente && r.patente !== f.patente) return false
+    if (f.desde && r.fecha.slice(0, 10) < f.desde) return false
+    if (f.hasta && r.fecha.slice(0, 10) > f.hasta) return false
+    if (f.soloConProblemas && r.n_fallas === 0) return false
+    return true
+  })
+}
+
+function DashboardContent() {
+  const { filters } = useFilters()
+  const { allInspecciones, operadores, patentes, loading, error } = useInspecciones()
+
+  const filteredData = useMemo(
+    () => applyFilters(allInspecciones, filters),
+    [allInspecciones, filters],
+  )
+
+  const { minFecha, maxFecha, uniqueVehicles } = useMemo(() => {
+    const dates = filteredData.map(r => r.fecha.slice(0, 10)).sort()
+    return {
+      minFecha: dates[0] ?? '',
+      maxFecha: dates[dates.length - 1] ?? '',
+      uniqueVehicles: new Set(filteredData.map(r => r.patente)).size,
+    }
+  }, [filteredData])
+
+  const isFiltered = allInspecciones.length !== filteredData.length
+
+  if (loading) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3">
+        <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+        <p className="text-sm text-gray-500 animate-pulse">Cargando inspecciones…</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-8">
+        <div className="text-fault text-sm bg-fault/10 border border-fault/30 rounded-xl p-4">
+          Error al cargar datos: {error}
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="card flex flex-col gap-1">
-      <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</span>
-      <span className={`text-3xl font-bold ${color}`}>{value}</span>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* Meta header */}
+      <div className="flex flex-wrap items-end justify-between gap-3 mb-5">
+        <div>
+          <h1 className="text-2xl font-bold text-dark">Panel de Inspección de Flota</h1>
+          <p className="text-sm text-gray-500 mt-0.5">
+            <span className="font-semibold text-gray-700">{filteredData.length}</span> inspecciones
+            {' · '}
+            <span className="font-semibold text-gray-700">{uniqueVehicles}</span> vehículos
+            {minFecha && maxFecha && (
+              <> · {fmtDate(minFecha)} – {fmtDate(maxFecha)}</>
+            )}
+          </p>
+        </div>
+        {isFiltered && (
+          <span className="badge-warn text-xs">
+            Filtrado: {filteredData.length} / {allInspecciones.length}
+          </span>
+        )}
+      </div>
+
+      {/* Sticky filters */}
+      <FilterBar allData={allInspecciones} />
+
+      {/* Sections */}
+      <CollapsibleSection
+        num="02"
+        title="Estado por sistema inspeccionado"
+        hint="Toca un sistema para ver patentes afectadas"
+      >
+        <SecSistemas data={filteredData} />
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        num="03"
+        title="Prioridades de mantención"
+        hint="Ranking accionable · estado actual por vehículo"
+      >
+        <SecPrioridades data={filteredData} />
+      </CollapsibleSection>
+
+      <CollapsibleSection num="04" title="Reportes por operador">
+        <SecOperadores data={filteredData} operadoresNomina={operadores} />
+      </CollapsibleSection>
+
+      <CollapsibleSection num="05" title="Calendario de reportes">
+        <SecCalendario data={filteredData} operadoresNomina={operadores} />
+      </CollapsibleSection>
+
+      <CollapsibleSection num="06" title="Cobertura de la flota">
+        <SecCobertura data={filteredData} patentesNomina={patentes} />
+      </CollapsibleSection>
+
+      <CollapsibleSection num="07" title="Visualización">
+        <SecVisualizacion data={filteredData} />
+      </CollapsibleSection>
     </div>
   )
 }
 
-function formatFecha(fecha: string) {
-  return new Date(fecha).toLocaleDateString('es-CL', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  })
-}
-
 export function Dashboard() {
-  const [inspecciones, setInspecciones] = useState<VInspeccion[]>([])
-  const [kpis, setKpis] = useState<KPIs>({ totalInspecciones: 0, conFallas: 0, noOperativos: 0, resueltas: 0 })
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    async function load() {
-      setLoading(true)
-      const { data, error: err } = await supabase
-        .from('v_inspecciones')
-        .select('*')
-        .order('fecha', { ascending: false })
-        .limit(200)
-
-      if (err) {
-        setError(err.message)
-      } else {
-        const rows = (data ?? []) as VInspeccion[]
-        setInspecciones(rows)
-        setKpis({
-          totalInspecciones: rows.length,
-          conFallas: rows.filter((r) => r.n_fallas > 0).length,
-          noOperativos: rows.filter((r) => !r.operativo).length,
-          resueltas: rows.reduce((acc, r) => acc + r.n_resueltas, 0),
-        })
-      }
-      setLoading(false)
-    }
-    void load()
-  }, [])
-
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Dashboard</h1>
-
-      {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <KpiCard label="Inspecciones" value={kpis.totalInspecciones} color="text-dark" />
-        <KpiCard label="Con fallas" value={kpis.conFallas} color="text-fault" />
-        <KpiCard label="No operativos" value={kpis.noOperativos} color="text-warn" />
-        <KpiCard label="Fallas resueltas" value={kpis.resueltas} color="text-primary" />
-      </div>
-
-      {/* Tabla */}
-      <div className="card p-0 overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="font-semibold text-gray-900">Últimas inspecciones</h2>
-          {loading && <span className="text-xs text-gray-400 animate-pulse">Cargando...</span>}
-        </div>
-
-        {error && (
-          <div className="p-4 text-fault text-sm">{error}</div>
-        )}
-
-        <div className="overflow-x-auto">
-          <table className="w-full divide-y divide-gray-200">
-            <thead>
-              <tr>
-                <th className="table-th">Fecha</th>
-                <th className="table-th">Patente</th>
-                <th className="table-th">Conductor</th>
-                <th className="table-th">Fundo</th>
-                <th className="table-th text-center">Fallas</th>
-                <th className="table-th text-center">Operativo</th>
-                <th className="table-th text-center">Resueltas</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {!loading && inspecciones.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="table-td text-center text-gray-400 py-8">
-                    No hay inspecciones registradas.
-                  </td>
-                </tr>
-              )}
-              {inspecciones.map((insp) => (
-                <tr key={insp.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="table-td whitespace-nowrap">{formatFecha(insp.fecha)}</td>
-                  <td className="table-td font-mono font-semibold text-dark">{insp.patente}</td>
-                  <td className="table-td">{insp.conductor}</td>
-                  <td className="table-td">{insp.fundo}</td>
-                  <td className="table-td text-center">
-                    {insp.n_fallas > 0 ? (
-                      <span className="badge-fault">{insp.n_fallas}</span>
-                    ) : (
-                      <span className="text-gray-400">—</span>
-                    )}
-                  </td>
-                  <td className="table-td text-center">
-                    {insp.operativo ? (
-                      <span className="badge-ok">Sí</span>
-                    ) : (
-                      <span className="badge-fault">No</span>
-                    )}
-                  </td>
-                  <td className="table-td text-center">
-                    {insp.n_resueltas > 0 ? (
-                      <span className="badge-ok">{insp.n_resueltas}</span>
-                    ) : (
-                      <span className="text-gray-400">—</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+    <FiltersProvider>
+      <DashboardContent />
+    </FiltersProvider>
   )
 }
