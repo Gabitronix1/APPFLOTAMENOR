@@ -1,9 +1,18 @@
+import { useState, useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { LogoTriangulos } from './LogoTriangulos'
+import { getOfflineQueueCount, QUEUE_CHANGED_EVENT } from '../hooks/useOfflineQueue'
 
 export function Header() {
   const { perfil, signOut } = useAuth()
+  const [pending, setPending] = useState(getOfflineQueueCount)
+
+  useEffect(() => {
+    const handle = () => setPending(getOfflineQueueCount())
+    window.addEventListener(QUEUE_CHANGED_EVENT, handle)
+    return () => window.removeEventListener(QUEUE_CHANGED_EVENT, handle)
+  }, [])
 
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     `text-sm font-medium transition-colors ${
@@ -21,7 +30,13 @@ export function Header() {
           </span>
         </div>
 
-        <nav className="flex items-center gap-6">
+        <nav className="flex items-center gap-4 overflow-x-auto">
+          <NavLink to="/checklist" className={navLinkClass}>
+            Checklist
+          </NavLink>
+          <NavLink to="/intervencion" className={navLinkClass}>
+            Intervención
+          </NavLink>
           <NavLink to="/dashboard" className={navLinkClass}>
             Dashboard
           </NavLink>
@@ -38,6 +53,11 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-3">
+          {pending > 0 && (
+            <span className="badge-warn whitespace-nowrap">
+              {pending} pendiente{pending !== 1 ? 's' : ''}
+            </span>
+          )}
           {perfil && (
             <span className="text-xs text-gray-400 capitalize hidden sm:block">
               {perfil.rol}

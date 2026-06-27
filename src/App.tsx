@@ -7,6 +7,8 @@ import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
 import { Resoluciones } from './pages/Resoluciones'
 import { Maestros } from './pages/Maestros'
+import { Checklist } from './pages/Checklist'
+import { Intervencion } from './pages/Intervencion'
 
 function AppLayout() {
   return (
@@ -16,6 +18,8 @@ function AppLayout() {
         <Routes>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
+          <Route path="checklist" element={<Checklist />} />
+          <Route path="intervencion" element={<Intervencion />} />
           <Route element={<RequireRol roles={['encargado', 'admin']} />}>
             <Route path="resoluciones" element={<Resoluciones />} />
           </Route>
