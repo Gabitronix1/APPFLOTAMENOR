@@ -19,7 +19,9 @@ function AppLayout() {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="checklist" element={<Checklist />} />
-          <Route path="intervencion" element={<Intervencion />} />
+          <Route element={<RequireRol roles={['operador', 'encargado', 'admin']} />}>
+            <Route path="intervencion" element={<Intervencion />} />
+          </Route>
           <Route element={<RequireRol roles={['encargado', 'admin']} />}>
             <Route path="resoluciones" element={<Resoluciones />} />
           </Route>

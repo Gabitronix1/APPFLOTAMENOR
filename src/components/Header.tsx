@@ -34,9 +34,11 @@ export function Header() {
           <NavLink to="/checklist" className={navLinkClass}>
             Checklist
           </NavLink>
-          <NavLink to="/intervencion" className={navLinkClass}>
-            Intervención
-          </NavLink>
+          {perfil?.rol !== 'conductor_logistico' && (
+            <NavLink to="/intervencion" className={navLinkClass}>
+              Intervención
+            </NavLink>
+          )}
           <NavLink to="/dashboard" className={navLinkClass}>
             Dashboard
           </NavLink>
