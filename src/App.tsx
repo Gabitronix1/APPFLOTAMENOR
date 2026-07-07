@@ -5,7 +5,7 @@ import { RequireRol } from './components/RequireRol'
 import { Header } from './components/Header'
 import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
-import { Resoluciones } from './pages/Resoluciones'
+import { OrdenesTrabajo } from './pages/OrdenesTrabajo'
 import { Maestros } from './pages/Maestros'
 import { Checklist } from './pages/Checklist'
 import { Intervencion } from './pages/Intervencion'
@@ -24,7 +24,7 @@ function AppLayout() {
           <Route path="checklist" element={<Checklist />} />
           <Route element={<RequireRol roles={['operador', 'encargado', 'admin']} />}>
             <Route path="intervencion" element={<Intervencion />} />
-            <Route path="resoluciones" element={<Resoluciones />} />
+            <Route path="ordenes-trabajo" element={<OrdenesTrabajo />} />
           </Route>
           <Route element={<RequireRol roles={['encargado', 'admin']} />}>
             <Route path="vehiculos" element={<Vehiculos />} />

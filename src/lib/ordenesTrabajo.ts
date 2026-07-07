@@ -1,11 +1,12 @@
 import type { EstadoOT, PrioridadOT, TipoResolucion } from '../types'
 
-export const COLUMNAS_OT: { estado: EstadoOT; label: string; emoji: string }[] = [
-  { estado: 'abierta', label: 'Abiertas', emoji: '🔵' },
-  { estado: 'asignada', label: 'Asignadas', emoji: '🟡' },
-  { estado: 'en_progreso', label: 'En progreso', emoji: '🟠' },
-  { estado: 'cerrada', label: 'Cerradas', emoji: '🟢' },
-]
+export const ESTADO_OT_INFO: Record<EstadoOT, { label: string; badgeClass: string }> = {
+  abierta: { label: 'Abierta', badgeClass: 'bg-blue-100 text-blue-700' },
+  asignada: { label: 'Asignada', badgeClass: 'bg-warn/20 text-warn' },
+  en_progreso: { label: 'En progreso', badgeClass: 'bg-orange-100 text-orange-700' },
+  cerrada: { label: 'Cerrada', badgeClass: 'bg-lime/20 text-primary' },
+  cancelada: { label: 'Cancelada', badgeClass: 'bg-gray-200 text-gray-500' },
+}
 
 export const PRIORIDADES_OT: PrioridadOT[] = ['baja', 'media', 'alta', 'urgente']
 

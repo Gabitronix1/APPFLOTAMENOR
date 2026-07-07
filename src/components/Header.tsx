@@ -43,7 +43,7 @@ export function Header() {
             Dashboard
           </NavLink>
           {(perfil?.rol === 'operador' || perfil?.rol === 'encargado' || perfil?.rol === 'admin') && (
-            <NavLink to="/resoluciones" className={navLinkClass}>
+            <NavLink to="/ordenes-trabajo" className={navLinkClass}>
               Órdenes de trabajo
             </NavLink>
           )}
