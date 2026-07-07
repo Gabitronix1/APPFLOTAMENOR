@@ -1,12 +1,10 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import { useVehiculoDetalle } from '../hooks/useVehiculoDetalle'
 import {
-  ESTADO_TOOLTIP,
-  ESTADO_VEHICULO_INFO,
   TIPOS_EVENTO_TIMELINE,
   TIPO_EVENTO_INFO,
-  inferirEstado,
   sumaFallasActivas,
   sumaFallasHistoricas,
 } from '../lib/vehiculos'
@@ -16,8 +14,11 @@ import {
   CheckCircleIcon,
   ChevronLeftIcon,
   ClipboardIcon,
+  FlagIcon,
   WrenchIcon,
 } from '../components/vehiculos/icons'
+import { EstadoBadge } from '../components/vehiculos/EstadoBadge'
+import { CambiarEstadoModal } from '../components/vehiculos/CambiarEstadoModal'
 import type { TipoEventoTimeline, VInspeccion, VVehiculoTimeline } from '../types'
 
 const PAGE_SIZE = 20
@@ -32,6 +33,8 @@ function EventIcon({ tipo, className }: { tipo: TipoEventoTimeline; className?: 
       return <AlertTriangleIcon className={className} />
     case 'resolucion':
       return <CheckCircleIcon className={className} />
+    case 'cambio_estado':
+      return <FlagIcon className={className} />
   }
 }
 
@@ -130,16 +133,21 @@ function EventoCard({
 export function VehiculoDetalle() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { patente, inspecciones, timeline, odometro, loading, error, notFound } = useVehiculoDetalle(id)
+  const { perfil } = useAuth()
+  const { patente, inspecciones, timeline, odometro, loading, error, notFound, refetch } = useVehiculoDetalle(id)
 
   const [filtro, setFiltro] = useState<Record<TipoEventoTimeline, boolean>>({
     inspeccion: true,
     preventiva: true,
     correctiva: true,
     resolucion: true,
+    cambio_estado: true,
   })
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+  const [modalOpen, setModalOpen] = useState(false)
+
+  const puedeCambiarEstado = perfil?.rol === 'encargado' || perfil?.rol === 'admin'
 
   function toggleTipo(t: TipoEventoTimeline) {
     setFiltro(prev => ({ ...prev, [t]: !prev[t] }))
@@ -175,7 +183,6 @@ export function VehiculoDetalle() {
   )
   const fallasHistoricas = useMemo(() => sumaFallasHistoricas(inspecciones), [inspecciones])
   const fallasActivas = useMemo(() => sumaFallasActivas(inspecciones), [inspecciones])
-  const estado = useMemo(() => inferirEstado(inspecciones[0]), [inspecciones])
 
   if (loading) {
     return <div className="max-w-5xl mx-auto px-4 py-16 text-center text-gray-400 animate-pulse">Cargando vehículo...</div>
@@ -190,33 +197,45 @@ export function VehiculoDetalle() {
     )
   }
 
-  const info = ESTADO_VEHICULO_INFO[estado]
-
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {error && <div className="text-fault text-sm mb-4">{error}</div>}
 
       {/* Header */}
-      <div className="flex items-start gap-3 mb-6">
-        <button
-          onClick={() => navigate('/vehiculos')}
-          className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 shrink-0 mt-1"
-        >
-          <ChevronLeftIcon className="w-4 h-4 text-gray-500" />
-        </button>
-        <div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <span className="font-mono font-bold text-3xl text-dark">{patente.patente}</span>
-            <span
-              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${info.badgeClass}`}
-              title={ESTADO_TOOLTIP}
-            >
-              {info.emoji} {info.label}
-            </span>
+      <div className="flex items-start justify-between gap-3 mb-6">
+        <div className="flex items-start gap-3">
+          <button
+            onClick={() => navigate('/vehiculos')}
+            className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 shrink-0 mt-1"
+          >
+            <ChevronLeftIcon className="w-4 h-4 text-gray-500" />
+          </button>
+          <div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="font-mono font-bold text-3xl text-dark">{patente.patente}</span>
+              <EstadoBadge estado={patente.estado_actual} />
+            </div>
+            <p className="text-sm text-gray-500 mt-1">{patente.descripcion || 'Sin descripción'}</p>
           </div>
-          <p className="text-sm text-gray-500 mt-1">{patente.descripcion || 'Sin descripción'}</p>
         </div>
+        {puedeCambiarEstado && (
+          <button onClick={() => setModalOpen(true)} className="btn-secondary btn-sm shrink-0">
+            Cambiar estado
+          </button>
+        )}
       </div>
+
+      {modalOpen && (
+        <CambiarEstadoModal
+          patenteId={patente.id}
+          estadoActual={patente.estado_actual}
+          onClose={() => setModalOpen(false)}
+          onSaved={() => {
+            setModalOpen(false)
+            refetch()
+          }}
+        />
+      )}
 
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-8">

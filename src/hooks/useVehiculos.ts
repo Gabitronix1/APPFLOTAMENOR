@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useInspecciones } from './useInspecciones'
 import { fetchAllPages } from '../lib/fetchAllPages'
-import { inferirEstado, sumaFallasActivas, type EstadoVehiculo } from '../lib/vehiculos'
-import type { VInspeccion } from '../types'
+import { sumaFallasActivas } from '../lib/vehiculos'
+import type { EstadoVehiculo, VInspeccion } from '../types'
 
 export interface VehiculoResumen {
   id: string
@@ -60,7 +60,7 @@ export function useVehiculos(): State {
         id: p.id,
         patente: p.patente,
         descripcion: p.descripcion,
-        estado: inferirEstado(propias[0]),
+        estado: p.estado_actual,
         ultimaActividad: ultimaActividad.get(p.id) ?? null,
         fallasActivas: sumaFallasActivas(propias),
       }

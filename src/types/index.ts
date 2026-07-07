@@ -49,11 +49,19 @@ export interface Operador {
   activo: boolean
 }
 
+export type EstadoVehiculo =
+  | 'operativo'
+  | 'en_observacion'
+  | 'en_mantencion'
+  | 'taller_externo'
+  | 'dado_de_baja'
+
 export interface Patente {
   id: string
   patente: string
   descripcion: string
   activo: boolean
+  estado_actual: EstadoVehiculo
 }
 
 export interface Fundo {
@@ -65,7 +73,7 @@ export interface Fundo {
 
 export type TipoResolucion = 'resuelto' | 'derivado' | 'pendiente'
 
-export type TipoEventoTimeline = 'inspeccion' | 'preventiva' | 'correctiva' | 'resolucion'
+export type TipoEventoTimeline = 'inspeccion' | 'preventiva' | 'correctiva' | 'resolucion' | 'cambio_estado'
 
 export interface VVehiculoTimeline {
   id: string

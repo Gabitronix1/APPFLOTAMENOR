@@ -48,7 +48,7 @@ async function fetchOdometroReciente(patenteId: string): Promise<OdometroRecient
   return { valor: candidatos[0].odometro, fecha: candidatos[0].f_registro }
 }
 
-export function useVehiculoDetalle(id: string | undefined): State {
+export function useVehiculoDetalle(id: string | undefined): State & { refetch: () => void } {
   const [state, setState] = useState<State>({
     patente: null,
     inspecciones: [],
@@ -58,6 +58,7 @@ export function useVehiculoDetalle(id: string | undefined): State {
     error: null,
     notFound: false,
   })
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     if (!id) return
@@ -124,7 +125,7 @@ export function useVehiculoDetalle(id: string | undefined): State {
     return () => {
       cancelled = true
     }
-  }, [id])
+  }, [id, reloadKey])
 
-  return state
+  return { ...state, refetch: () => setReloadKey(k => k + 1) }
 }

@@ -54,3 +54,12 @@ export function ChevronLeftIcon({ className }: IconProps) {
     </svg>
   )
 }
+
+export function FlagIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+      <path d="M4 22V3" />
+    </svg>
+  )
+}

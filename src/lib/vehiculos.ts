@@ -1,25 +1,22 @@
-import type { VInspeccion, TipoEventoTimeline } from '../types'
+import type { VInspeccion, TipoEventoTimeline, EstadoVehiculo } from '../types'
 
-export type EstadoVehiculo = 'operativo' | 'no_operativo' | 'con_fallas' | 'sin_datos'
-
-export const ESTADO_TOOLTIP =
-  'Estado inferido de la última inspección — todavía no es un estado persistente real.'
-
-export function inferirEstado(ultimaInspeccion: VInspeccion | undefined): EstadoVehiculo {
-  if (!ultimaInspeccion) return 'sin_datos'
-  if (!ultimaInspeccion.operativo) return 'no_operativo'
-  if (ultimaInspeccion.n_fallas - ultimaInspeccion.n_resueltas > 0) return 'con_fallas'
-  return 'operativo'
-}
+export const ESTADOS_VEHICULO: EstadoVehiculo[] = [
+  'operativo',
+  'en_observacion',
+  'en_mantencion',
+  'taller_externo',
+  'dado_de_baja',
+]
 
 export const ESTADO_VEHICULO_INFO: Record<
   EstadoVehiculo,
-  { label: string; emoji: string; badgeClass: string }
+  { label: string; badgeClass: string; dotClass: string }
 > = {
-  operativo: { label: 'Operativo', emoji: '🟢', badgeClass: 'badge-ok' },
-  no_operativo: { label: 'No operativo', emoji: '🔴', badgeClass: 'badge-fault' },
-  con_fallas: { label: 'Con fallas', emoji: '🟡', badgeClass: 'badge-warn' },
-  sin_datos: { label: 'Sin datos', emoji: '⚪', badgeClass: 'bg-gray-200 text-gray-500' },
+  operativo: { label: 'Operativo', badgeClass: 'bg-lime/20 text-primary', dotClass: 'bg-primary' },
+  en_observacion: { label: 'En observación', badgeClass: 'bg-warn/20 text-warn', dotClass: 'bg-warn' },
+  en_mantencion: { label: 'En mantención', badgeClass: 'bg-fault/20 text-fault', dotClass: 'bg-fault' },
+  taller_externo: { label: 'Taller externo', badgeClass: 'bg-purple-100 text-purple-700', dotClass: 'bg-purple-500' },
+  dado_de_baja: { label: 'Dado de baja', badgeClass: 'bg-gray-700 text-white', dotClass: 'bg-gray-300' },
 }
 
 export function sumaFallasActivas(inspecciones: VInspeccion[]): number {
@@ -38,6 +35,7 @@ export const TIPO_EVENTO_INFO: Record<
   preventiva: { label: 'Preventiva', labelPlural: 'Preventivas', iconBg: 'bg-primary/10', iconColor: 'text-primary' },
   correctiva: { label: 'Correctiva', labelPlural: 'Correctivas', iconBg: 'bg-orange-50', iconColor: 'text-orange-600' },
   resolucion: { label: 'Resolución', labelPlural: 'Resoluciones', iconBg: 'bg-dark/10', iconColor: 'text-dark' },
+  cambio_estado: { label: 'Cambio de estado', labelPlural: 'Cambios de estado', iconBg: 'bg-purple-50', iconColor: 'text-purple-600' },
 }
 
 export const TIPOS_EVENTO_TIMELINE: TipoEventoTimeline[] = [
@@ -45,4 +43,5 @@ export const TIPOS_EVENTO_TIMELINE: TipoEventoTimeline[] = [
   'preventiva',
   'correctiva',
   'resolucion',
+  'cambio_estado',
 ]
