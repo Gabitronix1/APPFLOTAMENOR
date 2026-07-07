@@ -47,6 +47,11 @@ export function Header() {
               Resoluciones
             </NavLink>
           )}
+          {(perfil?.rol === 'encargado' || perfil?.rol === 'admin') && (
+            <NavLink to="/vehiculos" className={navLinkClass}>
+              Vehículos
+            </NavLink>
+          )}
           {perfil?.rol === 'admin' && (
             <NavLink to="/maestros" className={navLinkClass}>
               Maestros

@@ -64,3 +64,15 @@ export interface Fundo {
 }
 
 export type TipoResolucion = 'resuelto' | 'derivado' | 'pendiente'
+
+export type TipoEventoTimeline = 'inspeccion' | 'preventiva' | 'correctiva' | 'resolucion'
+
+export interface VVehiculoTimeline {
+  id: string
+  patente_id: string
+  tipo: TipoEventoTimeline
+  fecha: string
+  titulo: string
+  subtitulo: string | null
+  operador: string | null
+}
