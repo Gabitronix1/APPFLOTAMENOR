@@ -30,14 +30,30 @@ export interface VInspeccion {
   n_resueltas: number
 }
 
+export type EstadoOT = 'abierta' | 'asignada' | 'en_progreso' | 'cerrada' | 'cancelada'
+
+export type PrioridadOT = 'baja' | 'media' | 'alta' | 'urgente'
+
 export interface Resolucion {
   id: string
   inspeccion_id: string
   pregunta_id: number
-  resuelta_por: string
-  descripcion: string
-  tipo: 'resuelto' | 'derivado' | 'pendiente'
-  fecha: string
+  resuelta_por: string | null
+  descripcion: string | null
+  tipo: 'resuelto' | 'derivado' | 'pendiente' | null
+  fecha: string | null
+  estado: EstadoOT
+  prioridad: PrioridadOT | null
+  asignado_a: string | null
+  fecha_asignacion: string | null
+  fecha_cierre: string | null
+  created_at: string
+}
+
+export interface OrdenTrabajo extends Resolucion {
+  patente: string
+  sistema: string
+  asignadoNombre: string | null
 }
 
 export interface Operador {

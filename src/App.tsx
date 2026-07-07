@@ -24,9 +24,9 @@ function AppLayout() {
           <Route path="checklist" element={<Checklist />} />
           <Route element={<RequireRol roles={['operador', 'encargado', 'admin']} />}>
             <Route path="intervencion" element={<Intervencion />} />
+            <Route path="resoluciones" element={<Resoluciones />} />
           </Route>
           <Route element={<RequireRol roles={['encargado', 'admin']} />}>
-            <Route path="resoluciones" element={<Resoluciones />} />
             <Route path="vehiculos" element={<Vehiculos />} />
             <Route path="vehiculos/:id" element={<VehiculoDetalle />} />
             <Route path="vencimientos" element={<Vencimientos />} />
