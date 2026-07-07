@@ -38,6 +38,7 @@ export function Intervencion() {
   const [prevPreview, setPrevPreview] = useState<string | null>(null)
   const [prevFechaTermino, setPrevFechaTermino] = useState(todayISO())
   const [prevHoraTermino, setPrevHoraTermino] = useState(nowHHMM())
+  const [prevCosto, setPrevCosto] = useState('')
 
   // Screen 2 — Correctiva
   const [descFalla, setDescFalla] = useState('')
@@ -48,6 +49,7 @@ export function Intervencion() {
   const [causaProbable, setCausaProbable] = useState('')
   const [diagnostico, setDiagnostico] = useState('')
   const [fallas, setFallas] = useState<string[]>([''])
+  const [corrCosto, setCorrCosto] = useState('')
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -116,6 +118,7 @@ export function Intervencion() {
           imagen_path: imagenPath,
           fecha_termino: prevFechaTermino,
           hora_termino: prevHoraTermino,
+          costo: prevCosto ? Number(prevCosto) : null,
         },
       })
     } else {
@@ -130,6 +133,7 @@ export function Intervencion() {
           hora_termino: horaTermino,
           causa_probable: causaProbable,
           diagnostico,
+          costo: corrCosto ? Number(corrCosto) : null,
         },
         fallas: fallas.filter(f => f.trim()).map(f => ({ tipo_falla: f.trim() })),
       })
@@ -153,6 +157,7 @@ export function Intervencion() {
     setPrevPreview(null)
     setPrevFechaTermino(todayISO())
     setPrevHoraTermino(nowHHMM())
+    setPrevCosto('')
     setDescFalla('')
     setFechaInicio(todayISO())
     setHoraInicio(nowHHMM())
@@ -161,6 +166,7 @@ export function Intervencion() {
     setCausaProbable('')
     setDiagnostico('')
     setFallas([''])
+    setCorrCosto('')
     setDone(false)
   }
 
@@ -348,6 +354,17 @@ export function Intervencion() {
                     <input type="time" value={prevHoraTermino} onChange={e => setPrevHoraTermino(e.target.value)} className="input" />
                   </div>
                 </div>
+                <div>
+                  <label className="label">Costo (CLP, opcional)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={prevCosto}
+                    onChange={e => setPrevCosto(e.target.value)}
+                    placeholder="Ej: 45000"
+                    className="input"
+                  />
+                </div>
               </div>
 
               {/* Foto */}
@@ -444,6 +461,17 @@ export function Intervencion() {
                     placeholder="Diagnóstico técnico..."
                     className="input resize-none"
                     required
+                  />
+                </div>
+                <div>
+                  <label className="label">Costo (CLP, opcional)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={corrCosto}
+                    onChange={e => setCorrCosto(e.target.value)}
+                    placeholder="Ej: 85000"
+                    className="input"
                   />
                 </div>
               </div>

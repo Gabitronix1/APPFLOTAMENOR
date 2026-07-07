@@ -31,6 +31,21 @@ export function fmtNum(n: number): string {
   return n.toLocaleString('es-CL')
 }
 
+export function fmtCLP(n: number): string {
+  return `$${Math.round(n).toLocaleString('es-CL')}`
+}
+
+export function tiempoRelativo(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime()
+  const diffMin = Math.floor(diffMs / 60000)
+  const diffHoras = Math.floor(diffMin / 60)
+  const diffDias = Math.floor(diffHoras / 24)
+  if (diffDias >= 1) return `hace ${diffDias} día${diffDias !== 1 ? 's' : ''}`
+  if (diffHoras >= 1) return `hace ${diffHoras} hora${diffHoras !== 1 ? 's' : ''}`
+  if (diffMin >= 1) return `hace ${diffMin} minuto${diffMin !== 1 ? 's' : ''}`
+  return 'recién'
+}
+
 export function severityLabel(score: number): 'alta' | 'media' | 'baja' {
   if (score >= 35) return 'alta'
   if (score >= 18) return 'media'

@@ -1,8 +1,21 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import { useAuth } from '../context/AuthContext'
 import { FiltersProvider, useFilters } from '../hooks/useFilters'
 import type { Filters } from '../hooks/useFilters'
 import { useInspecciones } from '../hooks/useInspecciones'
+import { useEstadoFlota } from '../hooks/useEstadoFlota'
+import { useDisponibilidad } from '../hooks/useDisponibilidad'
+import { useCostoMensual } from '../hooks/useCostoMensual'
+import { useOTUrgentes } from '../hooks/useOTUrgentes'
+import { useVencimientosResumen } from '../hooks/useVencimientosResumen'
 import { CollapsibleSection } from '../components/dashboard/CollapsibleSection'
+import { PanelSection } from '../components/dashboard/PanelSection'
+import { SemaforoFlota } from '../components/dashboard/SemaforoFlota'
+import { VehiculosAtencion } from '../components/dashboard/VehiculosAtencion'
+import { DisponibilidadWidget } from '../components/dashboard/DisponibilidadWidget'
+import { CostoMantencion } from '../components/dashboard/CostoMantencion'
+import { OTUrgentesSection } from '../components/dashboard/OTUrgentesSection'
+import { DocumentosPorVencer } from '../components/dashboard/DocumentosPorVencer'
 import { FilterBar } from '../components/dashboard/FilterBar'
 import { SecSistemas } from '../components/dashboard/SecSistemas'
 import { SecPrioridades } from '../components/dashboard/SecPrioridades'
@@ -11,7 +24,7 @@ import { SecCalendario } from '../components/dashboard/SecCalendario'
 import { SecCobertura } from '../components/dashboard/SecCobertura'
 import { SecVisualizacion } from '../components/dashboard/SecVisualizacion'
 import { fmtDate } from '../lib/constants'
-import type { VInspeccion } from '../types'
+import type { EstadoVehiculo, VInspeccion } from '../types'
 
 function applyFilters(data: VInspeccion[], f: Filters): VInspeccion[] {
   return data.filter(r => {
@@ -28,7 +41,17 @@ function applyFilters(data: VInspeccion[], f: Filters): VInspeccion[] {
 
 function DashboardContent() {
   const { filters } = useFilters()
+  const { perfil } = useAuth()
   const { allInspecciones, operadores, patentes, loading, error } = useInspecciones()
+
+  const puedeGestionarFlota = perfil?.rol === 'encargado' || perfil?.rol === 'admin'
+  const [estadoSeleccionado, setEstadoSeleccionado] = useState<EstadoVehiculo | null>(null)
+
+  const estadoFlota = useEstadoFlota(puedeGestionarFlota)
+  const disponibilidad = useDisponibilidad(puedeGestionarFlota)
+  const costoMensual = useCostoMensual(puedeGestionarFlota)
+  const otUrgentes = useOTUrgentes(puedeGestionarFlota)
+  const vencimientos = useVencimientosResumen(puedeGestionarFlota)
 
   const filteredData = useMemo(
     () => applyFilters(allInspecciones, filters),
@@ -67,6 +90,67 @@ function DashboardContent() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {puedeGestionarFlota && (
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-dark mb-1">Panel del día</h1>
+          <p className="text-sm text-gray-500 mb-5">Estado general de la flota, ahora mismo.</p>
+
+          <PanelSection title="Semáforo de flota ahora mismo" hint="Click en un chip filtra la lista de abajo">
+            <SemaforoFlota
+              counts={estadoFlota.counts}
+              loading={estadoFlota.loading}
+              selected={estadoSeleccionado}
+              onSelect={setEstadoSeleccionado}
+            />
+          </PanelSection>
+
+          <PanelSection title="Vehículos que requieren atención">
+            <VehiculosAtencion
+              vehiculos={estadoFlota.vehiculos}
+              filtroEstado={estadoSeleccionado}
+              loading={estadoFlota.loading}
+              error={estadoFlota.error}
+            />
+          </PanelSection>
+
+          <PanelSection title="Disponibilidad de flota" hint="Últimos 30 días">
+            <div className="card">
+              <DisponibilidadWidget
+                data={disponibilidad.disponibilidad}
+                loading={disponibilidad.loading}
+                error={disponibilidad.error}
+              />
+            </div>
+          </PanelSection>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6">
+            <PanelSection title="Costo de mantención este mes">
+              <CostoMantencion
+                total={costoMensual.total}
+                top5={costoMensual.top5}
+                loading={costoMensual.loading}
+                error={costoMensual.error}
+              />
+            </PanelSection>
+
+            <PanelSection title="Documentos por vencer">
+              <DocumentosPorVencer
+                total={vencimientos.total}
+                top5={vencimientos.top5}
+                loading={vencimientos.loading}
+                error={vencimientos.error}
+              />
+            </PanelSection>
+          </div>
+
+          <PanelSection title="Órdenes de trabajo urgentes">
+            <OTUrgentesSection items={otUrgentes.items} loading={otUrgentes.loading} error={otUrgentes.error} />
+          </PanelSection>
+
+          <div className="border-b border-gray-200 mb-6" />
+        </div>
+      )}
+
       {/* Meta header */}
       <div className="flex flex-wrap items-end justify-between gap-3 mb-5">
         <div>

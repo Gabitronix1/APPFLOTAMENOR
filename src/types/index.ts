@@ -47,6 +47,7 @@ export interface Resolucion {
   asignado_a: string | null
   fecha_asignacion: string | null
   fecha_cierre: string | null
+  costo: number | null
   created_at: string
 }
 
@@ -133,4 +134,17 @@ export interface DocumentoVencimiento {
   documentoId: string | null
   numeroDocumento: string | null
   archivoPath: string | null
+}
+
+export interface Disponibilidad {
+  estado: EstadoVehiculo
+  dias: number
+  porcentaje: number
+}
+
+export interface CostoVehiculo {
+  patente_id: string
+  patente: string
+  mes: string
+  costo_total: number
 }

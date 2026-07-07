@@ -14,6 +14,7 @@ export function CerrarDirectoModal({ ot, onClose, onSaved }: Props) {
   const { user } = useAuth()
   const [tipo, setTipo] = useState<TipoResolucion>('resuelto')
   const [descripcion, setDescripcion] = useState('')
+  const [costo, setCosto] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -33,6 +34,7 @@ export function CerrarDirectoModal({ ot, onClose, onSaved }: Props) {
         resuelta_por: user.id,
         fecha: ahora,
         fecha_cierre: ahora,
+        costo: costo ? Number(costo) : null,
       })
       .eq('id', ot.id)
 
@@ -74,6 +76,17 @@ export function CerrarDirectoModal({ ot, onClose, onSaved }: Props) {
               placeholder="Describe la acción tomada..."
               className="input resize-none"
               required
+            />
+          </div>
+          <div>
+            <label className="label">Costo (CLP, opcional)</label>
+            <input
+              type="number"
+              min={0}
+              value={costo}
+              onChange={e => setCosto(e.target.value)}
+              placeholder="Ej: 60000"
+              className="input"
             />
           </div>
           {error && <p className="text-fault text-xs">{error}</p>}

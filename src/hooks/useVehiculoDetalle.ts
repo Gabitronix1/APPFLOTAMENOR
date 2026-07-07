@@ -17,9 +17,23 @@ interface State {
   inspecciones: VInspeccion[]
   timeline: VVehiculoTimeline[]
   odometro: OdometroReciente | null
+  otsPendientes: number
   loading: boolean
   error: string | null
   notFound: boolean
+}
+
+const ESTADOS_OT_PENDIENTES = ['abierta', 'asignada', 'en_progreso']
+
+async function fetchOtsPendientes(inspeccionIds: string[]): Promise<number> {
+  if (!inspeccionIds.length) return 0
+  const { data, error } = await supabase
+    .from('resoluciones')
+    .select('id')
+    .in('inspeccion_id', inspeccionIds)
+    .in('estado', ESTADOS_OT_PENDIENTES)
+  if (error) return 0
+  return (data ?? []).length
 }
 
 async function fetchOdometroReciente(patenteId: string): Promise<OdometroReciente | null> {
@@ -54,6 +68,7 @@ export function useVehiculoDetalle(id: string | undefined): State & { refetch: (
     inspecciones: [],
     timeline: [],
     odometro: null,
+    otsPendientes: 0,
     loading: true,
     error: null,
     notFound: false,
@@ -99,12 +114,16 @@ export function useVehiculoDetalle(id: string | undefined): State & { refetch: (
         if (inspRes.error) throw inspRes.error
         if (timelineRes.error) throw timelineRes.error
 
+        const inspecciones = (inspRes.data ?? []) as unknown as VInspeccion[]
+        const otsPendientes = await fetchOtsPendientes(inspecciones.map(i => i.id))
+
         if (!cancelled) {
           setState({
             patente: patenteRow,
-            inspecciones: (inspRes.data ?? []) as unknown as VInspeccion[],
+            inspecciones,
             timeline: (timelineRes.data ?? []) as unknown as VVehiculoTimeline[],
             odometro,
+            otsPendientes,
             loading: false,
             error: null,
             notFound: false,

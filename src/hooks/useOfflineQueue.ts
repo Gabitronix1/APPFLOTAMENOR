@@ -40,6 +40,7 @@ export interface IntervencionPayload {
     imagen_path: string | null
     fecha_termino: string
     hora_termino: string
+    costo: number | null
   }
   correctiva?: {
     descripcion_falla: string
@@ -49,6 +50,7 @@ export interface IntervencionPayload {
     hora_termino: string
     causa_probable: string
     diagnostico: string
+    costo: number | null
   }
   fallas?: { tipo_falla: string }[]
 }

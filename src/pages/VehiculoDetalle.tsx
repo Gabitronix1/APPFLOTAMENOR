@@ -3,7 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useVehiculoDetalle } from '../hooks/useVehiculoDetalle'
 import { useDocumentosVehiculo } from '../hooks/useDocumentosVehiculo'
+import { useDisponibilidad } from '../hooks/useDisponibilidad'
 import {
+  ESTADO_VEHICULO_INFO,
   TIPOS_EVENTO_TIMELINE,
   TIPO_EVENTO_INFO,
   sumaFallasActivas,
@@ -24,7 +26,8 @@ import { EstadoDocumentoBadge } from '../components/vehiculos/EstadoDocumentoBad
 import { CambiarEstadoModal } from '../components/vehiculos/CambiarEstadoModal'
 import { ActualizarDocumentoModal } from '../components/vehiculos/ActualizarDocumentoModal'
 import { KpiCard } from '../components/vehiculos/KpiCard'
-import type { DocumentoVencimiento, TipoEventoTimeline, VInspeccion, VVehiculoTimeline } from '../types'
+import { DisponibilidadWidget } from '../components/dashboard/DisponibilidadWidget'
+import type { DocumentoVencimiento, EstadoVehiculo, TipoEventoTimeline, VInspeccion, VVehiculoTimeline } from '../types'
 
 const PAGE_SIZE = 20
 
@@ -130,13 +133,15 @@ export function VehiculoDetalle() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { perfil } = useAuth()
-  const { patente, inspecciones, timeline, odometro, loading, error, notFound, refetch } = useVehiculoDetalle(id)
+  const { patente, inspecciones, timeline, odometro, otsPendientes, loading, error, notFound, refetch } =
+    useVehiculoDetalle(id)
   const {
     documentos,
     loading: loadingDocumentos,
     error: errorDocumentos,
     refetch: refetchDocumentos,
   } = useDocumentosVehiculo(patente?.id, patente?.patente)
+  const disponibilidad = useDisponibilidad(!!patente, patente?.id)
 
   const [filtro, setFiltro] = useState<Record<TipoEventoTimeline, boolean>>({
     inspeccion: true,
@@ -148,9 +153,17 @@ export function VehiculoDetalle() {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [modalOpen, setModalOpen] = useState(false)
+  const [estadoModalInicial, setEstadoModalInicial] = useState<EstadoVehiculo | null>(null)
   const [documentoEnEdicion, setDocumentoEnEdicion] = useState<DocumentoVencimiento | null>(null)
 
   const puedeGestionarFlota = perfil?.rol === 'encargado' || perfil?.rol === 'admin'
+  const mostrarBannerAlta =
+    puedeGestionarFlota && !!patente && patente.estado_actual !== 'operativo' && otsPendientes === 0
+
+  function abrirModalEstado(estadoInicial: EstadoVehiculo | null) {
+    setEstadoModalInicial(estadoInicial)
+    setModalOpen(true)
+  }
 
   function toggleTipo(t: TipoEventoTimeline) {
     setFiltro(prev => ({ ...prev, [t]: !prev[t] }))
@@ -222,16 +235,29 @@ export function VehiculoDetalle() {
           </div>
         </div>
         {puedeGestionarFlota && (
-          <button onClick={() => setModalOpen(true)} className="btn-secondary btn-sm shrink-0">
+          <button onClick={() => abrirModalEstado(null)} className="btn-secondary btn-sm shrink-0">
             Cambiar estado
           </button>
         )}
       </div>
 
+      {mostrarBannerAlta && (
+        <div className="bg-warn/10 border border-warn/30 rounded-xl p-4 mb-6 flex items-center justify-between gap-4 flex-wrap">
+          <p className="text-sm text-gray-700">
+            Este vehículo no tiene fallas activas pendientes pero sigue marcado como{' '}
+            <span className="font-semibold">{ESTADO_VEHICULO_INFO[patente.estado_actual].label}</span>.
+            ¿Actualizar a Operativo?
+          </p>
+          <button onClick={() => abrirModalEstado('operativo')} className="btn-primary btn-sm shrink-0">
+            Actualizar a Operativo
+          </button>
+        </div>
+      )}
+
       {modalOpen && (
         <CambiarEstadoModal
           patenteId={patente.id}
-          estadoActual={patente.estado_actual}
+          estadoActual={estadoModalInicial ?? patente.estado_actual}
           onClose={() => setModalOpen(false)}
           onSaved={() => {
             setModalOpen(false)
@@ -294,6 +320,21 @@ export function VehiculoDetalle() {
           )}
         </>
       )}
+
+      {/* Disponibilidad */}
+      <div className="mt-10">
+        <div className="flex items-baseline justify-between mb-4">
+          <h2 className="font-semibold text-dark text-sm">Disponibilidad</h2>
+          <span className="text-xs text-gray-400">Últimos 30 días</span>
+        </div>
+        <div className="card">
+          <DisponibilidadWidget
+            data={disponibilidad.disponibilidad}
+            loading={disponibilidad.loading}
+            error={disponibilidad.error}
+          />
+        </div>
+      </div>
 
       {/* Documentos y vencimientos */}
       <div className="mt-10">
