@@ -52,6 +52,11 @@ export function Header() {
               Vehículos
             </NavLink>
           )}
+          {(perfil?.rol === 'encargado' || perfil?.rol === 'admin') && (
+            <NavLink to="/vencimientos" className={navLinkClass}>
+              Vencimientos
+            </NavLink>
+          )}
           {perfil?.rol === 'admin' && (
             <NavLink to="/maestros" className={navLinkClass}>
               Maestros

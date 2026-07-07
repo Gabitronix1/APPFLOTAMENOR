@@ -11,6 +11,7 @@ import { Checklist } from './pages/Checklist'
 import { Intervencion } from './pages/Intervencion'
 import { Vehiculos } from './pages/Vehiculos'
 import { VehiculoDetalle } from './pages/VehiculoDetalle'
+import { Vencimientos } from './pages/Vencimientos'
 
 function AppLayout() {
   return (
@@ -28,6 +29,7 @@ function AppLayout() {
             <Route path="resoluciones" element={<Resoluciones />} />
             <Route path="vehiculos" element={<Vehiculos />} />
             <Route path="vehiculos/:id" element={<VehiculoDetalle />} />
+            <Route path="vencimientos" element={<Vencimientos />} />
           </Route>
           <Route element={<RequireRol roles={['admin']} />}>
             <Route path="maestros" element={<Maestros />} />

@@ -2,12 +2,14 @@ import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useVehiculoDetalle } from '../hooks/useVehiculoDetalle'
+import { useDocumentosVehiculo } from '../hooks/useDocumentosVehiculo'
 import {
   TIPOS_EVENTO_TIMELINE,
   TIPO_EVENTO_INFO,
   sumaFallasActivas,
   sumaFallasHistoricas,
 } from '../lib/vehiculos'
+import { diasRestantesLabel } from '../lib/documentos'
 import { fmtDate, fmtNum, PREGUNTAS } from '../lib/constants'
 import {
   AlertTriangleIcon,
@@ -18,8 +20,11 @@ import {
   WrenchIcon,
 } from '../components/vehiculos/icons'
 import { EstadoBadge } from '../components/vehiculos/EstadoBadge'
+import { EstadoDocumentoBadge } from '../components/vehiculos/EstadoDocumentoBadge'
 import { CambiarEstadoModal } from '../components/vehiculos/CambiarEstadoModal'
-import type { TipoEventoTimeline, VInspeccion, VVehiculoTimeline } from '../types'
+import { ActualizarDocumentoModal } from '../components/vehiculos/ActualizarDocumentoModal'
+import { KpiCard } from '../components/vehiculos/KpiCard'
+import type { DocumentoVencimiento, TipoEventoTimeline, VInspeccion, VVehiculoTimeline } from '../types'
 
 const PAGE_SIZE = 20
 
@@ -36,15 +41,6 @@ function EventIcon({ tipo, className }: { tipo: TipoEventoTimeline; className?: 
     case 'cambio_estado':
       return <FlagIcon className={className} />
   }
-}
-
-function KpiCard({ label, value, accent }: { label: string; value: string | number; accent?: boolean }) {
-  return (
-    <div className="card py-3 px-4">
-      <p className="text-xs text-gray-400 mb-1">{label}</p>
-      <p className={`text-xl font-bold ${accent ? 'text-fault' : 'text-dark'}`}>{value}</p>
-    </div>
-  )
 }
 
 function InspeccionDetalle({ insp }: { insp: VInspeccion }) {
@@ -135,6 +131,12 @@ export function VehiculoDetalle() {
   const navigate = useNavigate()
   const { perfil } = useAuth()
   const { patente, inspecciones, timeline, odometro, loading, error, notFound, refetch } = useVehiculoDetalle(id)
+  const {
+    documentos,
+    loading: loadingDocumentos,
+    error: errorDocumentos,
+    refetch: refetchDocumentos,
+  } = useDocumentosVehiculo(patente?.id, patente?.patente)
 
   const [filtro, setFiltro] = useState<Record<TipoEventoTimeline, boolean>>({
     inspeccion: true,
@@ -146,8 +148,9 @@ export function VehiculoDetalle() {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [modalOpen, setModalOpen] = useState(false)
+  const [documentoEnEdicion, setDocumentoEnEdicion] = useState<DocumentoVencimiento | null>(null)
 
-  const puedeCambiarEstado = perfil?.rol === 'encargado' || perfil?.rol === 'admin'
+  const puedeGestionarFlota = perfil?.rol === 'encargado' || perfil?.rol === 'admin'
 
   function toggleTipo(t: TipoEventoTimeline) {
     setFiltro(prev => ({ ...prev, [t]: !prev[t] }))
@@ -218,7 +221,7 @@ export function VehiculoDetalle() {
             <p className="text-sm text-gray-500 mt-1">{patente.descripcion || 'Sin descripción'}</p>
           </div>
         </div>
-        {puedeCambiarEstado && (
+        {puedeGestionarFlota && (
           <button onClick={() => setModalOpen(true)} className="btn-secondary btn-sm shrink-0">
             Cambiar estado
           </button>
@@ -290,6 +293,62 @@ export function VehiculoDetalle() {
             </div>
           )}
         </>
+      )}
+
+      {/* Documentos y vencimientos */}
+      <div className="mt-10">
+        <h2 className="font-semibold text-dark text-sm mb-4">Documentos y vencimientos</h2>
+
+        {errorDocumentos && <div className="text-fault text-sm mb-4">{errorDocumentos}</div>}
+
+        {loadingDocumentos ? (
+          <div className="text-sm text-gray-400 animate-pulse">Cargando documentos...</div>
+        ) : (
+          <div className="card p-0 overflow-hidden divide-y divide-gray-100">
+            {documentos.map(doc => (
+              <div
+                key={doc.tipoDocumentoId}
+                className="flex items-center justify-between gap-4 px-5 py-4 flex-wrap"
+              >
+                <div className="min-w-0">
+                  <p className="font-semibold text-dark text-sm">{doc.tipoDocumento}</p>
+                  {doc.estado === 'sin_registro' ? (
+                    <span className="mt-1.5 inline-block">
+                      <EstadoDocumentoBadge estado="sin_registro" />
+                    </span>
+                  ) : (
+                    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                      <span className="text-xs text-gray-500">Vence {fmtDate(doc.fechaVencimiento as string)}</span>
+                      <EstadoDocumentoBadge estado={doc.estado} />
+                      <span className="text-xs text-gray-400">{diasRestantesLabel(doc.diasRestantes as number)}</span>
+                    </div>
+                  )}
+                </div>
+                {puedeGestionarFlota && (
+                  <button
+                    onClick={() => setDocumentoEnEdicion(doc)}
+                    className="btn-secondary btn-sm shrink-0"
+                  >
+                    Actualizar
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {documentoEnEdicion && (
+        <ActualizarDocumentoModal
+          patenteId={documentoEnEdicion.patenteId}
+          tipoDocumentoId={documentoEnEdicion.tipoDocumentoId}
+          tipoDocumentoNombre={documentoEnEdicion.tipoDocumento}
+          onClose={() => setDocumentoEnEdicion(null)}
+          onSaved={() => {
+            setDocumentoEnEdicion(null)
+            refetchDocumentos()
+          }}
+        />
       )}
     </div>
   )

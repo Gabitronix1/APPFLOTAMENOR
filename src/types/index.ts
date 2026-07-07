@@ -84,3 +84,37 @@ export interface VVehiculoTimeline {
   subtitulo: string | null
   operador: string | null
 }
+
+export interface TipoDocumento {
+  id: string
+  nombre: string
+}
+
+export type EstadoDocumento = 'vencido' | 'por_vencer' | 'vigente' | 'sin_registro'
+
+export interface VDocumentoVencimiento {
+  id: string
+  patente_id: string
+  patente: string
+  tipo_documento_id: string
+  tipo_documento: string
+  fecha_vencimiento: string
+  fecha_emision: string | null
+  numero_documento: string | null
+  archivo_path: string | null
+  estado: Exclude<EstadoDocumento, 'sin_registro'>
+  dias_restantes: number
+}
+
+export interface DocumentoVencimiento {
+  patenteId: string
+  patente: string
+  tipoDocumentoId: string
+  tipoDocumento: string
+  estado: EstadoDocumento
+  fechaVencimiento: string | null
+  diasRestantes: number | null
+  documentoId: string | null
+  numeroDocumento: string | null
+  archivoPath: string | null
+}
