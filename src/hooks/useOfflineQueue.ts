@@ -55,10 +55,61 @@ export interface IntervencionPayload {
   fallas?: { tipo_falla: string }[]
 }
 
+export interface IntervencionMaquinariaPayload {
+  type: 'intervencion_maquinaria_preventiva' | 'intervencion_maquinaria_correctiva' | 'intervencion_maquinaria_otra'
+  intervencion: {
+    responsable_id: string
+    maquinaria_id: string
+    linea_id: string
+    turno_id: string | null
+    actividad_id: string | null
+    sub_equipo_id: string | null
+    horometro: number
+    imagen_path: string | null
+    tipo: 'PREVENTIVA' | 'CORRECTIVA' | 'OTRA'
+    fecha_inicio: string
+    hora_inicio: string
+    f_registro: string
+    uuid_local: string
+  }
+  preventiva?: {
+    tipo_preventiva_id: string | null
+    descripcion: string
+    imagen_path: string | null
+    fecha_termino: string
+    hora_termino: string
+    condicion_equipo_id: string | null
+    costo: number | null
+  }
+  desviaciones?: { descripcion: string }[]
+  correctiva?: {
+    hora_aviso_falla: string
+    descripcion_falla: string
+    imagen_falla_path: string | null
+    sistema_id: string | null
+    codigo_falla_id: string | null
+    causa_probable: string
+    solucion_propuesta: string
+    fecha_termino: string
+    hora_termino: string
+    condicion_equipo_id: string | null
+    costo: number | null
+  }
+  otra?: {
+    tarea_id: string | null
+    descripcion: string
+    fecha_termino: string
+    hora_termino: string
+    condicion_equipo_id: string | null
+    costo: number | null
+  }
+  insumos?: { producto_id: string; codigo_barras: string | null; cantidad: number }[]
+}
+
 export type QueueItem = {
   id: string
   timestamp: number
-  data: ChecklistPayload | IntervencionPayload
+  data: ChecklistPayload | IntervencionPayload | IntervencionMaquinariaPayload
 }
 
 /* ─── LocalStorage helpers ─── */
@@ -123,11 +174,56 @@ async function syncIntervencion(payload: IntervencionPayload): Promise<void> {
   }
 }
 
+async function syncIntervencionMaquinaria(payload: IntervencionMaquinariaPayload): Promise<void> {
+  const { data: inv, error: invErr } = await supabase
+    .from('intervenciones_maquinaria')
+    .insert(payload.intervencion)
+    .select('id')
+    .single()
+  if (invErr || !inv) throw invErr ?? new Error('No se pudo insertar intervención de maquinaria')
+  const invId = (inv as { id: string }).id
+
+  if (payload.type === 'intervencion_maquinaria_preventiva' && payload.preventiva) {
+    const { data: prev, error: prevErr } = await supabase
+      .from('intervenciones_preventiva_maquinaria')
+      .insert({ ...payload.preventiva, intervencion_id: invId })
+      .select('id')
+      .single()
+    if (prevErr || !prev) throw prevErr ?? new Error('No se pudo insertar preventiva')
+    if (payload.desviaciones?.length) {
+      const prevId = (prev as { id: string }).id
+      const { error: desvErr } = await supabase
+        .from('desviaciones_preventiva_maquinaria')
+        .insert(payload.desviaciones.map(d => ({ ...d, preventiva_id: prevId })))
+      if (desvErr) throw desvErr
+    }
+  } else if (payload.type === 'intervencion_maquinaria_correctiva' && payload.correctiva) {
+    const { error } = await supabase
+      .from('intervenciones_correctiva_maquinaria')
+      .insert({ ...payload.correctiva, intervencion_id: invId })
+    if (error) throw error
+  } else if (payload.type === 'intervencion_maquinaria_otra' && payload.otra) {
+    const { error } = await supabase
+      .from('intervenciones_otra_maquinaria')
+      .insert({ ...payload.otra, intervencion_id: invId })
+    if (error) throw error
+  }
+
+  if (payload.insumos?.length) {
+    const { error: insErr } = await supabase
+      .from('insumos_intervencion_maquinaria')
+      .insert(payload.insumos.map(i => ({ ...i, intervencion_id: invId })))
+    if (insErr) throw insErr
+  }
+}
+
 async function syncItem(item: QueueItem): Promise<void> {
   if (item.data.type === 'checklist') {
     await syncChecklist(item.data)
+  } else if (item.data.type.startsWith('intervencion_maquinaria_')) {
+    await syncIntervencionMaquinaria(item.data as IntervencionMaquinariaPayload)
   } else {
-    await syncIntervencion(item.data)
+    await syncIntervencion(item.data as IntervencionPayload)
   }
 }
 
@@ -151,7 +247,7 @@ export function useOfflineQueue() {
     syncingRef.current = false
   }, [])
 
-  const enqueue = useCallback((data: ChecklistPayload | IntervencionPayload) => {
+  const enqueue = useCallback((data: ChecklistPayload | IntervencionPayload | IntervencionMaquinariaPayload) => {
     const item: QueueItem = { id: crypto.randomUUID(), timestamp: Date.now(), data }
     setQueueState(prev => {
       const next = [...prev, item]

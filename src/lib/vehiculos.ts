@@ -34,6 +34,7 @@ export const TIPO_EVENTO_INFO: Record<
   inspeccion: { label: 'Inspección', labelPlural: 'Inspecciones', iconBg: 'bg-blue-50', iconColor: 'text-blue-600' },
   preventiva: { label: 'Preventiva', labelPlural: 'Preventivas', iconBg: 'bg-primary/10', iconColor: 'text-primary' },
   correctiva: { label: 'Correctiva', labelPlural: 'Correctivas', iconBg: 'bg-orange-50', iconColor: 'text-orange-600' },
+  otra: { label: 'Otra', labelPlural: 'Otras', iconBg: 'bg-blue-50', iconColor: 'text-blue-600' },
   resolucion: { label: 'Resolución', labelPlural: 'Resoluciones', iconBg: 'bg-dark/10', iconColor: 'text-dark' },
   cambio_estado: { label: 'Cambio de estado', labelPlural: 'Cambios de estado', iconBg: 'bg-purple-50', iconColor: 'text-purple-600' },
 }

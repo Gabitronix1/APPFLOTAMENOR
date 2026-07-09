@@ -8,12 +8,17 @@ import { useDisponibilidad } from '../hooks/useDisponibilidad'
 import { useCostoMensual } from '../hooks/useCostoMensual'
 import { useOTUrgentes } from '../hooks/useOTUrgentes'
 import { useVencimientosResumen } from '../hooks/useVencimientosResumen'
+import { useEstadoFlotaMaquinaria } from '../hooks/useEstadoFlotaMaquinaria'
+import { useDisponibilidadMaquinaria } from '../hooks/useDisponibilidadMaquinaria'
+import { useCostoMensualMaquinaria } from '../hooks/useCostoMensualMaquinaria'
 import { CollapsibleSection } from '../components/dashboard/CollapsibleSection'
 import { PanelSection } from '../components/dashboard/PanelSection'
 import { SemaforoFlota } from '../components/dashboard/SemaforoFlota'
 import { VehiculosAtencion } from '../components/dashboard/VehiculosAtencion'
+import { MaquinariasAtencion } from '../components/dashboard/MaquinariasAtencion'
 import { DisponibilidadWidget } from '../components/dashboard/DisponibilidadWidget'
 import { CostoMantencion } from '../components/dashboard/CostoMantencion'
+import { CostoMantencionMaquinaria } from '../components/dashboard/CostoMantencionMaquinaria'
 import { OTUrgentesSection } from '../components/dashboard/OTUrgentesSection'
 import { DocumentosPorVencer } from '../components/dashboard/DocumentosPorVencer'
 import { FilterBar } from '../components/dashboard/FilterBar'
@@ -25,7 +30,7 @@ import { SecCobertura } from '../components/dashboard/SecCobertura'
 import { SecVisualizacion } from '../components/dashboard/SecVisualizacion'
 import { fmtDate } from '../lib/constants'
 import { esRolAdministrativo } from '../lib/roles'
-import type { EstadoVehiculo, VInspeccion } from '../types'
+import type { EstadoMaquinaria, EstadoVehiculo, VInspeccion } from '../types'
 
 function applyFilters(data: VInspeccion[], f: Filters): VInspeccion[] {
   return data.filter(r => {
@@ -47,12 +52,16 @@ function DashboardContent() {
 
   const puedeGestionarFlota = esRolAdministrativo(perfil?.rol)
   const [estadoSeleccionado, setEstadoSeleccionado] = useState<EstadoVehiculo | null>(null)
+  const [estadoMaquinariaSeleccionado, setEstadoMaquinariaSeleccionado] = useState<EstadoMaquinaria | null>(null)
 
   const estadoFlota = useEstadoFlota(puedeGestionarFlota)
   const disponibilidad = useDisponibilidad(puedeGestionarFlota)
   const costoMensual = useCostoMensual(puedeGestionarFlota)
   const otUrgentes = useOTUrgentes(puedeGestionarFlota)
   const vencimientos = useVencimientosResumen(puedeGestionarFlota)
+  const estadoFlotaMaquinaria = useEstadoFlotaMaquinaria(puedeGestionarFlota)
+  const disponibilidadMaquinaria = useDisponibilidadMaquinaria(puedeGestionarFlota)
+  const costoMensualMaquinaria = useCostoMensualMaquinaria(puedeGestionarFlota)
 
   const filteredData = useMemo(
     () => applyFilters(allInspecciones, filters),
@@ -146,6 +155,48 @@ function DashboardContent() {
 
           <PanelSection title="Órdenes de trabajo urgentes">
             <OTUrgentesSection items={otUrgentes.items} loading={otUrgentes.loading} error={otUrgentes.error} />
+          </PanelSection>
+
+          <div className="border-b border-gray-200 mb-6" />
+
+          <h2 className="text-xl font-bold text-dark mb-1">Flota Mayor</h2>
+          <p className="text-sm text-gray-500 mb-5">Estado general de maquinarias, ahora mismo.</p>
+
+          <PanelSection title="Semáforo de maquinarias ahora mismo" hint="Click en un chip filtra la lista de abajo">
+            <SemaforoFlota
+              counts={estadoFlotaMaquinaria.counts}
+              loading={estadoFlotaMaquinaria.loading}
+              selected={estadoMaquinariaSeleccionado}
+              onSelect={setEstadoMaquinariaSeleccionado}
+            />
+          </PanelSection>
+
+          <PanelSection title="Maquinarias que requieren atención">
+            <MaquinariasAtencion
+              maquinarias={estadoFlotaMaquinaria.maquinarias}
+              filtroEstado={estadoMaquinariaSeleccionado}
+              loading={estadoFlotaMaquinaria.loading}
+              error={estadoFlotaMaquinaria.error}
+            />
+          </PanelSection>
+
+          <PanelSection title="Disponibilidad de maquinarias" hint="Últimos 30 días">
+            <div className="card">
+              <DisponibilidadWidget
+                data={disponibilidadMaquinaria.disponibilidad}
+                loading={disponibilidadMaquinaria.loading}
+                error={disponibilidadMaquinaria.error}
+              />
+            </div>
+          </PanelSection>
+
+          <PanelSection title="Costo de mantención este mes">
+            <CostoMantencionMaquinaria
+              total={costoMensualMaquinaria.total}
+              top5={costoMensualMaquinaria.top5}
+              loading={costoMensualMaquinaria.loading}
+              error={costoMensualMaquinaria.error}
+            />
           </PanelSection>
 
           <div className="border-b border-gray-200 mb-6" />

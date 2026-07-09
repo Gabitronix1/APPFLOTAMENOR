@@ -9,12 +9,16 @@ import { OrdenesTrabajo } from './pages/OrdenesTrabajo'
 import { Maestros } from './pages/Maestros'
 import { Checklist } from './pages/Checklist'
 import { Intervencion } from './pages/Intervencion'
+import { IntervencionMaquinaria } from './pages/IntervencionMaquinaria'
 import { Vehiculos } from './pages/Vehiculos'
 import { VehiculoDetalle } from './pages/VehiculoDetalle'
 import { Vencimientos } from './pages/Vencimientos'
+import { Maquinarias } from './pages/Maquinarias'
+import { MaquinariaDetalle } from './pages/MaquinariaDetalle'
 import {
   ROLES_ADMINISTRATIVOS,
   ROLES_INTERVENCION,
+  ROLES_INTERVENCION_MAQUINARIA,
   ROLES_MAESTROS,
   ROLES_ORDENES_TRABAJO,
   getDefaultRoute,
@@ -36,6 +40,9 @@ function AppLayout() {
           <Route element={<RequireRol roles={ROLES_INTERVENCION} />}>
             <Route path="intervencion" element={<Intervencion />} />
           </Route>
+          <Route element={<RequireRol roles={ROLES_INTERVENCION_MAQUINARIA} />}>
+            <Route path="intervencion-maquinaria" element={<IntervencionMaquinaria />} />
+          </Route>
           <Route element={<RequireRol roles={ROLES_ORDENES_TRABAJO} />}>
             <Route path="ordenes-trabajo" element={<OrdenesTrabajo />} />
           </Route>
@@ -44,6 +51,8 @@ function AppLayout() {
             <Route path="vehiculos" element={<Vehiculos />} />
             <Route path="vehiculos/:id" element={<VehiculoDetalle />} />
             <Route path="vencimientos" element={<Vencimientos />} />
+            <Route path="maquinarias" element={<Maquinarias />} />
+            <Route path="maquinarias/:id" element={<MaquinariaDetalle />} />
           </Route>
           <Route element={<RequireRol roles={ROLES_MAESTROS} />}>
             <Route path="maestros" element={<Maestros />} />

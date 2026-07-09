@@ -148,6 +148,7 @@ export function VehiculoDetalle() {
     inspeccion: true,
     preventiva: true,
     correctiva: true,
+    otra: true,
     resolucion: true,
     cambio_estado: true,
   })

@@ -97,7 +97,7 @@ export interface Fundo {
 
 export type TipoResolucion = 'resuelto' | 'derivado' | 'pendiente'
 
-export type TipoEventoTimeline = 'inspeccion' | 'preventiva' | 'correctiva' | 'resolucion' | 'cambio_estado'
+export type TipoEventoTimeline = 'inspeccion' | 'preventiva' | 'correctiva' | 'otra' | 'resolucion' | 'cambio_estado'
 
 export interface VVehiculoTimeline {
   id: string
@@ -152,6 +152,109 @@ export interface Disponibilidad {
 export interface CostoVehiculo {
   patente_id: string
   patente: string
+  mes: string
+  costo_total: number
+}
+
+/* ─── Flota Mayor (Maquinaria) ─── */
+
+// Maquinaria reutiliza el mismo semáforo operativo de 5 estados que Vehículo.
+export type EstadoMaquinaria = EstadoVehiculo
+
+export interface CategoriaMaquinaria {
+  id: string
+  nombre: string
+  activo: boolean
+}
+
+export interface LineaOperacion {
+  id: string
+  codigo: string
+  nombre: string | null
+  activo: boolean
+}
+
+export interface Turno {
+  id: string
+  nombre: string
+  activo: boolean
+}
+
+export interface ActividadMaquinaria {
+  id: string
+  nombre: string
+  activo: boolean
+}
+
+export interface SubEquipo {
+  id: string
+  nombre: string
+  activo: boolean
+}
+
+export interface TipoPreventivaMaquinaria {
+  id: string
+  nombre: string
+  activo: boolean
+}
+
+export interface SistemaCorrectivoMaquinaria {
+  id: string
+  nombre: string
+  activo: boolean
+}
+
+export interface CodigoFallaMaquinaria {
+  id: string
+  nombre: string
+  sistema_id: string | null
+  activo: boolean
+}
+
+export interface TareaOtraMaquinaria {
+  id: string
+  nombre: string
+  activo: boolean
+}
+
+export interface ProductoInsumo {
+  id: string
+  nombre: string
+  codigo_barras: string | null
+  activo: boolean
+}
+
+export interface CondicionEquipo {
+  id: string
+  nombre: string
+  activo: boolean
+}
+
+export interface Maquinaria {
+  id: string
+  codigo: string
+  nombre: string
+  categoria_id: string | null
+  descripcion: string | null
+  activo: boolean
+  estado_actual: EstadoMaquinaria
+}
+
+export type TipoIntervencionMaquinaria = 'PREVENTIVA' | 'CORRECTIVA' | 'OTRA'
+
+export interface VMaquinariaTimeline {
+  id: string
+  maquinaria_id: string
+  tipo: TipoEventoTimeline
+  fecha: string
+  titulo: string
+  subtitulo: string | null
+  operador: string | null
+}
+
+export interface CostoMaquinaria {
+  maquinaria_id: string
+  codigo: string
   mes: string
   costo_total: number
 }

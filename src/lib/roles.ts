@@ -23,6 +23,8 @@ export const ROLES_JEFES: Rol[] = ['jefe_maquinarias', 'jefe_cdg']
 
 export const ROLES_INTERVENCION: Rol[] = ['mecanico_flota_menor', 'jefe_maquinarias', 'jefe_cdg']
 
+export const ROLES_INTERVENCION_MAQUINARIA: Rol[] = ['mecanico_maquinaria', 'jefe_maquinarias', 'jefe_cdg']
+
 export const ROLES_ORDENES_TRABAJO: Rol[] = ['mecanico_flota_menor', ...ROLES_ADMINISTRATIVOS]
 
 export const ROLES_MAESTROS: Rol[] = ROLES_JEFES

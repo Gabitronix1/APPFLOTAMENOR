@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { LogoTriangulos } from './LogoTriangulos'
@@ -7,9 +7,52 @@ import {
   ROL_LABELS,
   ROLES_ADMINISTRATIVOS,
   ROLES_INTERVENCION,
+  ROLES_INTERVENCION_MAQUINARIA,
   ROLES_JEFES,
   ROLES_ORDENES_TRABAJO,
 } from '../lib/roles'
+
+function NavDropdown({ label, children }: { label: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className={`text-sm font-medium transition-colors flex items-center gap-1 ${open ? 'text-white' : 'text-gray-300 hover:text-white'}`}
+      >
+        {label}
+        <svg
+          viewBox="0 0 24 24"
+          className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-180' : ''}`}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+      {open && (
+        <div
+          onClick={() => setOpen(false)}
+          className="absolute left-0 mt-2 w-56 bg-dark border border-white/10 rounded-xl shadow-xl overflow-hidden py-1 z-50"
+        >
+          {children}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export function Header() {
   const { perfil, signOut } = useAuth()
@@ -26,6 +69,20 @@ export function Header() {
       isActive ? 'text-lime' : 'text-gray-300 hover:text-white'
     }`
 
+  const dropdownLinkClass = ({ isActive }: { isActive: boolean }) =>
+    `block px-4 py-2.5 text-sm transition-colors ${
+      isActive ? 'text-lime bg-white/5' : 'text-gray-300 hover:text-white hover:bg-white/5'
+    }`
+
+  const puedeIntervencion = !!perfil && ROLES_INTERVENCION.includes(perfil.rol)
+  const puedeOT = !!perfil && ROLES_ORDENES_TRABAJO.includes(perfil.rol)
+  const puedeAdmin = !!perfil && ROLES_ADMINISTRATIVOS.includes(perfil.rol)
+  const puedeIntervencionMaquinaria = !!perfil && ROLES_INTERVENCION_MAQUINARIA.includes(perfil.rol)
+  const puedeJefe = !!perfil && ROLES_JEFES.includes(perfil.rol)
+
+  const mostrarFlotaMenor = puedeIntervencion || puedeOT || puedeAdmin
+  const mostrarFlotaMayor = puedeIntervencionMaquinaria || puedeAdmin
+
   return (
     <header className="bg-dark border-b border-white/10 sticky top-0 z-50 print:hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
@@ -41,32 +98,41 @@ export function Header() {
           <NavLink to="/checklist" className={navLinkClass}>
             Checklist
           </NavLink>
-          {!!perfil && ROLES_INTERVENCION.includes(perfil.rol) && (
-            <NavLink to="/intervencion" className={navLinkClass}>
-              Intervención
-            </NavLink>
+
+          {mostrarFlotaMenor && (
+            <NavDropdown label="Flota Menor">
+              {puedeIntervencion && (
+                <NavLink to="/intervencion" className={dropdownLinkClass}>Intervención</NavLink>
+              )}
+              {puedeOT && (
+                <NavLink to="/ordenes-trabajo" className={dropdownLinkClass}>Órdenes de trabajo</NavLink>
+              )}
+              {puedeAdmin && (
+                <NavLink to="/vehiculos" className={dropdownLinkClass}>Vehículos</NavLink>
+              )}
+              {puedeAdmin && (
+                <NavLink to="/vencimientos" className={dropdownLinkClass}>Vencimientos</NavLink>
+              )}
+            </NavDropdown>
           )}
-          {!!perfil && ROLES_ADMINISTRATIVOS.includes(perfil.rol) && (
+
+          {mostrarFlotaMayor && (
+            <NavDropdown label="Flota Mayor">
+              {puedeIntervencionMaquinaria && (
+                <NavLink to="/intervencion-maquinaria" className={dropdownLinkClass}>Intervención Maquinaria</NavLink>
+              )}
+              {puedeAdmin && (
+                <NavLink to="/maquinarias" className={dropdownLinkClass}>Maquinarias</NavLink>
+              )}
+            </NavDropdown>
+          )}
+
+          {puedeAdmin && (
             <NavLink to="/dashboard" className={navLinkClass}>
               Dashboard
             </NavLink>
           )}
-          {!!perfil && ROLES_ORDENES_TRABAJO.includes(perfil.rol) && (
-            <NavLink to="/ordenes-trabajo" className={navLinkClass}>
-              Órdenes de trabajo
-            </NavLink>
-          )}
-          {!!perfil && ROLES_ADMINISTRATIVOS.includes(perfil.rol) && (
-            <NavLink to="/vehiculos" className={navLinkClass}>
-              Vehículos
-            </NavLink>
-          )}
-          {!!perfil && ROLES_ADMINISTRATIVOS.includes(perfil.rol) && (
-            <NavLink to="/vencimientos" className={navLinkClass}>
-              Vencimientos
-            </NavLink>
-          )}
-          {!!perfil && ROLES_JEFES.includes(perfil.rol) && (
+          {puedeJefe && (
             <NavLink to="/maestros" className={navLinkClass}>
               Maestros
             </NavLink>
