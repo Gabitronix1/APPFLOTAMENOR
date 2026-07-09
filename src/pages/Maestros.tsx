@@ -155,7 +155,7 @@ function PatentesTab() {
 
   useEffect(() => {
     void supabase
-      .from('categorias_patente')
+      .from('categorias_vehiculo')
       .select('*')
       .eq('activo', true)
       .order('nombre')

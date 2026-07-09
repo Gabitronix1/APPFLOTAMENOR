@@ -42,7 +42,7 @@ export function useVehiculos(): State {
           'patente_id, fecha',
           { column: 'fecha', ascending: false },
         ),
-        fetchAllPages<CategoriaPatente>('categorias_patente', '*'),
+        fetchAllPages<CategoriaPatente>('categorias_vehiculo', '*'),
       ])
       const map = new Map<string, string>()
       for (const r of rows) {

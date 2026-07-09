@@ -291,7 +291,7 @@ export function VehiculoDetalle() {
           </div>
           <div>
             <p className="text-xs text-gray-400">Año</p>
-            <p className="text-sm font-medium text-dark">{patente.anio ?? '—'}</p>
+            <p className="text-sm font-medium text-dark">{patente.anno ?? '—'}</p>
           </div>
           <div>
             <p className="text-xs text-gray-400">VIN</p>
@@ -299,7 +299,7 @@ export function VehiculoDetalle() {
           </div>
           <div>
             <p className="text-xs text-gray-400">N° Motor</p>
-            <p className="text-sm font-medium text-dark font-mono">{patente.numero_motor || '—'}</p>
+            <p className="text-sm font-medium text-dark font-mono">{patente.motor || '—'}</p>
           </div>
           <div>
             <p className="text-xs text-gray-400 mb-0.5">Condición</p>

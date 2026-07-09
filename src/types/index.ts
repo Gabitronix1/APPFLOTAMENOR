@@ -97,9 +97,9 @@ export interface Patente {
   categoria_id: string | null
   marca: string | null
   modelo: string | null
-  anio: number | null
+  anno: number | null
   vin: string | null
-  numero_motor: string | null
+  motor: string | null
   condicion: CondicionVehiculo | null
   area: string | null
   linea: string | null
@@ -261,8 +261,8 @@ export interface Maquinaria {
   marca: string | null
   modelo: string | null
   serie: string | null
-  anio: number | null
-  numero_motor: string | null
+  anno: number | null
+  n_motor: string | null
   rendimiento_teorico: number | null
   patente: string | null
   horometro_llegada: number | null

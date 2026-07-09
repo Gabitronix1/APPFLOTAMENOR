@@ -160,11 +160,11 @@ export function MaquinariaDetalle() {
           </div>
           <div>
             <p className="text-xs text-gray-400">Año</p>
-            <p className="text-sm font-medium text-dark">{maquinaria.anio ?? '—'}</p>
+            <p className="text-sm font-medium text-dark">{maquinaria.anno ?? '—'}</p>
           </div>
           <div>
             <p className="text-xs text-gray-400">N° Motor</p>
-            <p className="text-sm font-medium text-dark font-mono">{maquinaria.numero_motor || '—'}</p>
+            <p className="text-sm font-medium text-dark font-mono">{maquinaria.n_motor || '—'}</p>
           </div>
           <div>
             <p className="text-xs text-gray-400">Rendimiento teórico</p>
