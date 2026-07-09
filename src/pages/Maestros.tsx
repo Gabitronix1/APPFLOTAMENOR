@@ -157,7 +157,6 @@ function PatentesTab() {
     void supabase
       .from('categorias_vehiculo')
       .select('*')
-      .eq('activo', true)
       .order('nombre')
       .then(({ data }) => setCategorias((data ?? []) as unknown as CategoriaPatente[]))
   }, [])
@@ -309,20 +308,23 @@ interface ColumnaDef<T> {
   render?: (row: T) => ReactNode
 }
 
-interface CatalogCrudTabProps<T extends { id: string; activo: boolean }> {
+interface CatalogCrudTabProps<T extends { id: string }> {
   table: string
   nombreSingular: string
   campos: CampoDef<T>[]
   orderBy: string
   columnas?: ColumnaDef<T>[]
+  // Los catálogos de Flota Mayor no tienen columna `activo` en la base de datos.
+  sinEstado?: boolean
 }
 
-function CatalogCrudTab<T extends { id: string; activo: boolean }>({
+function CatalogCrudTab<T extends { id: string }>({
   table,
   nombreSingular,
   campos,
   orderBy,
   columnas,
+  sinEstado,
 }: CatalogCrudTabProps<T>) {
   const [rows, setRows] = useState<T[]>([])
   const [loading, setLoading] = useState(true)
@@ -344,7 +346,7 @@ function CatalogCrudTab<T extends { id: string; activo: boolean }>({
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setSaving(true)
-    const payload: Record<string, unknown> = { activo: true }
+    const payload: Record<string, unknown> = sinEstado ? {} : { activo: true }
     for (const c of campos) {
       const raw = form[c.key]?.trim() ?? ''
       payload[c.key] = raw || null
@@ -358,7 +360,8 @@ function CatalogCrudTab<T extends { id: string; activo: boolean }>({
   }
 
   async function toggleActivo(row: T) {
-    await supabase.from(table).update({ activo: !row.activo }).eq('id', row.id)
+    const activo = (row as unknown as { activo?: boolean }).activo
+    await supabase.from(table).update({ activo: !activo }).eq('id', row.id)
     void load()
   }
 
@@ -421,34 +424,41 @@ function CatalogCrudTab<T extends { id: string; activo: boolean }>({
                 {cols.map((c) => (
                   <th key={c.key} className="table-th">{c.label}</th>
                 ))}
-                <th className="table-th text-center">Estado</th>
-                <th className="table-th"></th>
+                {!sinEstado && <th className="table-th text-center">Estado</th>}
+                {!sinEstado && <th className="table-th"></th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {rows.length === 0 && (
-                <tr><td colSpan={cols.length + 2} className="table-td text-center text-gray-400 py-8">Sin registros.</td></tr>
+                <tr><td colSpan={cols.length + (sinEstado ? 0 : 2)} className="table-td text-center text-gray-400 py-8">Sin registros.</td></tr>
               )}
-              {rows.map((row) => (
-                <tr key={row.id} className="hover:bg-gray-50">
-                  {cols.map((c) => (
-                    <td key={c.key} className="table-td">
-                      {c.render ? c.render(row) : String((row as unknown as Record<string, unknown>)[c.key] ?? '—')}
-                    </td>
-                  ))}
-                  <td className="table-td text-center">
-                    {row.activo ? <span className="badge-ok">Activo</span> : <span className="badge-fault">Inactivo</span>}
-                  </td>
-                  <td className="table-td text-right">
-                    <button
-                      onClick={() => void toggleActivo(row)}
-                      className={`text-xs font-medium underline ${row.activo ? 'text-fault' : 'text-primary'}`}
-                    >
-                      {row.activo ? 'Desactivar' : 'Activar'}
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {rows.map((row) => {
+                const activo = (row as unknown as { activo?: boolean }).activo
+                return (
+                  <tr key={row.id} className="hover:bg-gray-50">
+                    {cols.map((c) => (
+                      <td key={c.key} className="table-td">
+                        {c.render ? c.render(row) : String((row as unknown as Record<string, unknown>)[c.key] ?? '—')}
+                      </td>
+                    ))}
+                    {!sinEstado && (
+                      <td className="table-td text-center">
+                        {activo ? <span className="badge-ok">Activo</span> : <span className="badge-fault">Inactivo</span>}
+                      </td>
+                    )}
+                    {!sinEstado && (
+                      <td className="table-td text-right">
+                        <button
+                          onClick={() => void toggleActivo(row)}
+                          className={`text-xs font-medium underline ${activo ? 'text-fault' : 'text-primary'}`}
+                        >
+                          {activo ? 'Desactivar' : 'Activar'}
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         )}
@@ -464,7 +474,6 @@ function MaquinariasTab() {
     void supabase
       .from('categorias_maquinaria')
       .select('*')
-      .eq('activo', true)
       .order('nombre')
       .then(({ data }) => setCategorias((data ?? []) as unknown as CategoriaMaquinaria[]))
   }, [])
@@ -507,7 +516,6 @@ function CodigosFallaTab() {
     void supabase
       .from('sistemas_correctivo_maquinaria')
       .select('*')
-      .eq('activo', true)
       .order('nombre')
       .then(({ data }) => setSistemas((data ?? []) as unknown as SistemaCorrectivoMaquinaria[]))
   }, [])
@@ -519,13 +527,16 @@ function CodigosFallaTab() {
     <CatalogCrudTab<CodigoFallaMaquinaria>
       table="codigos_falla_maquinaria"
       nombreSingular="código de falla"
-      orderBy="nombre"
+      orderBy="codigo"
+      sinEstado
       campos={[
-        { key: 'nombre', label: 'Nombre / código' },
+        { key: 'codigo', label: 'Código', uppercase: true, placeholder: 'Ej: MOT-01' },
+        { key: 'descripcion', label: 'Descripción (opcional)', required: false },
         { key: 'sistema_id', label: 'Sistema (opcional)', type: 'select', options: sistemaOptions, required: false },
       ]}
       columnas={[
-        { key: 'nombre', label: 'Nombre / código' },
+        { key: 'codigo', label: 'Código' },
+        { key: 'descripcion', label: 'Descripción', render: (row) => row.descripcion || '—' },
         {
           key: 'sistema_id',
           label: 'Sistema',
@@ -626,6 +637,7 @@ export function Maestros() {
               table="categorias_maquinaria"
               nombreSingular="categoría"
               orderBy="nombre"
+              sinEstado
               campos={[{ key: 'nombre', label: 'Nombre' }]}
             />
           )}
@@ -634,6 +646,7 @@ export function Maestros() {
               table="lineas_operacion"
               nombreSingular="línea"
               orderBy="codigo"
+              sinEstado
               campos={[
                 { key: 'codigo', label: 'Código', uppercase: true, placeholder: 'Ej: P1' },
                 { key: 'nombre', label: 'Nombre (opcional)', required: false },
@@ -641,13 +654,14 @@ export function Maestros() {
             />
           )}
           {tabMayor === 'turnos' && (
-            <CatalogCrudTab<Turno> table="turnos" nombreSingular="turno" orderBy="nombre" campos={[{ key: 'nombre', label: 'Nombre' }]} />
+            <CatalogCrudTab<Turno> table="turnos" nombreSingular="turno" orderBy="nombre" sinEstado campos={[{ key: 'nombre', label: 'Nombre' }]} />
           )}
           {tabMayor === 'actividades' && (
             <CatalogCrudTab<ActividadMaquinaria>
               table="actividades_maquinaria"
               nombreSingular="actividad"
               orderBy="nombre"
+              sinEstado
               campos={[{ key: 'nombre', label: 'Nombre' }]}
             />
           )}
@@ -656,6 +670,7 @@ export function Maestros() {
               table="sub_equipos"
               nombreSingular="sub equipo"
               orderBy="nombre"
+              sinEstado
               campos={[{ key: 'nombre', label: 'Nombre' }]}
             />
           )}
@@ -664,6 +679,7 @@ export function Maestros() {
               table="tipos_preventiva_maquinaria"
               nombreSingular="tipo preventiva"
               orderBy="nombre"
+              sinEstado
               campos={[{ key: 'nombre', label: 'Nombre' }]}
             />
           )}
@@ -672,6 +688,7 @@ export function Maestros() {
               table="sistemas_correctivo_maquinaria"
               nombreSingular="sistema"
               orderBy="nombre"
+              sinEstado
               campos={[{ key: 'nombre', label: 'Nombre' }]}
             />
           )}
@@ -681,6 +698,7 @@ export function Maestros() {
               table="tareas_otra_maquinaria"
               nombreSingular="tarea"
               orderBy="nombre"
+              sinEstado
               campos={[{ key: 'nombre', label: 'Nombre' }]}
             />
           )}
@@ -689,6 +707,7 @@ export function Maestros() {
               table="productos_insumo"
               nombreSingular="producto"
               orderBy="nombre"
+              sinEstado
               campos={[
                 { key: 'nombre', label: 'Nombre' },
                 { key: 'codigo_barras', label: 'Código de barras (opcional)', required: false },
@@ -699,6 +718,7 @@ export function Maestros() {
             <CatalogCrudTab<CondicionEquipo>
               table="condiciones_equipo"
               nombreSingular="condición"
+              sinEstado
               orderBy="nombre"
               campos={[{ key: 'nombre', label: 'Nombre' }]}
             />

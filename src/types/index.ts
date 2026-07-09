@@ -85,7 +85,6 @@ export type CondicionVehiculo = 'INTERNO' | 'ARRIENDO'
 export interface CategoriaPatente {
   id: string
   nombre: string
-  activo: boolean
 }
 
 export interface Patente {
@@ -184,70 +183,63 @@ export type EstadoMaquinaria = EstadoVehiculo
 export interface CategoriaMaquinaria {
   id: string
   nombre: string
-  activo: boolean
 }
 
 export interface LineaOperacion {
   id: string
   codigo: string
   nombre: string | null
-  activo: boolean
 }
 
 export interface Turno {
   id: string
   nombre: string
-  activo: boolean
 }
 
 export interface ActividadMaquinaria {
   id: string
   nombre: string
-  activo: boolean
 }
 
 export interface SubEquipo {
   id: string
   nombre: string
-  activo: boolean
 }
 
 export interface TipoPreventivaMaquinaria {
   id: string
   nombre: string
-  activo: boolean
 }
 
 export interface SistemaCorrectivoMaquinaria {
   id: string
   nombre: string
-  activo: boolean
 }
 
+// codigos_falla_maquinaria no tiene columna `nombre`: solo `codigo` y `descripcion`.
+// `nombre` aquí es una etiqueta derivada para mostrar en selects, no una columna real.
 export interface CodigoFallaMaquinaria {
   id: string
-  nombre: string
+  codigo: string
+  descripcion: string | null
   sistema_id: string | null
-  activo: boolean
+  nombre: string
 }
 
 export interface TareaOtraMaquinaria {
   id: string
   nombre: string
-  activo: boolean
 }
 
 export interface ProductoInsumo {
   id: string
   nombre: string
   codigo_barras: string | null
-  activo: boolean
 }
 
 export interface CondicionEquipo {
   id: string
   nombre: string
-  activo: boolean
 }
 
 export interface Maquinaria {

@@ -16,7 +16,7 @@ interface HistorialRow {
   maquinaria_id: string
   estado: EstadoMaquinaria
   motivo: string | null
-  created_at: string
+  fecha: string
 }
 
 interface State {
@@ -63,9 +63,9 @@ export function useEstadoFlotaMaquinaria(enabled: boolean): State {
         const histRes = maquinariaIds.length
           ? await supabase
               .from('estado_maquinaria_historial')
-              .select('maquinaria_id, estado, motivo, created_at')
+              .select('maquinaria_id, estado, motivo, fecha')
               .in('maquinaria_id', maquinariaIds)
-              .order('created_at', { ascending: false })
+              .order('fecha', { ascending: false })
           : { data: [] as HistorialRow[], error: null }
         if (histRes.error) throw histRes.error
 
@@ -84,7 +84,7 @@ export function useEstadoFlotaMaquinaria(enabled: boolean): State {
             nombre: m.nombre,
             estado: m.estado_actual,
             motivo: ultimo?.motivo ?? null,
-            fecha: ultimo?.created_at ?? null,
+            fecha: ultimo?.fecha ?? null,
           }
         })
 

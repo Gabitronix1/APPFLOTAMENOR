@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { LogoTriangulos } from './LogoTriangulos'
@@ -14,21 +15,35 @@ import {
 
 function NavDropdown({ label, children }: { label: string; children: ReactNode }) {
   const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      const target = e.target as Node
+      if (btnRef.current?.contains(target)) return
+      if (menuRef.current?.contains(target)) return
+      setOpen(false)
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  function toggle() {
+    if (!open && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect()
+      setPos({ top: rect.bottom + 8, left: rect.left })
+    }
+    setOpen(o => !o)
+  }
+
   return (
-    <div ref={ref} className="relative">
+    <div className="relative">
       <button
+        ref={btnRef}
         type="button"
-        onClick={() => setOpen(o => !o)}
+        onClick={toggle}
         className={`text-sm font-medium transition-colors flex items-center gap-1 ${open ? 'text-white' : 'text-gray-300 hover:text-white'}`}
       >
         {label}
@@ -42,13 +57,19 @@ function NavDropdown({ label, children }: { label: string; children: ReactNode }
           <path d="M6 9l6 6 6-6" />
         </svg>
       </button>
-      {open && (
+      {/* Renderizado vía portal: el <nav> tiene overflow-x-auto para scroll horizontal en
+          mobile, lo que fuerza overflow-y a "auto" (regla del spec CSS) y recortaría/haría
+          scrollable este menú si fuera hijo del <nav>. */}
+      {open && pos && createPortal(
         <div
+          ref={menuRef}
           onClick={() => setOpen(false)}
-          className="absolute left-0 mt-2 w-56 bg-dark border border-white/10 rounded-xl shadow-xl overflow-hidden py-1 z-50"
+          style={{ top: pos.top, left: pos.left }}
+          className="fixed w-56 bg-dark border border-white/10 rounded-xl shadow-xl overflow-hidden py-1 z-50"
         >
           {children}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )
