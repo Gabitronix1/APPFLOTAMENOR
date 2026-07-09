@@ -8,6 +8,12 @@
   }
 }
 
+@media print {
+  body {
+    @apply bg-white;
+  }
+}
+
 @layer components {
   .btn-primary {
     @apply bg-primary hover:bg-primary/90 text-white font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed;

@@ -2,8 +2,9 @@ import { useMemo, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useOrdenesTrabajo } from '../hooks/useOrdenesTrabajo'
 import { supabase } from '../lib/supabase'
-import { PRIORIDADES_OT, PRIORIDAD_OT_INFO } from '../lib/ordenesTrabajo'
+import { ESTADO_OT_INFO, PRIORIDADES_OT, PRIORIDAD_OT_INFO } from '../lib/ordenesTrabajo'
 import { fmtDate } from '../lib/constants'
+import { esRolAdministrativo } from '../lib/roles'
 import { FallaRow } from '../components/resoluciones/FallaRow'
 import { AsignarModal } from '../components/resoluciones/AsignarModal'
 import { CerrarDirectoModal } from '../components/resoluciones/CerrarDirectoModal'
@@ -84,8 +85,18 @@ export function OrdenesTrabajo() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">Órdenes de trabajo</h1>
-      <p className="text-sm text-gray-500 mb-6">Fallas detectadas en inspecciones, agrupadas por inspección.</p>
+      <div className="print:hidden">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">Órdenes de trabajo</h1>
+          <p className="text-sm text-gray-500 mb-6">Fallas detectadas en inspecciones, agrupadas por inspección.</p>
+        </div>
+        {esRolAdministrativo(perfil?.rol) && (
+          <button onClick={() => window.print()} className="btn-secondary btn-sm shrink-0">
+            Exportar PDF
+          </button>
+        )}
+      </div>
 
       {error && <div className="text-fault text-sm mb-4">{error}</div>}
 
@@ -194,6 +205,47 @@ export function OrdenesTrabajo() {
           })}
         </div>
       )}
+      </div>
+
+      {/* Vista de impresión */}
+      <div className="hidden print:block">
+        <h1 className="text-xl font-bold text-gray-900 mb-1">Órdenes de trabajo</h1>
+        <p className="text-xs text-gray-500 mb-4">Generado {fmtDate(new Date().toISOString())}</p>
+        <div className="space-y-4">
+          {gruposFiltrados.map(grupo => (
+            <div key={grupo.inspeccion.id} className="border border-gray-300 rounded-lg p-3 break-inside-avoid">
+              <div className="flex items-center gap-3 flex-wrap text-sm font-semibold mb-2">
+                <span className="font-mono">{grupo.inspeccion.patente}</span>
+                <span>{grupo.inspeccion.conductor}</span>
+                <span className="text-gray-500 font-normal">{grupo.inspeccion.fundo}</span>
+                <span className="text-gray-500 font-normal text-xs">{fmtDate(grupo.inspeccion.fecha)}</span>
+              </div>
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-left text-gray-500">
+                    <th className="py-1 pr-2">Sistema</th>
+                    <th className="py-1 pr-2">Observación</th>
+                    <th className="py-1 pr-2">Estado</th>
+                    <th className="py-1 pr-2">Prioridad</th>
+                    <th className="py-1">Asignado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {grupo.fallas.map(falla => (
+                    <tr key={falla.preguntaId} className="border-t border-gray-200">
+                      <td className="py-1 pr-2 font-medium">{falla.sistema}</td>
+                      <td className="py-1 pr-2">{falla.observacion ?? '—'}</td>
+                      <td className="py-1 pr-2">{falla.ot ? ESTADO_OT_INFO[falla.ot.estado].label : '—'}</td>
+                      <td className="py-1 pr-2">{falla.ot?.prioridad ? PRIORIDAD_OT_INFO[falla.ot.prioridad].label : '—'}</td>
+                      <td className="py-1">{falla.ot?.asignadoNombre ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {modal?.tipo === 'asignar' && (
         <AsignarModal ot={modal.ot} operadores={operadoresAsignables} onClose={cerrarModal} onSaved={onSaved} />

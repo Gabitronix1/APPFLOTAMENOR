@@ -24,6 +24,7 @@ import { SecCalendario } from '../components/dashboard/SecCalendario'
 import { SecCobertura } from '../components/dashboard/SecCobertura'
 import { SecVisualizacion } from '../components/dashboard/SecVisualizacion'
 import { fmtDate } from '../lib/constants'
+import { esRolAdministrativo } from '../lib/roles'
 import type { EstadoVehiculo, VInspeccion } from '../types'
 
 function applyFilters(data: VInspeccion[], f: Filters): VInspeccion[] {
@@ -44,7 +45,7 @@ function DashboardContent() {
   const { perfil } = useAuth()
   const { allInspecciones, operadores, patentes, loading, error } = useInspecciones()
 
-  const puedeGestionarFlota = perfil?.rol === 'encargado' || perfil?.rol === 'admin'
+  const puedeGestionarFlota = esRolAdministrativo(perfil?.rol)
   const [estadoSeleccionado, setEstadoSeleccionado] = useState<EstadoVehiculo | null>(null)
 
   const estadoFlota = useEstadoFlota(puedeGestionarFlota)

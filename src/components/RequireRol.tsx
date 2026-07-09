@@ -1,5 +1,6 @@
 import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { getDefaultRoute } from '../lib/roles'
 import type { Rol } from '../types'
 
 interface RequireRolProps {
@@ -18,7 +19,7 @@ export function RequireRol({ roles }: RequireRolProps) {
   }
 
   if (!perfil || !roles.includes(perfil.rol)) {
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to={getDefaultRoute(perfil?.rol)} replace />
   }
 
   return <Outlet />

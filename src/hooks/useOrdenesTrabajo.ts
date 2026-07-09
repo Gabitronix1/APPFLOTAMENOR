@@ -46,7 +46,7 @@ export function useOrdenesTrabajo(): State & { refetch: () => void } {
         const [otRes, inspRes, perfilesOpRes, operadoresRes] = await Promise.all([
           supabase.from('resoluciones').select('*').order('created_at', { ascending: false }),
           supabase.from('v_inspecciones').select('*').gt('n_fallas', 0).order('fecha', { ascending: false }),
-          supabase.from('perfiles').select('id').eq('rol', 'operador'),
+          supabase.from('perfiles').select('id').in('rol', ['mecanico_flota_menor', 'mecanico_maquinaria']),
           supabase.from('operadores').select('*').eq('activo', true).order('apellido', { ascending: true }),
         ])
         if (otRes.error) throw otRes.error
@@ -58,9 +58,9 @@ export function useOrdenesTrabajo(): State & { refetch: () => void } {
         const inspecciones = (inspRes.data ?? []) as unknown as VInspeccion[]
         const patentePorInspeccion = new Map(inspecciones.map(i => [i.id, i.patente]))
 
-        const idsOperadorRol = new Set(((perfilesOpRes.data ?? []) as { id: string }[]).map(p => p.id))
+        const idsMecanicoRol = new Set(((perfilesOpRes.data ?? []) as { id: string }[]).map(p => p.id))
         const operadoresTodos = (operadoresRes.data ?? []) as unknown as Operador[]
-        const operadoresAsignables = operadoresTodos.filter(o => idsOperadorRol.has(o.id))
+        const operadoresAsignables = operadoresTodos.filter(o => idsMecanicoRol.has(o.id))
         const operadorPorId = new Map(operadoresTodos.map(o => [o.id, o]))
 
         const ordenes: OrdenTrabajo[] = resoluciones.map(r => {

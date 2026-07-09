@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { LogoTriangulos } from '../components/LogoTriangulos'
+import { getDefaultRoute } from '../lib/roles'
 
 export function Login() {
-  const { session, loading } = useAuth()
+  const { session, perfil, loading } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -14,9 +15,9 @@ export function Login() {
 
   useEffect(() => {
     if (!loading && session) {
-      navigate('/dashboard', { replace: true })
+      navigate(getDefaultRoute(perfil?.rol), { replace: true })
     }
-  }, [session, loading, navigate])
+  }, [session, perfil, loading, navigate])
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -26,8 +27,6 @@ export function Login() {
     setSubmitting(false)
     if (authError) {
       setError('Credenciales incorrectas. Verifica tu email y contraseña.')
-    } else {
-      navigate('/dashboard', { replace: true })
     }
   }
 

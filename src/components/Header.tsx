@@ -3,6 +3,13 @@ import { NavLink } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { LogoTriangulos } from './LogoTriangulos'
 import { getOfflineQueueCount, QUEUE_CHANGED_EVENT } from '../hooks/useOfflineQueue'
+import {
+  ROL_LABELS,
+  ROLES_ADMINISTRATIVOS,
+  ROLES_INTERVENCION,
+  ROLES_JEFES,
+  ROLES_ORDENES_TRABAJO,
+} from '../lib/roles'
 
 export function Header() {
   const { perfil, signOut } = useAuth()
@@ -20,7 +27,7 @@ export function Header() {
     }`
 
   return (
-    <header className="bg-dark border-b border-white/10 sticky top-0 z-50">
+    <header className="bg-dark border-b border-white/10 sticky top-0 z-50 print:hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
         <div className="flex items-center gap-3">
           <LogoTriangulos size={36} />
@@ -34,30 +41,32 @@ export function Header() {
           <NavLink to="/checklist" className={navLinkClass}>
             Checklist
           </NavLink>
-          {perfil?.rol !== 'conductor_logistico' && (
+          {!!perfil && ROLES_INTERVENCION.includes(perfil.rol) && (
             <NavLink to="/intervencion" className={navLinkClass}>
               Intervención
             </NavLink>
           )}
-          <NavLink to="/dashboard" className={navLinkClass}>
-            Dashboard
-          </NavLink>
-          {(perfil?.rol === 'operador' || perfil?.rol === 'encargado' || perfil?.rol === 'admin') && (
+          {!!perfil && ROLES_ADMINISTRATIVOS.includes(perfil.rol) && (
+            <NavLink to="/dashboard" className={navLinkClass}>
+              Dashboard
+            </NavLink>
+          )}
+          {!!perfil && ROLES_ORDENES_TRABAJO.includes(perfil.rol) && (
             <NavLink to="/ordenes-trabajo" className={navLinkClass}>
               Órdenes de trabajo
             </NavLink>
           )}
-          {(perfil?.rol === 'encargado' || perfil?.rol === 'admin') && (
+          {!!perfil && ROLES_ADMINISTRATIVOS.includes(perfil.rol) && (
             <NavLink to="/vehiculos" className={navLinkClass}>
               Vehículos
             </NavLink>
           )}
-          {(perfil?.rol === 'encargado' || perfil?.rol === 'admin') && (
+          {!!perfil && ROLES_ADMINISTRATIVOS.includes(perfil.rol) && (
             <NavLink to="/vencimientos" className={navLinkClass}>
               Vencimientos
             </NavLink>
           )}
-          {perfil?.rol === 'admin' && (
+          {!!perfil && ROLES_JEFES.includes(perfil.rol) && (
             <NavLink to="/maestros" className={navLinkClass}>
               Maestros
             </NavLink>
@@ -71,8 +80,8 @@ export function Header() {
             </span>
           )}
           {perfil && (
-            <span className="text-xs text-gray-400 capitalize hidden sm:block">
-              {perfil.rol}
+            <span className="text-xs text-gray-400 hidden sm:block">
+              {ROL_LABELS[perfil.rol]}
             </span>
           )}
           <button

@@ -13,6 +13,7 @@ import {
 } from '../lib/vehiculos'
 import { diasRestantesLabel } from '../lib/documentos'
 import { fmtDate, fmtNum, PREGUNTAS } from '../lib/constants'
+import { puedeEditarGestion } from '../lib/roles'
 import {
   AlertTriangleIcon,
   CheckCircleIcon,
@@ -156,7 +157,7 @@ export function VehiculoDetalle() {
   const [estadoModalInicial, setEstadoModalInicial] = useState<EstadoVehiculo | null>(null)
   const [documentoEnEdicion, setDocumentoEnEdicion] = useState<DocumentoVencimiento | null>(null)
 
-  const puedeGestionarFlota = perfil?.rol === 'encargado' || perfil?.rol === 'admin'
+  const puedeGestionarFlota = puedeEditarGestion(perfil?.rol)
   const mostrarBannerAlta =
     puedeGestionarFlota && !!patente && patente.estado_actual !== 'operativo' && otsPendientes === 0
 

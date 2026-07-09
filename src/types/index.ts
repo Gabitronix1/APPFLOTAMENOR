@@ -1,4 +1,11 @@
-export type Rol = 'operador' | 'encargado' | 'admin' | 'conductor_logistico'
+export type Rol =
+  | 'conductor_logistico'
+  | 'mecanico_flota_menor'
+  | 'mecanico_maquinaria'
+  | 'jefe_maquinarias'
+  | 'supervisor_maquinarias'
+  | 'ingeniero_confiabilidad'
+  | 'jefe_cdg'
 
 export interface Perfil {
   id: string

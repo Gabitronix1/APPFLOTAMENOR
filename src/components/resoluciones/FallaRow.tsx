@@ -1,4 +1,5 @@
 import { ESTADO_OT_INFO } from '../../lib/ordenesTrabajo'
+import { puedeGestionarOT } from '../../lib/roles'
 import { PrioridadBadge } from './PrioridadBadge'
 import type { OrdenTrabajo, Rol } from '../../types'
 
@@ -27,7 +28,7 @@ export function FallaRow({
   onIniciar,
   onAgregarNotas,
 }: Props) {
-  const esGestor = rol === 'encargado' || rol === 'admin'
+  const esGestor = puedeGestionarOT(rol)
   const esPropia = !!ot && !!userId && ot.asignado_a === userId
   const estadoInfo = ot ? ESTADO_OT_INFO[ot.estado] : null
 
