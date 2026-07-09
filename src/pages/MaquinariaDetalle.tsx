@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useMaquinariaDetalle } from '../hooks/useMaquinariaDetalle'
 import { useDisponibilidadMaquinaria } from '../hooks/useDisponibilidadMaquinaria'
@@ -33,7 +33,7 @@ export function MaquinariaDetalle() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { perfil } = useAuth()
-  const { maquinaria, timeline, horometro, loading, error, notFound, refetch } = useMaquinariaDetalle(id)
+  const { maquinaria, timeline, horometro, padre, hijos, loading, error, notFound, refetch } = useMaquinariaDetalle(id)
   const disponibilidad = useDisponibilidadMaquinaria(!!maquinaria, maquinaria?.id)
 
   const [filtro, setFiltro] = useState<Record<TipoEventoTimeline, boolean>>({
@@ -102,6 +102,34 @@ export function MaquinariaDetalle() {
         )}
       </div>
 
+      {padre && (
+        <div className="bg-primary/5 border border-primary/20 rounded-xl px-4 py-3 mb-6">
+          <p className="text-sm text-dark">
+            🔗 Aditamento montado en:{' '}
+            <Link to={`/maquinarias/${padre.id}`} className="font-semibold text-primary hover:underline">
+              {padre.codigo} — {padre.nombre}
+            </Link>
+          </p>
+        </div>
+      )}
+
+      {!padre && hijos.length > 0 && (
+        <div className="bg-primary/5 border border-primary/20 rounded-xl px-4 py-3 mb-6">
+          <p className="text-sm text-dark mb-2">Aditamentos instalados:</p>
+          <div className="flex flex-wrap gap-2">
+            {hijos.map(h => (
+              <Link
+                key={h.id}
+                to={`/maquinarias/${h.id}`}
+                className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+              >
+                {h.codigo} — {h.nombre}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       {modalOpen && (
         <CambiarEstadoMaquinariaModal
           maquinariaId={maquinaria.id}
@@ -113,6 +141,67 @@ export function MaquinariaDetalle() {
           }}
         />
       )}
+
+      {/* Información del equipo */}
+      <div className="card mb-8">
+        <h2 className="font-semibold text-dark text-sm mb-4">Información del equipo</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          <div>
+            <p className="text-xs text-gray-400">Marca</p>
+            <p className="text-sm font-medium text-dark">{maquinaria.marca || '—'}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400">Modelo</p>
+            <p className="text-sm font-medium text-dark">{maquinaria.modelo || '—'}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400">Serie</p>
+            <p className="text-sm font-medium text-dark font-mono">{maquinaria.serie || '—'}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400">Año</p>
+            <p className="text-sm font-medium text-dark">{maquinaria.anio ?? '—'}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400">N° Motor</p>
+            <p className="text-sm font-medium text-dark font-mono">{maquinaria.numero_motor || '—'}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400">Rendimiento teórico</p>
+            <p className="text-sm font-medium text-dark">{maquinaria.rendimiento_teorico ?? '—'}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400">Patente</p>
+            <p className="text-sm font-medium text-dark font-mono">{maquinaria.patente || '—'}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400">Horómetro de llegada</p>
+            <p className="text-sm font-medium text-dark">
+              {maquinaria.horometro_llegada != null ? `${fmtNum(maquinaria.horometro_llegada)} h` : '—'}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400">Fecha de llegada</p>
+            <p className="text-sm font-medium text-dark">{maquinaria.fecha_llegada ? fmtDate(maquinaria.fecha_llegada) : '—'}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400">Fecha de instalación</p>
+            <p className="text-sm font-medium text-dark">{maquinaria.fecha_instalacion ? fmtDate(maquinaria.fecha_instalacion) : '—'}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400">Fecha de compra</p>
+            <p className="text-sm font-medium text-dark">{maquinaria.fecha_compra ? fmtDate(maquinaria.fecha_compra) : '—'}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400">Dealer</p>
+            <p className="text-sm font-medium text-dark">{maquinaria.dealer || '—'}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400">Propietario</p>
+            <p className="text-sm font-medium text-dark">{maquinaria.propietario || '—'}</p>
+          </div>
+        </div>
+      </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
         <KpiCard label="Total preventivas" value={totalPreventivas} />

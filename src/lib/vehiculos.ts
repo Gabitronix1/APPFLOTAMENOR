@@ -1,4 +1,4 @@
-import type { VInspeccion, TipoEventoTimeline, EstadoVehiculo } from '../types'
+import type { CondicionVehiculo, VInspeccion, TipoEventoTimeline, EstadoVehiculo } from '../types'
 
 export const ESTADOS_VEHICULO: EstadoVehiculo[] = [
   'operativo',
@@ -17,6 +17,11 @@ export const ESTADO_VEHICULO_INFO: Record<
   en_mantencion: { label: 'En mantención', badgeClass: 'bg-fault/20 text-fault', dotClass: 'bg-fault' },
   taller_externo: { label: 'Taller externo', badgeClass: 'bg-purple-100 text-purple-700', dotClass: 'bg-purple-500' },
   dado_de_baja: { label: 'Dado de baja', badgeClass: 'bg-gray-700 text-white', dotClass: 'bg-gray-300' },
+}
+
+export const CONDICION_VEHICULO_INFO: Record<CondicionVehiculo, { label: string; badgeClass: string }> = {
+  INTERNO: { label: 'Interno', badgeClass: 'bg-lime/20 text-primary' },
+  ARRIENDO: { label: 'Arriendo', badgeClass: 'bg-purple-100 text-purple-700' },
 }
 
 export function sumaFallasActivas(inspecciones: VInspeccion[]): number {

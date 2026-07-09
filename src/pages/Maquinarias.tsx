@@ -70,6 +70,11 @@ export function Maquinarias() {
                       <EstadoBadge estado={m.estado} className="shrink-0" />
                     </div>
                     <p className="text-sm text-gray-600 line-clamp-2">{m.nombre}</p>
+                    {m.esAditamento && (
+                      <p className="text-xs text-primary font-medium mt-2">
+                        🔗 Aditamento{m.padreCodigo ? ` de ${m.padreCodigo}` : ''}
+                      </p>
+                    )}
                   </Link>
                 ))}
               </div>

@@ -5,6 +5,7 @@ import { useVehiculoDetalle } from '../hooks/useVehiculoDetalle'
 import { useDocumentosVehiculo } from '../hooks/useDocumentosVehiculo'
 import { useDisponibilidad } from '../hooks/useDisponibilidad'
 import {
+  CONDICION_VEHICULO_INFO,
   ESTADO_VEHICULO_INFO,
   TIPOS_EVENTO_TIMELINE,
   TIPO_EVENTO_INFO,
@@ -243,6 +244,14 @@ export function VehiculoDetalle() {
         )}
       </div>
 
+      {patente.afecta_indicadores === false && (
+        <div className="bg-warn/10 border border-warn/30 rounded-xl px-4 py-3 mb-6">
+          <p className="text-sm font-semibold text-warn">
+            ⚠️ Arriendo particular — no afecta indicadores de flota
+          </p>
+        </div>
+      )}
+
       {mostrarBannerAlta && (
         <div className="bg-warn/10 border border-warn/30 rounded-xl p-4 mb-6 flex items-center justify-between gap-4 flex-wrap">
           <p className="text-sm text-gray-700">
@@ -267,6 +276,58 @@ export function VehiculoDetalle() {
           }}
         />
       )}
+
+      {/* Información del vehículo */}
+      <div className="card mb-8">
+        <h2 className="font-semibold text-dark text-sm mb-4">Información del vehículo</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          <div>
+            <p className="text-xs text-gray-400">Marca</p>
+            <p className="text-sm font-medium text-dark">{patente.marca || '—'}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400">Modelo</p>
+            <p className="text-sm font-medium text-dark">{patente.modelo || '—'}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400">Año</p>
+            <p className="text-sm font-medium text-dark">{patente.anio ?? '—'}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400">VIN</p>
+            <p className="text-sm font-medium text-dark font-mono">{patente.vin || '—'}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400">N° Motor</p>
+            <p className="text-sm font-medium text-dark font-mono">{patente.numero_motor || '—'}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400 mb-0.5">Condición</p>
+            {patente.condicion ? (
+              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${CONDICION_VEHICULO_INFO[patente.condicion].badgeClass}`}>
+                {CONDICION_VEHICULO_INFO[patente.condicion].label}
+              </span>
+            ) : (
+              <p className="text-sm font-medium text-dark">—</p>
+            )}
+          </div>
+          <div>
+            <p className="text-xs text-gray-400">Área</p>
+            <p className="text-sm font-medium text-dark">{patente.area || '—'}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400">Línea</p>
+            <p className="text-sm font-medium text-dark">{patente.linea || '—'}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400">Responsable</p>
+            <p className="text-sm font-medium text-dark">
+              {patente.responsable_nombre || '—'}
+              {patente.responsable_cargo && <span className="text-gray-400 font-normal"> · {patente.responsable_cargo}</span>}
+            </p>
+          </div>
+        </div>
+      </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-8">

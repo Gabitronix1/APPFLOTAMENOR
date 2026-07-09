@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import type {
   Operador,
   Patente,
+  CategoriaPatente,
   Fundo,
   Maquinaria,
   CategoriaMaquinaria,
@@ -150,100 +151,44 @@ function OperadoresTab() {
 
 /* ─── Patentes ─── */
 function PatentesTab() {
-  const [rows, setRows] = useState<Patente[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ patente: '', descripcion: '' })
-  const [saving, setSaving] = useState(false)
+  const [categorias, setCategorias] = useState<CategoriaPatente[]>([])
 
-  async function load() {
-    setLoading(true)
-    const { data, error: err } = await supabase.from('patentes').select('*').order('patente')
-    if (err) setError(err.message)
-    else setRows((data ?? []) as Patente[])
-    setLoading(false)
-  }
+  useEffect(() => {
+    void supabase
+      .from('categorias_patente')
+      .select('*')
+      .eq('activo', true)
+      .order('nombre')
+      .then(({ data }) => setCategorias((data ?? []) as unknown as CategoriaPatente[]))
+  }, [])
 
-  useEffect(() => { void load() }, [])
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault()
-    setSaving(true)
-    const { error: err } = await supabase.from('patentes').insert({ ...form, activo: true })
-    setSaving(false)
-    if (err) { setError(err.message); return }
-    setForm({ patente: '', descripcion: '' })
-    setShowForm(false)
-    void load()
-  }
-
-  async function toggleActivo(row: Patente) {
-    await supabase.from('patentes').update({ activo: !row.activo }).eq('id', row.id)
-    void load()
-  }
+  const categoriaOptions = categorias.map((c) => ({ value: c.id, label: c.nombre }))
+  const nombrePorCategoria = new Map(categorias.map((c) => [c.id, c.nombre]))
 
   return (
-    <div className="space-y-4">
-      {error && <div className="text-fault text-sm">{error}</div>}
-      <div className="flex justify-end">
-        <button className="btn-primary btn-sm" onClick={() => setShowForm((v) => !v)}>
-          {showForm ? 'Cancelar' : '+ Nueva patente'}
-        </button>
-      </div>
-
-      {showForm && (
-        <form onSubmit={(e) => void handleSubmit(e)} className="card grid grid-cols-2 gap-4">
-          <div>
-            <label className="label">Patente</label>
-            <input className="input uppercase" required value={form.patente} onChange={(e) => setForm((f) => ({ ...f, patente: e.target.value.toUpperCase() }))} placeholder="AB-1234" />
-          </div>
-          <div>
-            <label className="label">Descripción</label>
-            <input className="input" required value={form.descripcion} onChange={(e) => setForm((f) => ({ ...f, descripcion: e.target.value }))} placeholder="Camioneta Toyota Hilux" />
-          </div>
-          <div className="col-span-2 flex justify-end">
-            <button type="submit" disabled={saving} className="btn-primary btn-sm">{saving ? 'Guardando...' : 'Guardar'}</button>
-          </div>
-        </form>
-      )}
-
-      <div className="card p-0 overflow-hidden">
-        {loading ? (
-          <div className="p-6 text-sm text-gray-400 animate-pulse">Cargando...</div>
-        ) : (
-          <table className="w-full divide-y divide-gray-200">
-            <thead>
-              <tr>
-                <th className="table-th">Patente</th>
-                <th className="table-th">Descripción</th>
-                <th className="table-th text-center">Estado</th>
-                <th className="table-th"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {rows.length === 0 && (
-                <tr><td colSpan={4} className="table-td text-center text-gray-400 py-8">Sin registros.</td></tr>
-              )}
-              {rows.map((row) => (
-                <tr key={row.id} className="hover:bg-gray-50">
-                  <td className="table-td font-mono font-bold text-dark">{row.patente}</td>
-                  <td className="table-td text-sm">{row.descripcion}</td>
-                  <td className="table-td text-center">
-                    {row.activo ? <span className="badge-ok">Activa</span> : <span className="badge-fault">Inactiva</span>}
-                  </td>
-                  <td className="table-td text-right">
-                    <button onClick={() => void toggleActivo(row)} className={`text-xs font-medium underline ${row.activo ? 'text-fault' : 'text-primary'}`}>
-                      {row.activo ? 'Desactivar' : 'Activar'}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-    </div>
+    <CatalogCrudTab<Patente>
+      table="patentes"
+      nombreSingular="patente"
+      orderBy="patente"
+      campos={[
+        { key: 'patente', label: 'Patente', uppercase: true, placeholder: 'AB-1234' },
+        { key: 'descripcion', label: 'Descripción', placeholder: 'Camioneta Toyota Hilux' },
+        { key: 'marca', label: 'Marca (opcional)', required: false },
+        { key: 'modelo', label: 'Modelo (opcional)', required: false },
+        { key: 'categoria_id', label: 'Categoría (opcional)', type: 'select', options: categoriaOptions, required: false },
+      ]}
+      columnas={[
+        { key: 'patente', label: 'Patente' },
+        { key: 'descripcion', label: 'Descripción' },
+        { key: 'marca', label: 'Marca', render: (row) => row.marca || '—' },
+        { key: 'modelo', label: 'Modelo', render: (row) => row.modelo || '—' },
+        {
+          key: 'categoria_id',
+          label: 'Categoría',
+          render: (row) => (row.categoria_id && nombrePorCategoria.get(row.categoria_id)) || '—',
+        },
+      ]}
+    />
   )
 }
 
@@ -535,12 +480,16 @@ function MaquinariasTab() {
       campos={[
         { key: 'codigo', label: 'Código', uppercase: true, placeholder: 'Ej: EXC-01' },
         { key: 'nombre', label: 'Nombre', placeholder: 'Ej: Excavadora CAT 320' },
+        { key: 'marca', label: 'Marca (opcional)', required: false },
+        { key: 'modelo', label: 'Modelo (opcional)', required: false },
         { key: 'categoria_id', label: 'Categoría', type: 'select', options: categoriaOptions, required: false },
         { key: 'descripcion', label: 'Descripción (opcional)', required: false },
       ]}
       columnas={[
         { key: 'codigo', label: 'Código' },
         { key: 'nombre', label: 'Nombre' },
+        { key: 'marca', label: 'Marca', render: (row) => row.marca || '—' },
+        { key: 'modelo', label: 'Modelo', render: (row) => row.modelo || '—' },
         {
           key: 'categoria_id',
           label: 'Categoría',

@@ -12,10 +12,18 @@ interface HorometroRow {
   f_registro: string
 }
 
+export interface MaquinariaRef {
+  id: string
+  codigo: string
+  nombre: string
+}
+
 interface State {
   maquinaria: Maquinaria | null
   timeline: VMaquinariaTimeline[]
   horometro: HorometroReciente | null
+  padre: MaquinariaRef | null
+  hijos: MaquinariaRef[]
   loading: boolean
   error: string | null
   notFound: boolean
@@ -38,6 +46,8 @@ export function useMaquinariaDetalle(id: string | undefined): State & { refetch:
     maquinaria: null,
     timeline: [],
     horometro: null,
+    padre: null,
+    hijos: [],
     loading: true,
     error: null,
     notFound: false,
@@ -52,33 +62,50 @@ export function useMaquinariaDetalle(id: string | undefined): State & { refetch:
     async function load() {
       setState(prev => ({ ...prev, loading: true, error: null, notFound: false }))
       try {
-        const { data: maquinaria, error: maqError } = await supabase
+        const { data: maquinariaRow, error: maqError } = await supabase
           .from('maquinarias')
           .select('*')
           .eq('id', maquinariaId)
           .maybeSingle()
         if (maqError) throw maqError
 
-        if (!maquinaria) {
+        if (!maquinariaRow) {
           if (!cancelled) setState(prev => ({ ...prev, loading: false, notFound: true }))
           return
         }
 
-        const [timelineRes, horometro] = await Promise.all([
+        const maquinaria = maquinariaRow as unknown as Maquinaria
+
+        const [timelineRes, horometro, padreRes, hijosRes] = await Promise.all([
           supabase
             .from('v_maquinaria_timeline')
             .select('*')
             .eq('maquinaria_id', maquinariaId)
             .order('fecha', { ascending: false }),
           fetchHorometroReciente(maquinariaId),
+          maquinaria.maquinaria_padre_id
+            ? supabase
+                .from('maquinarias')
+                .select('id, codigo, nombre')
+                .eq('id', maquinaria.maquinaria_padre_id)
+                .maybeSingle()
+            : Promise.resolve({ data: null, error: null }),
+          supabase
+            .from('maquinarias')
+            .select('id, codigo, nombre')
+            .eq('maquinaria_padre_id', maquinariaId)
+            .eq('activo', true)
+            .order('codigo', { ascending: true }),
         ])
         if (timelineRes.error) throw timelineRes.error
 
         if (!cancelled) {
           setState({
-            maquinaria: maquinaria as unknown as Maquinaria,
+            maquinaria,
             timeline: (timelineRes.data ?? []) as unknown as VMaquinariaTimeline[],
             horometro,
+            padre: (padreRes.data as unknown as MaquinariaRef | null) ?? null,
+            hijos: (hijosRes.data ?? []) as unknown as MaquinariaRef[],
             loading: false,
             error: null,
             notFound: false,

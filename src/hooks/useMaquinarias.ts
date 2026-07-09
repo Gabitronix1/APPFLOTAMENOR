@@ -9,6 +9,8 @@ export interface MaquinariaResumen {
   categoriaId: string | null
   categoriaNombre: string
   estado: Maquinaria['estado_actual']
+  esAditamento: boolean
+  padreCodigo: string | null
 }
 
 interface State {
@@ -32,6 +34,7 @@ export function useMaquinarias(): State {
           fetchAllPages<CategoriaMaquinaria>('categorias_maquinaria', '*'),
         ])
         const nombrePorCategoria = new Map(categorias.map(c => [c.id, c.nombre]))
+        const codigoPorId = new Map(maquinarias.map(m => [m.id, m.codigo]))
 
         const resumen: MaquinariaResumen[] = maquinarias
           .filter(m => m.activo)
@@ -42,6 +45,8 @@ export function useMaquinarias(): State {
             categoriaId: m.categoria_id,
             categoriaNombre: (m.categoria_id && nombrePorCategoria.get(m.categoria_id)) || SIN_CATEGORIA,
             estado: m.estado_actual,
+            esAditamento: !!m.maquinaria_padre_id,
+            padreCodigo: (m.maquinaria_padre_id && codigoPorId.get(m.maquinaria_padre_id)) || null,
           }))
 
         if (!cancelled) setState({ maquinarias: resumen, loading: false, error: null })

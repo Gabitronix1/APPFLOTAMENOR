@@ -80,12 +80,32 @@ export type EstadoVehiculo =
   | 'taller_externo'
   | 'dado_de_baja'
 
+export type CondicionVehiculo = 'INTERNO' | 'ARRIENDO'
+
+export interface CategoriaPatente {
+  id: string
+  nombre: string
+  activo: boolean
+}
+
 export interface Patente {
   id: string
   patente: string
   descripcion: string
   activo: boolean
   estado_actual: EstadoVehiculo
+  categoria_id: string | null
+  marca: string | null
+  modelo: string | null
+  anio: number | null
+  vin: string | null
+  numero_motor: string | null
+  condicion: CondicionVehiculo | null
+  area: string | null
+  linea: string | null
+  responsable_nombre: string | null
+  responsable_cargo: string | null
+  afecta_indicadores: boolean
 }
 
 export interface Fundo {
@@ -238,6 +258,20 @@ export interface Maquinaria {
   descripcion: string | null
   activo: boolean
   estado_actual: EstadoMaquinaria
+  marca: string | null
+  modelo: string | null
+  serie: string | null
+  anio: number | null
+  numero_motor: string | null
+  rendimiento_teorico: number | null
+  patente: string | null
+  horometro_llegada: number | null
+  fecha_llegada: string | null
+  fecha_instalacion: string | null
+  fecha_compra: string | null
+  dealer: string | null
+  propietario: string | null
+  maquinaria_padre_id: string | null
 }
 
 export type TipoIntervencionMaquinaria = 'PREVENTIVA' | 'CORRECTIVA' | 'OTRA'
