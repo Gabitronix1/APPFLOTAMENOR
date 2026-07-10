@@ -8,6 +8,7 @@ export interface Filters {
   desde: string
   hasta: string
   soloConProblemas: boolean
+  search: string
 }
 
 const DEFAULT_FILTERS: Filters = {
@@ -18,6 +19,7 @@ const DEFAULT_FILTERS: Filters = {
   desde: '',
   hasta: '',
   soloConProblemas: false,
+  search: '',
 }
 
 type FilterAction =

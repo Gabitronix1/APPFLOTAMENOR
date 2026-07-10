@@ -20,6 +20,7 @@ export interface VInspeccion {
   fundo: string
   contrato: string | null
   operativo: boolean
+  kilometraje: number | null
   obs_general: string | null
   p1: boolean
   p2: boolean
