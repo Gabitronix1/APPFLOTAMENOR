@@ -3,6 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts'
 import { fmtDate, complianceColor } from '../../lib/constants'
+import { KpiGrid } from './KpiTile'
 import type { VInspeccion, Operador } from '../../types'
 
 interface SecOperadoresReportesProps {
@@ -77,19 +78,12 @@ export function SecOperadoresReportes({ data, operadoresNomina }: SecOperadoresR
   return (
     <div>
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-        {[
-          { label: 'En nómina', value: enNomina, color: 'text-dark' },
-          { label: 'Reportando', value: reportando, color: 'text-primary' },
-          { label: 'Sin reportes', value: sinReportes, color: sinReportes > 0 ? 'text-fault' : 'text-gray-400' },
-          { label: 'Atrasados >14d', value: atrasados, color: atrasados > 0 ? 'text-warn' : 'text-gray-400' },
-        ].map(k => (
-          <div key={k.label} className="bg-gray-50 rounded-xl border border-gray-200 p-4">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{k.label}</p>
-            <p className={`text-3xl font-bold ${k.color}`}>{k.value}</p>
-          </div>
-        ))}
-      </div>
+      <KpiGrid items={[
+        { label: 'En nómina', value: enNomina, color: 'text-dark' },
+        { label: 'Reportando', value: reportando, color: 'text-primary' },
+        { label: 'Sin reportes', value: sinReportes, color: sinReportes > 0 ? 'text-fault' : 'text-gray-400' },
+        { label: 'Atrasados >14d', value: atrasados, color: atrasados > 0 ? 'text-warn' : 'text-gray-400' },
+      ]} />
 
       {/* Table + Chart grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

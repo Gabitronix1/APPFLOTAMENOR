@@ -16,6 +16,7 @@ import { Vencimientos } from './pages/Vencimientos'
 import { Maquinarias } from './pages/Maquinarias'
 import { MaquinariaDetalle } from './pages/MaquinariaDetalle'
 import { ReportesFlotaMenor } from './pages/ReportesFlotaMenor'
+import { ReportesFlotaMayor } from './pages/ReportesFlotaMayor'
 import {
   ROLES_ADMINISTRATIVOS,
   ROLES_INTERVENCION,
@@ -55,6 +56,7 @@ function AppLayout() {
             <Route path="maquinarias" element={<Maquinarias />} />
             <Route path="maquinarias/:id" element={<MaquinariaDetalle />} />
             <Route path="reportes/flota-menor" element={<ReportesFlotaMenor />} />
+            <Route path="reportes/flota-mayor" element={<ReportesFlotaMayor />} />
           </Route>
           <Route element={<RequireRol roles={ROLES_MAESTROS} />}>
             <Route path="maestros" element={<Maestros />} />

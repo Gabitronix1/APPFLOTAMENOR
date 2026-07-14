@@ -241,6 +241,7 @@ export interface ProductoInsumo {
 export interface CondicionEquipo {
   id: string
   nombre: string
+  mapea_estado: EstadoMaquinaria
 }
 
 export interface Maquinaria {
@@ -268,6 +269,61 @@ export interface Maquinaria {
 }
 
 export type TipoIntervencionMaquinaria = 'PREVENTIVA' | 'CORRECTIVA' | 'OTRA'
+
+export interface IntervencionMaquinariaCabecera {
+  id: string
+  maquinaria_id: string
+  responsable_id: string
+  linea_id: string | null
+  turno_id: string | null
+  actividad_id: string | null
+  sub_equipo_id: string | null
+  horometro: number | null
+  tipo: TipoIntervencionMaquinaria
+  fecha_inicio: string
+  hora_inicio: string
+  created_at: string
+}
+
+export interface IntervencionMaquinariaCorrectiva {
+  intervencion_id: string
+  sistema_id: string | null
+  codigo_falla_id: string | null
+  condicion_equipo_id: string | null
+  causa_probable: string | null
+  descripcion_falla: string | null
+  solucion_propuesta: string | null
+  fecha_termino: string | null
+  hora_termino: string | null
+  costo: number | null
+}
+
+export interface IntervencionMaquinariaPreventiva {
+  intervencion_id: string
+  tipo_preventiva_id: string | null
+  condicion_equipo_id: string | null
+  descripcion: string | null
+  fecha_termino: string | null
+  hora_termino: string | null
+  costo: number | null
+}
+
+export interface IntervencionMaquinariaOtra {
+  intervencion_id: string
+  tarea_id: string | null
+  condicion_equipo_id: string | null
+  descripcion: string | null
+  fecha_termino: string | null
+  hora_termino: string | null
+  costo: number | null
+}
+
+export interface InsumoIntervencionMaquinaria {
+  intervencion_id: string
+  producto_id: string | null
+  cantidad: number
+  barcode: string | null
+}
 
 export interface VMaquinariaTimeline {
   id: string

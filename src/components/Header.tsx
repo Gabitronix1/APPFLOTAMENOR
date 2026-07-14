@@ -148,6 +148,9 @@ export function Header() {
               {puedeAdmin && (
                 <NavLink to="/maquinarias" className={dropdownLinkClass}>Maquinarias</NavLink>
               )}
+              {puedeAdmin && (
+                <NavLink to="/reportes/flota-mayor" className={dropdownLinkClass}>Reportes</NavLink>
+              )}
             </NavDropdown>
           )}
 

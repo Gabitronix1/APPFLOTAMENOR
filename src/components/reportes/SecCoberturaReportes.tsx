@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { fmtDate } from '../../lib/constants'
+import { KpiGrid } from './KpiTile'
 import type { VInspeccion, Patente, CategoriaPatente } from '../../types'
 
 interface SecCoberturaReportesProps {
@@ -94,20 +95,12 @@ export function SecCoberturaReportes({ data, patentesNomina }: SecCoberturaRepor
   return (
     <div>
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-        {[
-          { label: 'Patentes en flota', value: totalFleet, foot: 'nómina de patentes', color: 'text-dark' },
-          { label: 'Con reportes', value: conRep, foot: `${cobertura}% de cobertura`, color: 'text-primary' },
-          { label: 'Sin reportes', value: sinRep, foot: sinRep ? 'nunca inspeccionadas' : 'todas cubiertas', color: sinRep > 0 ? 'text-fault' : 'text-gray-400' },
-          { label: 'Cobertura', value: `${cobertura}%`, foot: 'del total de patentes', color: cobertura >= 70 ? 'text-primary' : 'text-warn' },
-        ].map(k => (
-          <div key={k.label} className="bg-gray-50 rounded-xl border border-gray-200 p-4">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{k.label}</p>
-            <p className={`text-3xl font-bold ${k.color}`}>{k.value}</p>
-            <p className="text-xs text-gray-400 mt-1">{k.foot}</p>
-          </div>
-        ))}
-      </div>
+      <KpiGrid items={[
+        { label: 'Patentes en flota', value: totalFleet, foot: 'nómina de patentes', color: 'text-dark' },
+        { label: 'Con reportes', value: conRep, foot: `${cobertura}% de cobertura`, color: 'text-primary' },
+        { label: 'Sin reportes', value: sinRep, foot: sinRep ? 'nunca inspeccionadas' : 'todas cubiertas', color: sinRep > 0 ? 'text-fault' : 'text-gray-400' },
+        { label: 'Cobertura', value: `${cobertura}%`, foot: 'del total de patentes', color: cobertura >= 70 ? 'text-primary' : 'text-warn' },
+      ]} />
 
       {/* Controls */}
       <div className="flex flex-wrap gap-3 mb-4">
