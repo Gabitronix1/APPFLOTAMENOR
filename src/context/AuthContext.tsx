@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import { db } from '../lib/db'
+import { prefetchAllCatalogs } from '../lib/masterDataCache'
 import type { Perfil } from '../types'
 
 interface AuthContextValue {
@@ -29,6 +30,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error || !data) throw error ?? new Error('Perfil no encontrado')
       setPerfil(data)
       await db.perfilCache.put({ userId, rol: data.rol })
+      // Precarga todos los catálogos maestros (no solo los de la página actual) para que
+      // cualquier formulario funcione offline sin depender de qué página se visitó primero.
+      void prefetchAllCatalogs()
     } catch {
       // Sin conexión (o falla de red) al arrancar: usar la última copia local del perfil
       const cached = await db.perfilCache.get(userId)
@@ -56,7 +60,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     })
 
-    return () => listener.subscription.unsubscribe()
+    // Si la sesión se abrió sin conexión (perfil vino del cache), reintenta precargar los
+    // catálogos apenas vuelva la señal, sin esperar a la próxima vez que se loguee.
+    const handleOnline = () => void prefetchAllCatalogs()
+    window.addEventListener('online', handleOnline)
+
+    return () => {
+      listener.subscription.unsubscribe()
+      window.removeEventListener('online', handleOnline)
+    }
   }, [])
 
   async function signOut() {

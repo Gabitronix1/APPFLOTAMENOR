@@ -1,5 +1,5 @@
 import { useCatalog } from './useCatalog'
-import { supabase } from '../lib/supabase'
+import { fetchTable } from '../lib/masterDataCache'
 import type {
   ActividadMaquinaria,
   CodigoFallaMaquinaria,
@@ -29,11 +29,6 @@ interface FormDataMaquinariaState {
   productosInsumo: ProductoInsumo[]
   condicionesEquipo: CondicionEquipo[]
   loading: boolean
-}
-
-async function fetchTable<T>(table: string, orderBy: string): Promise<T[]> {
-  const { data } = await supabase.from(table).select('*').eq('activo', true).order(orderBy, { ascending: true })
-  return (data ?? []) as unknown as T[]
 }
 
 export function useFormDataMaquinaria(): FormDataMaquinariaState {

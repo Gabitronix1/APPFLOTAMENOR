@@ -1,5 +1,5 @@
 import { useCatalog } from './useCatalog'
-import { supabase } from '../lib/supabase'
+import { fetchTable, fetchTiposPreventiva } from '../lib/masterDataCache'
 import type { Operador, Patente, Fundo } from '../types'
 
 export interface TipoPreventiva {
@@ -13,16 +13,6 @@ interface FormDataState {
   fundos: Fundo[]
   tiposPreventiva: TipoPreventiva[]
   loading: boolean
-}
-
-async function fetchTable<T>(table: string, orderBy: string): Promise<T[]> {
-  const { data } = await supabase.from(table).select('*').eq('activo', true).order(orderBy, { ascending: true })
-  return (data ?? []) as unknown as T[]
-}
-
-async function fetchTiposPreventiva(): Promise<TipoPreventiva[]> {
-  const { data } = await supabase.from('tipos_preventiva').select('*').order('nombre', { ascending: true })
-  return (data ?? []) as unknown as TipoPreventiva[]
 }
 
 export function useFormData(): FormDataState {
