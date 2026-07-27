@@ -215,4 +215,10 @@ function labelFor(data: QueueData): string {
 
 if (typeof window !== 'undefined') {
   window.addEventListener('online', () => void syncAll())
+  // El evento 'online' del navegador no siempre se dispara de forma confiable en celulares
+  // (p. ej. al desactivar modo avión con la app en segundo plano). Este chequeo periódico
+  // es un respaldo: si hay conexión y algo pendiente, reintenta sin depender de ese evento.
+  setInterval(() => {
+    if (navigator.onLine && cachedCount > 0) void syncAll()
+  }, 15000)
 }

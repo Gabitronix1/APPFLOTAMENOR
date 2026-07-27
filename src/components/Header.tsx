@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { LogoTriangulos } from './LogoTriangulos'
 import { getOfflineQueueCount, QUEUE_CHANGED_EVENT } from '../hooks/useOfflineQueue'
+import { listQueue, syncAll } from '../lib/offlineQueue'
 import {
   ROL_LABELS,
   ROLES_ADMINISTRATIVOS,
@@ -57,12 +58,26 @@ function NavDropdown({ label, children }: { label: string; children: ReactNode }
 export function Header() {
   const { perfil, signOut } = useAuth()
   const [pending, setPending] = useState(getOfflineQueueCount)
+  const [syncing, setSyncing] = useState(false)
 
   useEffect(() => {
     const handle = () => setPending(getOfflineQueueCount())
     window.addEventListener(QUEUE_CHANGED_EVENT, handle)
     return () => window.removeEventListener(QUEUE_CHANGED_EVENT, handle)
   }, [])
+
+  async function handleRetrySync() {
+    setSyncing(true)
+    await syncAll()
+    const queue = await listQueue()
+    const withError = queue.find(i => i.lastError)
+    setSyncing(false)
+    if (queue.length > 0 && withError) {
+      alert(`No se pudo sincronizar (${queue.length} pendiente${queue.length !== 1 ? 's' : ''}). Error: ${withError.lastError}`)
+    } else if (queue.length > 0) {
+      alert(`Sigue sin conexión — ${queue.length} pendiente${queue.length !== 1 ? 's' : ''}. Se reintentará solo.`)
+    }
+  }
 
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     `text-sm font-medium transition-colors ${
@@ -141,9 +156,15 @@ export function Header() {
 
         <div className="flex items-center gap-3">
           {pending > 0 && (
-            <span className="badge-warn whitespace-nowrap">
-              {pending} pendiente{pending !== 1 ? 's' : ''}
-            </span>
+            <button
+              type="button"
+              onClick={() => void handleRetrySync()}
+              disabled={syncing}
+              className="badge-warn whitespace-nowrap disabled:opacity-60"
+              title="Tocar para reintentar sincronizar ahora"
+            >
+              {syncing ? 'Sincronizando…' : `${pending} pendiente${pending !== 1 ? 's' : ''} · reintentar`}
+            </button>
           )}
           {perfil && (
             <span className="text-xs text-gray-400 hidden sm:block">
