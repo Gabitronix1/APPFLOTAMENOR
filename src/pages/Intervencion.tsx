@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { useFormData } from '../hooks/useFormData'
 import { useOfflineQueue } from '../hooks/useOfflineQueue'
 import { SearchSelect } from '../components/SearchSelect'
-import { supabase } from '../lib/supabase'
 
 const TIPOS_VEHICULO = ['CAMIONETA', 'CAMIÓN', 'TRACTOR', 'EXCAVADORA', 'RETROEXCAVADORA', 'MOTONIVELADORA', 'MINIBÚS', 'OTRO']
 const LINEAS = ['LINEA A', 'LINEA B', 'LINEA C', 'LINEA D', 'ESPECIAL']
@@ -87,15 +86,6 @@ export function Intervencion() {
     setSubmitting(true)
 
     const uuid_local = crypto.randomUUID()
-    let imagenPath: string | null = null
-
-    if (tipo === 'PREVENTIVA' && prevImagen && !isOffline) {
-      const ext = prevImagen.name.split('.').pop() ?? 'jpg'
-      const result = await supabase.storage
-        .from('fotos-intervenciones')
-        .upload(`${uuid_local}.${ext}`, prevImagen, { contentType: prevImagen.type, upsert: false })
-      if (result.data?.path) imagenPath = result.data.path
-    }
 
     const intervencion = {
       operador_id: operadorId,
@@ -109,20 +99,23 @@ export function Intervencion() {
     }
 
     if (tipo === 'PREVENTIVA') {
-      enqueue({
+      await enqueue({
         type: 'intervencion_preventiva',
         intervencion,
         preventiva: {
           tipo_preventiva_id: tipoPrevId,
           descripcion: prevDesc,
-          imagen_path: imagenPath,
+          imagen_path: null,
           fecha_termino: prevFechaTermino,
           hora_termino: prevHoraTermino,
           costo: prevCosto ? Number(prevCosto) : null,
         },
+        fotoPreventiva: prevImagen
+          ? { blob: prevImagen, ext: prevImagen.name.split('.').pop() ?? 'jpg' }
+          : undefined,
       })
     } else {
-      enqueue({
+      await enqueue({
         type: 'intervencion_correctiva',
         intervencion,
         correctiva: {
@@ -403,7 +396,7 @@ export function Intervencion() {
                   </button>
                 )}
                 {isOffline && prevImagen && (
-                  <p className="text-xs text-warn mt-2">Sin conexión: la foto no se guardará hasta que haya red.</p>
+                  <p className="text-xs text-gray-400 mt-2">Sin conexión: la foto se guardará en el celular y se subirá cuando haya red.</p>
                 )}
               </div>
             </>

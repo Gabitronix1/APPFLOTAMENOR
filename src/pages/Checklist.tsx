@@ -62,10 +62,10 @@ export function Checklist() {
     setDone(false)
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!operadorId || !patenteId || !tipoVehiculo || !linea) return
-    enqueue({
+    await enqueue({
       type: 'checklist',
       inspeccion: {
         operador_id: operadorId,

@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
+import { db } from '../lib/db'
 import type { Perfil } from '../types'
 
 interface AuthContextValue {
@@ -19,12 +20,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   async function fetchPerfil(userId: string) {
-    const { data } = await supabase
-      .from('perfiles')
-      .select('id, rol')
-      .eq('id', userId)
-      .single()
-    setPerfil(data ?? null)
+    try {
+      const { data, error } = await supabase
+        .from('perfiles')
+        .select('id, rol')
+        .eq('id', userId)
+        .single()
+      if (error || !data) throw error ?? new Error('Perfil no encontrado')
+      setPerfil(data)
+      await db.perfilCache.put({ userId, rol: data.rol })
+    } catch {
+      // Sin conexión (o falla de red) al arrancar: usar la última copia local del perfil
+      const cached = await db.perfilCache.get(userId)
+      setPerfil(cached ? { id: userId, rol: cached.rol as Perfil['rol'] } : null)
+    }
   }
 
   useEffect(() => {

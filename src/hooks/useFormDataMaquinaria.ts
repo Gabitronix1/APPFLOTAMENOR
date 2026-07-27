@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCatalog } from './useCatalog'
 import { supabase } from '../lib/supabase'
 import type {
   ActividadMaquinaria,
@@ -31,70 +31,47 @@ interface FormDataMaquinariaState {
   loading: boolean
 }
 
+async function fetchTable<T>(table: string, orderBy: string): Promise<T[]> {
+  const { data } = await supabase.from(table).select('*').eq('activo', true).order(orderBy, { ascending: true })
+  return (data ?? []) as unknown as T[]
+}
+
 export function useFormDataMaquinaria(): FormDataMaquinariaState {
-  const [state, setState] = useState<FormDataMaquinariaState>({
-    operadores: [],
-    maquinarias: [],
-    lineas: [],
-    turnos: [],
-    actividades: [],
-    subEquipos: [],
-    tiposPreventiva: [],
-    sistemasCorrectivo: [],
-    codigosFalla: [],
-    tareasOtra: [],
-    productosInsumo: [],
-    condicionesEquipo: [],
-    loading: true,
-  })
+  const operadores = useCatalog<Operador>('operadores', () => fetchTable('operadores', 'apellido'))
+  const maquinarias = useCatalog<Maquinaria>('maquinarias', () => fetchTable('maquinarias', 'codigo'))
+  const lineas = useCatalog<LineaOperacion>('lineas_operacion', () => fetchTable('lineas_operacion', 'codigo'))
+  const turnos = useCatalog<Turno>('turnos', () => fetchTable('turnos', 'nombre'))
+  const actividades = useCatalog<ActividadMaquinaria>('actividades_maquinaria', () => fetchTable('actividades_maquinaria', 'nombre'))
+  const subEquipos = useCatalog<SubEquipo>('sub_equipos', () => fetchTable('sub_equipos', 'nombre'))
+  const tiposPreventiva = useCatalog<TipoPreventivaMaquinaria>('tipos_preventiva_maquinaria', () =>
+    fetchTable('tipos_preventiva_maquinaria', 'nombre'),
+  )
+  const sistemasCorrectivo = useCatalog<SistemaCorrectivoMaquinaria>('sistemas_correctivo_maquinaria', () =>
+    fetchTable('sistemas_correctivo_maquinaria', 'nombre'),
+  )
+  const codigosFalla = useCatalog<CodigoFallaMaquinaria>('codigos_falla_maquinaria', () => fetchTable('codigos_falla_maquinaria', 'nombre'))
+  const tareasOtra = useCatalog<TareaOtraMaquinaria>('tareas_otra_maquinaria', () => fetchTable('tareas_otra_maquinaria', 'nombre'))
+  const productosInsumo = useCatalog<ProductoInsumo>('productos_insumo', () => fetchTable('productos_insumo', 'nombre'))
+  const condicionesEquipo = useCatalog<CondicionEquipo>('condiciones_equipo', () => fetchTable('condiciones_equipo', 'nombre'))
 
-  useEffect(() => {
-    async function load() {
-      const [
-        opRes,
-        maqRes,
-        lineaRes,
-        turnoRes,
-        actividadRes,
-        subEquipoRes,
-        tipoPrevRes,
-        sistemaRes,
-        codigoFallaRes,
-        tareaRes,
-        productoRes,
-        condicionRes,
-      ] = await Promise.all([
-        supabase.from('operadores').select('*').eq('activo', true).order('apellido', { ascending: true }),
-        supabase.from('maquinarias').select('*').eq('activo', true).order('codigo', { ascending: true }),
-        supabase.from('lineas_operacion').select('*').eq('activo', true).order('codigo', { ascending: true }),
-        supabase.from('turnos').select('*').eq('activo', true).order('nombre', { ascending: true }),
-        supabase.from('actividades_maquinaria').select('*').eq('activo', true).order('nombre', { ascending: true }),
-        supabase.from('sub_equipos').select('*').eq('activo', true).order('nombre', { ascending: true }),
-        supabase.from('tipos_preventiva_maquinaria').select('*').eq('activo', true).order('nombre', { ascending: true }),
-        supabase.from('sistemas_correctivo_maquinaria').select('*').eq('activo', true).order('nombre', { ascending: true }),
-        supabase.from('codigos_falla_maquinaria').select('*').eq('activo', true).order('nombre', { ascending: true }),
-        supabase.from('tareas_otra_maquinaria').select('*').eq('activo', true).order('nombre', { ascending: true }),
-        supabase.from('productos_insumo').select('*').eq('activo', true).order('nombre', { ascending: true }),
-        supabase.from('condiciones_equipo').select('*').eq('activo', true).order('nombre', { ascending: true }),
-      ])
-      setState({
-        operadores: (opRes.data ?? []) as unknown as Operador[],
-        maquinarias: (maqRes.data ?? []) as unknown as Maquinaria[],
-        lineas: (lineaRes.data ?? []) as unknown as LineaOperacion[],
-        turnos: (turnoRes.data ?? []) as unknown as Turno[],
-        actividades: (actividadRes.data ?? []) as unknown as ActividadMaquinaria[],
-        subEquipos: (subEquipoRes.data ?? []) as unknown as SubEquipo[],
-        tiposPreventiva: (tipoPrevRes.data ?? []) as unknown as TipoPreventivaMaquinaria[],
-        sistemasCorrectivo: (sistemaRes.data ?? []) as unknown as SistemaCorrectivoMaquinaria[],
-        codigosFalla: (codigoFallaRes.data ?? []) as unknown as CodigoFallaMaquinaria[],
-        tareasOtra: (tareaRes.data ?? []) as unknown as TareaOtraMaquinaria[],
-        productosInsumo: (productoRes.data ?? []) as unknown as ProductoInsumo[],
-        condicionesEquipo: (condicionRes.data ?? []) as unknown as CondicionEquipo[],
-        loading: false,
-      })
-    }
-    void load()
-  }, [])
+  const loading = [
+    operadores, maquinarias, lineas, turnos, actividades, subEquipos,
+    tiposPreventiva, sistemasCorrectivo, codigosFalla, tareasOtra, productosInsumo, condicionesEquipo,
+  ].some(c => c.loading)
 
-  return state
+  return {
+    operadores: operadores.data,
+    maquinarias: maquinarias.data,
+    lineas: lineas.data,
+    turnos: turnos.data,
+    actividades: actividades.data,
+    subEquipos: subEquipos.data,
+    tiposPreventiva: tiposPreventiva.data,
+    sistemasCorrectivo: sistemasCorrectivo.data,
+    codigosFalla: codigosFalla.data,
+    tareasOtra: tareasOtra.data,
+    productosInsumo: productosInsumo.data,
+    condicionesEquipo: condicionesEquipo.data,
+    loading,
+  }
 }

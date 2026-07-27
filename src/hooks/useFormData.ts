@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCatalog } from './useCatalog'
 import { supabase } from '../lib/supabase'
 import type { Operador, Patente, Fundo } from '../types'
 
@@ -15,33 +15,27 @@ interface FormDataState {
   loading: boolean
 }
 
+async function fetchTable<T>(table: string, orderBy: string): Promise<T[]> {
+  const { data } = await supabase.from(table).select('*').eq('activo', true).order(orderBy, { ascending: true })
+  return (data ?? []) as unknown as T[]
+}
+
+async function fetchTiposPreventiva(): Promise<TipoPreventiva[]> {
+  const { data } = await supabase.from('tipos_preventiva').select('*').order('nombre', { ascending: true })
+  return (data ?? []) as unknown as TipoPreventiva[]
+}
+
 export function useFormData(): FormDataState {
-  const [state, setState] = useState<FormDataState>({
-    operadores: [],
-    patentes: [],
-    fundos: [],
-    tiposPreventiva: [],
-    loading: true,
-  })
+  const operadores = useCatalog<Operador>('operadores', () => fetchTable('operadores', 'apellido'))
+  const patentes = useCatalog<Patente>('patentes', () => fetchTable('patentes', 'patente'))
+  const fundos = useCatalog<Fundo>('fundos', () => fetchTable('fundos', 'nombre'))
+  const tiposPreventiva = useCatalog<TipoPreventiva>('tipos_preventiva', fetchTiposPreventiva)
 
-  useEffect(() => {
-    async function load() {
-      const [opRes, patRes, funRes, tipRes] = await Promise.all([
-        supabase.from('operadores').select('*').eq('activo', true).order('apellido', { ascending: true }),
-        supabase.from('patentes').select('*').eq('activo', true).order('patente', { ascending: true }),
-        supabase.from('fundos').select('*').eq('activo', true).order('nombre', { ascending: true }),
-        supabase.from('tipos_preventiva').select('*').order('nombre', { ascending: true }),
-      ])
-      setState({
-        operadores: (opRes.data ?? []) as unknown as Operador[],
-        patentes: (patRes.data ?? []) as unknown as Patente[],
-        fundos: (funRes.data ?? []) as unknown as Fundo[],
-        tiposPreventiva: (tipRes.data ?? []) as unknown as TipoPreventiva[],
-        loading: false,
-      })
-    }
-    void load()
-  }, [])
-
-  return state
+  return {
+    operadores: operadores.data,
+    patentes: patentes.data,
+    fundos: fundos.data,
+    tiposPreventiva: tiposPreventiva.data,
+    loading: operadores.loading || patentes.loading || fundos.loading || tiposPreventiva.loading,
+  }
 }

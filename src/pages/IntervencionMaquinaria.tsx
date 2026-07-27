@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, ChangeEvent, RefObject } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useFormDataMaquinaria } from '../hooks/useFormDataMaquinaria'
 import { useOfflineQueue } from '../hooks/useOfflineQueue'
-import { supabase } from '../lib/supabase'
 import { TIPOS_INTERVENCION_MAQUINARIA } from '../lib/maquinaria'
 import { SearchSelect } from '../components/SearchSelect'
 import { CatalogSelect } from '../components/CatalogSelect'
@@ -221,27 +220,10 @@ export function IntervencionMaquinaria() {
     return false
   }
 
-  async function subirFoto(file: File, sufijo: string, uuidLocal: string): Promise<string | null> {
-    const ext = file.name.split('.').pop() ?? 'jpg'
-    const result = await supabase.storage
-      .from('fotos-maquinaria')
-      .upload(`${uuidLocal}-${sufijo}.${ext}`, file, { contentType: file.type, upsert: false })
-    return result.data?.path ?? null
-  }
-
   async function finalizar() {
     if (!tipo) return
     setSubmitting(true)
     const uuid_local = crypto.randomUUID()
-
-    let imagenPath: string | null = null
-    let imagenDetallePath: string | null = null
-
-    if (!isOffline) {
-      if (imagen) imagenPath = await subirFoto(imagen, 'cabecera', uuid_local)
-      const detalleFile = tipo === 'PREVENTIVA' ? prevImagen : tipo === 'CORRECTIVA' ? imagenFalla : null
-      if (detalleFile) imagenDetallePath = await subirFoto(detalleFile, 'detalle', uuid_local)
-    }
 
     const intervencion = {
       responsable_id: responsableId,
@@ -251,13 +233,16 @@ export function IntervencionMaquinaria() {
       actividad_id: actividadId || null,
       sub_equipo_id: subEquipoId || null,
       horometro,
-      imagen_path: imagenPath,
+      imagen_path: null,
       tipo,
       fecha_inicio: fechaInicio,
       hora_inicio: horaInicio,
       f_registro: new Date().toISOString(),
       uuid_local,
     }
+    const fotoCabecera = imagen ? { blob: imagen, ext: imagen.name.split('.').pop() ?? 'jpg' } : undefined
+    const detalleFile = tipo === 'PREVENTIVA' ? prevImagen : tipo === 'CORRECTIVA' ? imagenFalla : null
+    const fotoDetalle = detalleFile ? { blob: detalleFile, ext: detalleFile.name.split('.').pop() ?? 'jpg' } : undefined
 
     const insumosPayload = insumos.length
       ? insumos.map(i => ({ producto_id: i.productoId, codigo_barras: i.codigoBarras || null, cantidad: i.cantidad }))
@@ -265,13 +250,13 @@ export function IntervencionMaquinaria() {
 
     if (tipo === 'PREVENTIVA') {
       const desviacionesPayload = desviaciones.filter(d => d.texto.trim()).map(d => ({ descripcion: d.texto.trim() }))
-      enqueue({
+      await enqueue({
         type: 'intervencion_maquinaria_preventiva',
         intervencion,
         preventiva: {
           tipo_preventiva_id: prevTipoId || null,
           descripcion: prevDescripcion.trim(),
-          imagen_path: imagenDetallePath,
+          imagen_path: null,
           fecha_termino: prevFechaTermino,
           hora_termino: prevHoraTermino,
           condicion_equipo_id: prevCondicionId || null,
@@ -279,15 +264,17 @@ export function IntervencionMaquinaria() {
         },
         desviaciones: desviacionesPayload.length ? desviacionesPayload : undefined,
         insumos: insumosPayload,
+        fotoCabecera,
+        fotoDetalle,
       })
     } else if (tipo === 'CORRECTIVA') {
-      enqueue({
+      await enqueue({
         type: 'intervencion_maquinaria_correctiva',
         intervencion,
         correctiva: {
           hora_aviso_falla: horaAvisoFalla,
           descripcion_falla: descripcionFalla.trim(),
-          imagen_falla_path: imagenDetallePath,
+          imagen_falla_path: null,
           sistema_id: sistemaId || null,
           codigo_falla_id: codigoFallaId || null,
           causa_probable: causaProbable.trim(),
@@ -298,9 +285,11 @@ export function IntervencionMaquinaria() {
           costo: corrCosto ? Number(corrCosto) : null,
         },
         insumos: insumosPayload,
+        fotoCabecera,
+        fotoDetalle,
       })
     } else {
-      enqueue({
+      await enqueue({
         type: 'intervencion_maquinaria_otra',
         intervencion,
         otra: {
@@ -312,6 +301,7 @@ export function IntervencionMaquinaria() {
           costo: otraCosto ? Number(otraCosto) : null,
         },
         insumos: insumosPayload,
+        fotoCabecera,
       })
     }
 
