@@ -1,6 +1,6 @@
 {
   "framework": "vite",
   "rewrites": [
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
+    { "source": "/((?!api/|sw\\.js|registerSW\\.js|workbox-.*\\.js|manifest\\.webmanifest|favicon\\.svg|icons/).*)", "destination": "/index.html" }
   ]
 }
