@@ -1,14 +1,43 @@
 import { supabase } from './supabase'
 import { db } from './db'
 
+// Catálogos con columna `activo` real: operadores, patentes, fundos, maquinarias.
 export async function fetchTable<T>(table: string, orderBy: string): Promise<T[]> {
   const { data } = await supabase.from(table).select('*').eq('activo', true).order(orderBy, { ascending: true })
+  return (data ?? []) as unknown as T[]
+}
+
+// Catálogos "mini" (turnos, líneas, actividades, etc.) — no tienen columna `activo`,
+// se ordenan por su columna `orden`.
+export async function fetchCatalog<T>(table: string): Promise<T[]> {
+  const { data } = await supabase.from(table).select('*').order('orden', { ascending: true })
   return (data ?? []) as unknown as T[]
 }
 
 export async function fetchTiposPreventiva<T>(): Promise<T[]> {
   const { data } = await supabase.from('tipos_preventiva').select('*').order('nombre', { ascending: true })
   return (data ?? []) as unknown as T[]
+}
+
+interface CodigoFallaRow {
+  id: string
+  nombre: string
+  sistema_id: string | null
+  // codigos_falla_maquinaria no tiene columna `activo` real; se deja en true para encajar
+  // con el shape que usan los demás catálogos (ver CodigoFallaMaquinaria en types/index.ts).
+  activo: true
+}
+
+// codigos_falla_maquinaria no tiene columna `nombre` (tiene `codigo` + `descripcion`) —
+// se arma un nombre para mostrar en los selects.
+export async function fetchCodigosFalla(): Promise<CodigoFallaRow[]> {
+  const { data } = await supabase
+    .from('codigos_falla_maquinaria')
+    .select('id, codigo, descripcion, sistema_id')
+    .order('orden', { ascending: true })
+  return ((data ?? []) as unknown as { id: string; codigo: string; descripcion: string | null; sistema_id: string | null }[]).map(
+    r => ({ id: r.id, sistema_id: r.sistema_id, nombre: r.descripcion ? `${r.codigo} — ${r.descripcion}` : r.codigo, activo: true }),
+  )
 }
 
 interface CatalogSpec {
@@ -25,16 +54,16 @@ const ALL_CATALOGS: CatalogSpec[] = [
   { name: 'fundos', fetch: () => fetchTable('fundos', 'nombre') },
   { name: 'tipos_preventiva', fetch: () => fetchTiposPreventiva() },
   { name: 'maquinarias', fetch: () => fetchTable('maquinarias', 'codigo') },
-  { name: 'lineas_operacion', fetch: () => fetchTable('lineas_operacion', 'codigo') },
-  { name: 'turnos', fetch: () => fetchTable('turnos', 'nombre') },
-  { name: 'actividades_maquinaria', fetch: () => fetchTable('actividades_maquinaria', 'nombre') },
-  { name: 'sub_equipos', fetch: () => fetchTable('sub_equipos', 'nombre') },
-  { name: 'tipos_preventiva_maquinaria', fetch: () => fetchTable('tipos_preventiva_maquinaria', 'nombre') },
-  { name: 'sistemas_correctivo_maquinaria', fetch: () => fetchTable('sistemas_correctivo_maquinaria', 'nombre') },
-  { name: 'codigos_falla_maquinaria', fetch: () => fetchTable('codigos_falla_maquinaria', 'nombre') },
-  { name: 'tareas_otra_maquinaria', fetch: () => fetchTable('tareas_otra_maquinaria', 'nombre') },
-  { name: 'productos_insumo', fetch: () => fetchTable('productos_insumo', 'nombre') },
-  { name: 'condiciones_equipo', fetch: () => fetchTable('condiciones_equipo', 'nombre') },
+  { name: 'lineas_operacion', fetch: () => fetchCatalog('lineas_operacion') },
+  { name: 'turnos', fetch: () => fetchCatalog('turnos') },
+  { name: 'actividades_maquinaria', fetch: () => fetchCatalog('actividades_maquinaria') },
+  { name: 'sub_equipos', fetch: () => fetchCatalog('sub_equipos') },
+  { name: 'tipos_preventiva_maquinaria', fetch: () => fetchCatalog('tipos_preventiva_maquinaria') },
+  { name: 'sistemas_correctivo_maquinaria', fetch: () => fetchCatalog('sistemas_correctivo_maquinaria') },
+  { name: 'codigos_falla_maquinaria', fetch: () => fetchCodigosFalla() },
+  { name: 'tareas_otra_maquinaria', fetch: () => fetchCatalog('tareas_otra_maquinaria') },
+  { name: 'productos_insumo', fetch: () => fetchCatalog('productos_insumo') },
+  { name: 'condiciones_equipo', fetch: () => fetchCatalog('condiciones_equipo') },
 ]
 
 let prefetching = false

@@ -1,5 +1,5 @@
 import { useCatalog } from './useCatalog'
-import { fetchTable } from '../lib/masterDataCache'
+import { fetchTable, fetchCatalog, fetchCodigosFalla } from '../lib/masterDataCache'
 import type {
   ActividadMaquinaria,
   CodigoFallaMaquinaria,
@@ -34,20 +34,20 @@ interface FormDataMaquinariaState {
 export function useFormDataMaquinaria(): FormDataMaquinariaState {
   const operadores = useCatalog<Operador>('operadores', () => fetchTable('operadores', 'apellido'))
   const maquinarias = useCatalog<Maquinaria>('maquinarias', () => fetchTable('maquinarias', 'codigo'))
-  const lineas = useCatalog<LineaOperacion>('lineas_operacion', () => fetchTable('lineas_operacion', 'codigo'))
-  const turnos = useCatalog<Turno>('turnos', () => fetchTable('turnos', 'nombre'))
-  const actividades = useCatalog<ActividadMaquinaria>('actividades_maquinaria', () => fetchTable('actividades_maquinaria', 'nombre'))
-  const subEquipos = useCatalog<SubEquipo>('sub_equipos', () => fetchTable('sub_equipos', 'nombre'))
+  const lineas = useCatalog<LineaOperacion>('lineas_operacion', () => fetchCatalog('lineas_operacion'))
+  const turnos = useCatalog<Turno>('turnos', () => fetchCatalog('turnos'))
+  const actividades = useCatalog<ActividadMaquinaria>('actividades_maquinaria', () => fetchCatalog('actividades_maquinaria'))
+  const subEquipos = useCatalog<SubEquipo>('sub_equipos', () => fetchCatalog('sub_equipos'))
   const tiposPreventiva = useCatalog<TipoPreventivaMaquinaria>('tipos_preventiva_maquinaria', () =>
-    fetchTable('tipos_preventiva_maquinaria', 'nombre'),
+    fetchCatalog('tipos_preventiva_maquinaria'),
   )
   const sistemasCorrectivo = useCatalog<SistemaCorrectivoMaquinaria>('sistemas_correctivo_maquinaria', () =>
-    fetchTable('sistemas_correctivo_maquinaria', 'nombre'),
+    fetchCatalog('sistemas_correctivo_maquinaria'),
   )
-  const codigosFalla = useCatalog<CodigoFallaMaquinaria>('codigos_falla_maquinaria', () => fetchTable('codigos_falla_maquinaria', 'nombre'))
-  const tareasOtra = useCatalog<TareaOtraMaquinaria>('tareas_otra_maquinaria', () => fetchTable('tareas_otra_maquinaria', 'nombre'))
-  const productosInsumo = useCatalog<ProductoInsumo>('productos_insumo', () => fetchTable('productos_insumo', 'nombre'))
-  const condicionesEquipo = useCatalog<CondicionEquipo>('condiciones_equipo', () => fetchTable('condiciones_equipo', 'nombre'))
+  const codigosFalla = useCatalog<CodigoFallaMaquinaria>('codigos_falla_maquinaria', () => fetchCodigosFalla())
+  const tareasOtra = useCatalog<TareaOtraMaquinaria>('tareas_otra_maquinaria', () => fetchCatalog('tareas_otra_maquinaria'))
+  const productosInsumo = useCatalog<ProductoInsumo>('productos_insumo', () => fetchCatalog('productos_insumo'))
+  const condicionesEquipo = useCatalog<CondicionEquipo>('condiciones_equipo', () => fetchCatalog('condiciones_equipo'))
 
   const loading = [
     operadores, maquinarias, lineas, turnos, actividades, subEquipos,
