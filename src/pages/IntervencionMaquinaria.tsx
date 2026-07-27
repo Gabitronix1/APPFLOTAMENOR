@@ -237,7 +237,6 @@ export function IntervencionMaquinaria() {
       tipo,
       fecha_inicio: fechaInicio,
       hora_inicio: horaInicio,
-      f_registro: new Date().toISOString(),
       uuid_local,
     }
     const fotoCabecera = imagen ? { blob: imagen, ext: imagen.name.split('.').pop() ?? 'jpg' } : undefined
@@ -245,7 +244,7 @@ export function IntervencionMaquinaria() {
     const fotoDetalle = detalleFile ? { blob: detalleFile, ext: detalleFile.name.split('.').pop() ?? 'jpg' } : undefined
 
     const insumosPayload = insumos.length
-      ? insumos.map(i => ({ producto_id: i.productoId, codigo_barras: i.codigoBarras || null, cantidad: i.cantidad }))
+      ? insumos.map(i => ({ producto_id: i.productoId, barcode: i.codigoBarras || null, cantidad: i.cantidad }))
       : undefined
 
     if (tipo === 'PREVENTIVA') {

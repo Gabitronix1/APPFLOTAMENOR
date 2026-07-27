@@ -70,17 +70,15 @@ export function Checklist() {
       inspeccion: {
         operador_id: operadorId,
         patente_id: patenteId,
-        linea,
-        tipo_vehiculo: tipoVehiculo,
-        odometro,
-        f_registro: new Date().toISOString(),
+        kilometraje: odometro,
+        fecha: new Date().toISOString(),
         uuid_local: crypto.randomUUID(),
         obs_general: obsGeneral || null,
         operativo,
       },
       respuestas: PREGUNTAS.map((_, idx) => ({
-        pregunta: idx + 1,
-        respuesta: respuestas[idx].falla,
+        pregunta_id: idx + 1,
+        valor: respuestas[idx].falla,
         observacion: respuestas[idx].observacion || null,
       })),
     })

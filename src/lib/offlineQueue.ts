@@ -118,7 +118,7 @@ async function syncIntervencionMaquinaria(payload: IntervencionMaquinariaPayload
 
   if (payload.type === 'intervencion_maquinaria_preventiva' && payload.preventiva) {
     const { data: prev, error: prevErr } = await supabase
-      .from('intervenciones_preventiva_maquinaria')
+      .from('intervencion_maquinaria_preventiva')
       .insert({ ...payload.preventiva, intervencion_id: invId })
       .select('id')
       .single()
@@ -132,12 +132,12 @@ async function syncIntervencionMaquinaria(payload: IntervencionMaquinariaPayload
     }
   } else if (payload.type === 'intervencion_maquinaria_correctiva' && payload.correctiva) {
     const { error } = await supabase
-      .from('intervenciones_correctiva_maquinaria')
+      .from('intervencion_maquinaria_correctiva')
       .insert({ ...payload.correctiva, intervencion_id: invId })
     if (error) throw error
   } else if (payload.type === 'intervencion_maquinaria_otra' && payload.otra) {
     const { error } = await supabase
-      .from('intervenciones_otra_maquinaria')
+      .from('intervencion_maquinaria_otra')
       .insert({ ...payload.otra, intervencion_id: invId })
     if (error) throw error
   }

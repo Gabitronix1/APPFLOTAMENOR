@@ -3,15 +3,13 @@ export interface ChecklistPayload {
   inspeccion: {
     operador_id: string
     patente_id: string
-    linea: string
-    tipo_vehiculo: string
-    odometro: number
-    f_registro: string
+    kilometraje: number
+    fecha: string
     uuid_local: string
     obs_general: string | null
     operativo: boolean
   }
-  respuestas: { pregunta: number; respuesta: boolean; observacion: string | null }[]
+  respuestas: { pregunta_id: number; valor: boolean; observacion: string | null }[]
 }
 
 export interface FotoLocal {
@@ -68,7 +66,6 @@ export interface IntervencionMaquinariaPayload {
     tipo: 'PREVENTIVA' | 'CORRECTIVA' | 'OTRA'
     fecha_inicio: string
     hora_inicio: string
-    f_registro: string
     uuid_local: string
   }
   preventiva?: {
@@ -102,7 +99,7 @@ export interface IntervencionMaquinariaPayload {
     condicion_equipo_id: string | null
     costo: number | null
   }
-  insumos?: { producto_id: string; codigo_barras: string | null; cantidad: number }[]
+  insumos?: { producto_id: string; barcode: string | null; cantidad: number }[]
   /** Foto de cabecera (equipo), guardada localmente y subida durante la sincronización. */
   fotoCabecera?: FotoLocal
   /** Foto de detalle (preventiva o falla correctiva), guardada localmente y subida durante la sincronización. */
