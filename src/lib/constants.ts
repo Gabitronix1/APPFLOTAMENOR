@@ -31,10 +31,6 @@ export function fmtNum(n: number): string {
   return n.toLocaleString('es-CL')
 }
 
-export function fmtCLP(n: number): string {
-  return `$${Math.round(n).toLocaleString('es-CL')}`
-}
-
 export function tiempoRelativo(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime()
   const diffMin = Math.floor(diffMs / 60000)

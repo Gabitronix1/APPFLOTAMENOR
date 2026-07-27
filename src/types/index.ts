@@ -169,13 +169,6 @@ export interface Disponibilidad {
   porcentaje: number
 }
 
-export interface CostoVehiculo {
-  patente_id: string
-  patente: string
-  mes: string
-  costo_total: number
-}
-
 /* ─── Flota Mayor (Maquinaria) ─── */
 
 // Maquinaria reutiliza el mismo semáforo operativo de 5 estados que Vehículo.
@@ -284,11 +277,4 @@ export interface VMaquinariaTimeline {
   titulo: string
   subtitulo: string | null
   operador: string | null
-}
-
-export interface CostoMaquinaria {
-  maquinaria_id: string
-  codigo: string
-  mes: string
-  costo_total: number
 }

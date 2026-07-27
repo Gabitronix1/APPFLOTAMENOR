@@ -5,29 +5,22 @@ import type { Filters } from '../hooks/useFilters'
 import { useInspecciones } from '../hooks/useInspecciones'
 import { useEstadoFlota } from '../hooks/useEstadoFlota'
 import { useDisponibilidad } from '../hooks/useDisponibilidad'
-import { useCostoMensual } from '../hooks/useCostoMensual'
 import { useOTUrgentes } from '../hooks/useOTUrgentes'
 import { useVencimientosResumen } from '../hooks/useVencimientosResumen'
 import { useEstadoFlotaMaquinaria } from '../hooks/useEstadoFlotaMaquinaria'
 import { useDisponibilidadMaquinaria } from '../hooks/useDisponibilidadMaquinaria'
-import { useCostoMensualMaquinaria } from '../hooks/useCostoMensualMaquinaria'
-import { CollapsibleSection } from '../components/dashboard/CollapsibleSection'
 import { PanelSection } from '../components/dashboard/PanelSection'
 import { SemaforoFlota } from '../components/dashboard/SemaforoFlota'
 import { VehiculosAtencion } from '../components/dashboard/VehiculosAtencion'
 import { MaquinariasAtencion } from '../components/dashboard/MaquinariasAtencion'
 import { DisponibilidadWidget } from '../components/dashboard/DisponibilidadWidget'
-import { CostoMantencion } from '../components/dashboard/CostoMantencion'
-import { CostoMantencionMaquinaria } from '../components/dashboard/CostoMantencionMaquinaria'
 import { OTUrgentesSection } from '../components/dashboard/OTUrgentesSection'
 import { DocumentosPorVencer } from '../components/dashboard/DocumentosPorVencer'
 import { FilterBar } from '../components/dashboard/FilterBar'
 import { SecSistemas } from '../components/dashboard/SecSistemas'
 import { SecPrioridades } from '../components/dashboard/SecPrioridades'
-import { SecOperadores } from '../components/dashboard/SecOperadores'
-import { SecCalendario } from '../components/dashboard/SecCalendario'
+import { SecTrazabilidadOperadores } from '../components/dashboard/SecTrazabilidadOperadores'
 import { SecCobertura } from '../components/dashboard/SecCobertura'
-import { SecVisualizacion } from '../components/dashboard/SecVisualizacion'
 import { fmtDate } from '../lib/constants'
 import { esRolAdministrativo } from '../lib/roles'
 import type { EstadoMaquinaria, EstadoVehiculo, VInspeccion } from '../types'
@@ -56,12 +49,10 @@ function DashboardContent() {
 
   const estadoFlota = useEstadoFlota(puedeGestionarFlota)
   const disponibilidad = useDisponibilidad(puedeGestionarFlota)
-  const costoMensual = useCostoMensual(puedeGestionarFlota)
   const otUrgentes = useOTUrgentes(puedeGestionarFlota)
   const vencimientos = useVencimientosResumen(puedeGestionarFlota)
   const estadoFlotaMaquinaria = useEstadoFlotaMaquinaria(puedeGestionarFlota)
   const disponibilidadMaquinaria = useDisponibilidadMaquinaria(puedeGestionarFlota)
-  const costoMensualMaquinaria = useCostoMensualMaquinaria(puedeGestionarFlota)
 
   const filteredData = useMemo(
     () => applyFilters(allInspecciones, filters),
@@ -100,12 +91,17 @@ function DashboardContent() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      {puedeGestionarFlota && (
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-dark mb-1">Panel del día</h1>
-          <p className="text-sm text-gray-500 mb-5">Estado general de la flota, ahora mismo.</p>
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-dark mb-1">Gestión de flota</h1>
+        <p className="text-sm text-gray-500">Estado, atención requerida y trazabilidad de reportes.</p>
+      </div>
 
-          <PanelSection title="Semáforo de flota ahora mismo" hint="Click en un chip filtra la lista de abajo">
+      {puedeGestionarFlota && (
+        <div className="mb-10">
+          <h2 className="text-lg font-bold text-dark mb-1">Flota Menor</h2>
+          <p className="text-sm text-gray-500 mb-5">Vehículos — estado operativo ahora mismo.</p>
+
+          <PanelSection title="Semáforo de flota" hint="Click en un chip filtra la lista de abajo">
             <SemaforoFlota
               counts={estadoFlota.counts}
               loading={estadoFlota.loading}
@@ -114,7 +110,7 @@ function DashboardContent() {
             />
           </PanelSection>
 
-          <PanelSection title="Vehículos que requieren atención">
+          <PanelSection title="Vehículos que requieren atención" hint="Por estado operativo asignado manualmente">
             <VehiculosAtencion
               vehiculos={estadoFlota.vehiculos}
               filtroEstado={estadoSeleccionado}
@@ -134,13 +130,8 @@ function DashboardContent() {
           </PanelSection>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6">
-            <PanelSection title="Costo de mantención este mes">
-              <CostoMantencion
-                total={costoMensual.total}
-                top5={costoMensual.top5}
-                loading={costoMensual.loading}
-                error={costoMensual.error}
-              />
+            <PanelSection title="Órdenes de trabajo urgentes">
+              <OTUrgentesSection items={otUrgentes.items} loading={otUrgentes.loading} error={otUrgentes.error} />
             </PanelSection>
 
             <PanelSection title="Documentos por vencer">
@@ -152,17 +143,54 @@ function DashboardContent() {
               />
             </PanelSection>
           </div>
+        </div>
+      )}
 
-          <PanelSection title="Órdenes de trabajo urgentes">
-            <OTUrgentesSection items={otUrgentes.items} loading={otUrgentes.loading} error={otUrgentes.error} />
-          </PanelSection>
+      {/* Inspecciones — trazabilidad */}
+      <div className="flex flex-wrap items-end justify-between gap-3 mb-5">
+        <div>
+          <h2 className="text-lg font-bold text-dark">Trazabilidad de inspecciones</h2>
+          <p className="text-sm text-gray-500 mt-0.5">
+            <span className="font-semibold text-gray-700">{filteredData.length}</span> inspecciones
+            {' · '}
+            <span className="font-semibold text-gray-700">{uniqueVehicles}</span> vehículos
+            {minFecha && maxFecha && (
+              <> · {fmtDate(minFecha)} – {fmtDate(maxFecha)}</>
+            )}
+          </p>
+        </div>
+        {isFiltered && (
+          <span className="badge-warn text-xs">
+            Filtrado: {filteredData.length} / {allInspecciones.length}
+          </span>
+        )}
+      </div>
 
+      <FilterBar allData={allInspecciones} />
+
+      <PanelSection title="Estado por sistema inspeccionado" hint="Toca un sistema para ver patentes afectadas">
+        <SecSistemas data={filteredData} />
+      </PanelSection>
+
+      <PanelSection title="Prioridades de mantención" hint="Ranking por fallas de checklist · estado actual por vehículo">
+        <SecPrioridades data={filteredData} />
+      </PanelSection>
+
+      <PanelSection title="Trazabilidad de operadores" hint="Cumplimiento de reporte 5×5">
+        <SecTrazabilidadOperadores data={filteredData} operadoresNomina={operadores} />
+      </PanelSection>
+
+      <PanelSection title="Cobertura de la flota">
+        <SecCobertura data={filteredData} patentesNomina={patentes} />
+      </PanelSection>
+
+      {puedeGestionarFlota && (
+        <div className="mt-10">
           <div className="border-b border-gray-200 mb-6" />
+          <h2 className="text-lg font-bold text-dark mb-1">Flota Mayor</h2>
+          <p className="text-sm text-gray-500 mb-5">Maquinaria — estado operativo ahora mismo.</p>
 
-          <h2 className="text-xl font-bold text-dark mb-1">Flota Mayor</h2>
-          <p className="text-sm text-gray-500 mb-5">Estado general de maquinarias, ahora mismo.</p>
-
-          <PanelSection title="Semáforo de maquinarias ahora mismo" hint="Click en un chip filtra la lista de abajo">
+          <PanelSection title="Semáforo de maquinarias" hint="Click en un chip filtra la lista de abajo">
             <SemaforoFlota
               counts={estadoFlotaMaquinaria.counts}
               loading={estadoFlotaMaquinaria.loading}
@@ -189,75 +217,8 @@ function DashboardContent() {
               />
             </div>
           </PanelSection>
-
-          <PanelSection title="Costo de mantención este mes">
-            <CostoMantencionMaquinaria
-              total={costoMensualMaquinaria.total}
-              top5={costoMensualMaquinaria.top5}
-              loading={costoMensualMaquinaria.loading}
-              error={costoMensualMaquinaria.error}
-            />
-          </PanelSection>
-
-          <div className="border-b border-gray-200 mb-6" />
         </div>
       )}
-
-      {/* Meta header */}
-      <div className="flex flex-wrap items-end justify-between gap-3 mb-5">
-        <div>
-          <h1 className="text-2xl font-bold text-dark">Panel de Inspección de Flota</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            <span className="font-semibold text-gray-700">{filteredData.length}</span> inspecciones
-            {' · '}
-            <span className="font-semibold text-gray-700">{uniqueVehicles}</span> vehículos
-            {minFecha && maxFecha && (
-              <> · {fmtDate(minFecha)} – {fmtDate(maxFecha)}</>
-            )}
-          </p>
-        </div>
-        {isFiltered && (
-          <span className="badge-warn text-xs">
-            Filtrado: {filteredData.length} / {allInspecciones.length}
-          </span>
-        )}
-      </div>
-
-      {/* Sticky filters */}
-      <FilterBar allData={allInspecciones} />
-
-      {/* Sections */}
-      <CollapsibleSection
-        num="02"
-        title="Estado por sistema inspeccionado"
-        hint="Toca un sistema para ver patentes afectadas"
-      >
-        <SecSistemas data={filteredData} />
-      </CollapsibleSection>
-
-      <CollapsibleSection
-        num="03"
-        title="Prioridades de mantención"
-        hint="Ranking accionable · estado actual por vehículo"
-      >
-        <SecPrioridades data={filteredData} />
-      </CollapsibleSection>
-
-      <CollapsibleSection num="04" title="Reportes por operador">
-        <SecOperadores data={filteredData} operadoresNomina={operadores} />
-      </CollapsibleSection>
-
-      <CollapsibleSection num="05" title="Calendario de reportes">
-        <SecCalendario data={filteredData} operadoresNomina={operadores} />
-      </CollapsibleSection>
-
-      <CollapsibleSection num="06" title="Cobertura de la flota">
-        <SecCobertura data={filteredData} patentesNomina={patentes} />
-      </CollapsibleSection>
-
-      <CollapsibleSection num="07" title="Visualización">
-        <SecVisualizacion data={filteredData} />
-      </CollapsibleSection>
     </div>
   )
 }
