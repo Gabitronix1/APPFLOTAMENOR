@@ -197,13 +197,28 @@ export async function syncAll(): Promise<void> {
       } catch (err) {
         await db.syncQueue.update(item.id, {
           attempts: item.attempts + 1,
-          lastError: err instanceof Error ? err.message : 'Error desconocido',
+          lastError: describeError(err),
         })
       }
     }
   } finally {
     await refreshCachedCount()
     syncing = false
+  }
+}
+
+// Los errores de supabase-js (Postgrest/Storage) son objetos planos {message, details, code},
+// no instancias de Error — err instanceof Error los pasaba por alto y perdía el mensaje real.
+function describeError(err: unknown): string {
+  if (err instanceof Error) return err.message
+  if (err && typeof err === 'object' && 'message' in err && typeof (err as { message: unknown }).message === 'string') {
+    const e = err as { message: string; details?: string; code?: string }
+    return [e.code, e.message, e.details].filter(Boolean).join(' — ')
+  }
+  try {
+    return JSON.stringify(err)
+  } catch {
+    return 'Error desconocido'
   }
 }
 
