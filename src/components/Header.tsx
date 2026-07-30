@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { LogoTriangulos } from './LogoTriangulos'
 import { getOfflineQueueCount, QUEUE_CHANGED_EVENT } from '../hooks/useOfflineQueue'
 import { listQueue, syncAll } from '../lib/offlineQueue'
 import {
@@ -117,10 +116,11 @@ export function Header() {
     <header className="bg-dark border-b border-white/10 sticky top-0 z-50 print:hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-20">
         <div className="flex items-center gap-3">
-          <LogoTriangulos size={40} />
-          <span className="text-white font-bold text-lg leading-tight">
-            Doña Isidora
-            <span className="block text-xs font-normal text-gray-400">Flota Menor</span>
+          <div className="bg-white rounded-lg px-2.5 py-1.5 shrink-0">
+            <img src="/DI1color.png" alt="Doña Isidora" className="h-6 sm:h-7 w-auto block" />
+          </div>
+          <span className="hidden sm:block text-xs font-medium text-gray-400 leading-tight">
+            Flota Menor
           </span>
         </div>
 

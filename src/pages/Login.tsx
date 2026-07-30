@@ -2,7 +2,6 @@ import { useState, FormEvent, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { LogoTriangulos } from '../components/LogoTriangulos'
 import { getDefaultRoute } from '../lib/roles'
 
 export function Login() {
@@ -35,9 +34,10 @@ export function Login() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <LogoTriangulos size={64} />
-          <h1 className="text-white text-2xl font-bold mt-4">Doña Isidora</h1>
-          <p className="text-gray-400 text-sm mt-1">Sistema de Flota Menor</p>
+          <div className="bg-white rounded-2xl px-6 py-4 shadow-lg">
+            <img src="/DI1color.png" alt="Doña Isidora" className="h-12 w-auto" />
+          </div>
+          <p className="text-gray-400 text-sm mt-4">Sistema de Flota Menor</p>
         </div>
 
         {/* Card */}
