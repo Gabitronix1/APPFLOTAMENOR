@@ -10,7 +10,14 @@ import {
 import type { QueueData } from '../lib/offlineTypes'
 
 export { QUEUE_CHANGED_EVENT, getOfflineQueueCount }
-export type { ChecklistPayload, IntervencionPayload, IntervencionMaquinariaPayload, FotoLocal } from '../lib/offlineTypes'
+export type {
+  ChecklistPayload,
+  IntervencionPayload,
+  IntervencionMaquinariaPayload,
+  CrearConductorPayload,
+  CrearVehiculoPayload,
+  FotoLocal,
+} from '../lib/offlineTypes'
 
 export function useOfflineQueue() {
   const [queue, setQueue] = useState<QueueItem[]>([])

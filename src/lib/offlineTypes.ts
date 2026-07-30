@@ -106,4 +106,25 @@ export interface IntervencionMaquinariaPayload {
   fotoDetalle?: FotoLocal
 }
 
-export type QueueData = ChecklistPayload | IntervencionPayload | IntervencionMaquinariaPayload
+export interface CrearConductorPayload {
+  type: 'crear_conductor'
+  conductor: { id: string; nombre: string; apellido: string; rut: string | null }
+}
+
+export interface CrearVehiculoPayload {
+  type: 'crear_vehiculo'
+  vehiculo: {
+    id: string
+    patente: string
+    categoria_id: number | null
+    linea: string | null
+    descripcion: string | null
+  }
+}
+
+export type QueueData =
+  | ChecklistPayload
+  | IntervencionPayload
+  | IntervencionMaquinariaPayload
+  | CrearConductorPayload
+  | CrearVehiculoPayload

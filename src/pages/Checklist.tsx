@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { useFormData } from '../hooks/useFormData'
 import { useOfflineQueue } from '../hooks/useOfflineQueue'
 import { SearchSelect } from '../components/SearchSelect'
+import { CrearConductorModal, type NuevoConductorInput } from '../components/checklist/CrearConductorModal'
+import { CrearVehiculoModal, type NuevoVehiculoInput } from '../components/checklist/CrearVehiculoModal'
+import { appendToCatalogCache } from '../lib/masterDataCache'
 import { PREGUNTAS } from '../lib/constants'
-
-const TIPOS_VEHICULO = ['CAMIONETA', 'CAMIÓN', 'TRACTOR', 'EXCAVADORA', 'RETROEXCAVADORA', 'MOTONIVELADORA', 'MINIBÚS', 'OTRO']
-const LINEAS = ['LINEA A', 'LINEA B', 'LINEA C', 'LINEA D', 'ESPECIAL']
+import type { Operador, Patente } from '../types'
 
 interface Respuesta {
   falla: boolean
@@ -19,7 +20,7 @@ function emptyRespuestas(): Respuesta[] {
 
 export function Checklist() {
   const navigate = useNavigate()
-  const { operadores, patentes, loading } = useFormData()
+  const { operadores, patentes, categoriasVehiculo, loading } = useFormData()
   const { enqueue } = useOfflineQueue()
 
   const today = new Date().toISOString().slice(0, 10)
@@ -35,6 +36,16 @@ export function Checklist() {
   const [done, setDone] = useState(false)
   const [isOffline, setIsOffline] = useState(!navigator.onLine)
 
+  // Conductores/vehículos creados en esta sesión (aún no confirmados por el servidor),
+  // para que aparezcan de inmediato en los buscadores sin esperar la sincronización.
+  const [conductoresLocales, setConductoresLocales] = useState<Operador[]>([])
+  const [vehiculosLocales, setVehiculosLocales] = useState<Patente[]>([])
+  const [crearConductorQuery, setCrearConductorQuery] = useState<string | null>(null)
+  const [crearVehiculoQuery, setCrearVehiculoQuery] = useState<string | null>(null)
+
+  const allOperadores = [...operadores, ...conductoresLocales]
+  const allPatentes = [...patentes, ...vehiculosLocales]
+
   useEffect(() => {
     const up = () => setIsOffline(false)
     const dn = () => setIsOffline(true)
@@ -42,6 +53,21 @@ export function Checklist() {
     window.addEventListener('offline', dn)
     return () => { window.removeEventListener('online', up); window.removeEventListener('offline', dn) }
   }, [])
+
+  // Al elegir la patente, se completan solos el tipo de vehículo y la línea
+  // (vienen del registro del vehículo, no se piden a mano).
+  useEffect(() => {
+    const p = allPatentes.find(x => x.id === patenteId)
+    if (!p) {
+      setTipoVehiculo('')
+      setLinea('')
+      return
+    }
+    const categoria = categoriasVehiculo.find(c => String(c.id) === String(p.categoria_id))
+    setTipoVehiculo(categoria?.nombre ?? '')
+    setLinea(p.linea ?? '')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patenteId, patentes, vehiculosLocales, categoriasVehiculo])
 
   function setFalla(idx: number, v: boolean) {
     setRespuestas(prev => prev.map((r, i) =>
@@ -51,6 +77,63 @@ export function Checklist() {
 
   function setObs(idx: number, v: string) {
     setRespuestas(prev => prev.map((r, i) => i === idx ? { ...r, observacion: v } : r))
+  }
+
+  async function handleCrearConductor(input: NuevoConductorInput) {
+    const id = crypto.randomUUID()
+    const conductor: Operador = {
+      id,
+      nombre: input.nombre,
+      apellido: input.apellido,
+      rut: input.rut,
+      email: '',
+      activo: true,
+    }
+    setConductoresLocales(prev => [...prev, conductor])
+    await appendToCatalogCache('operadores', conductor)
+    await enqueue({
+      type: 'crear_conductor',
+      conductor: { id, nombre: input.nombre, apellido: input.apellido, rut: input.rut || null },
+    })
+    setOperadorId(id)
+    setCrearConductorQuery(null)
+  }
+
+  async function handleCrearVehiculo(input: NuevoVehiculoInput) {
+    const id = crypto.randomUUID()
+    const vehiculo: Patente = {
+      id,
+      patente: input.patente,
+      descripcion: input.descripcion,
+      activo: true,
+      estado_actual: 'operativo',
+      categoria_id: input.categoriaId || null,
+      marca: null,
+      modelo: null,
+      anno: null,
+      vin: null,
+      motor: null,
+      condicion: null,
+      area: null,
+      linea: input.linea || null,
+      responsable_nombre: null,
+      responsable_cargo: null,
+      afecta_indicadores: true,
+    }
+    setVehiculosLocales(prev => [...prev, vehiculo])
+    await appendToCatalogCache('patentes', vehiculo)
+    await enqueue({
+      type: 'crear_vehiculo',
+      vehiculo: {
+        id,
+        patente: input.patente,
+        categoria_id: input.categoriaId ? Number(input.categoriaId) : null,
+        linea: input.linea || null,
+        descripcion: input.descripcion || null,
+      },
+    })
+    setPatenteId(id)
+    setCrearVehiculoQuery(null)
   }
 
   function resetForm() {
@@ -64,7 +147,7 @@ export function Checklist() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!operadorId || !patenteId || !tipoVehiculo || !linea) return
+    if (!operadorId || !patenteId) return
     await enqueue({
       type: 'checklist',
       inspeccion: {
@@ -109,9 +192,9 @@ export function Checklist() {
     )
   }
 
-  const opOptions = operadores.map(o => ({ value: o.id, label: `${o.apellido}, ${o.nombre}` }))
-  const patOptions = patentes.map(p => ({ value: p.id, label: p.patente + (p.descripcion ? ` — ${p.descripcion}` : '') }))
-  const canSubmit = !!operadorId && !!patenteId && !!tipoVehiculo && !!linea
+  const opOptions = allOperadores.map(o => ({ value: o.id, label: `${o.apellido}, ${o.nombre}` }))
+  const patOptions = allPatentes.map(p => ({ value: p.id, label: p.patente + (p.descripcion ? ` — ${p.descripcion}` : '') }))
+  const canSubmit = !!operadorId && !!patenteId
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-gray-50 pb-10">
@@ -135,12 +218,14 @@ export function Checklist() {
             <div className="card space-y-4">
               <h2 className="font-semibold text-dark text-sm">Datos generales</h2>
               <div>
-                <label className="label">Operador</label>
+                <label className="label">Conductor</label>
                 <SearchSelect
                   options={opOptions}
                   value={operadorId}
                   onChange={setOperadorId}
-                  placeholder="Seleccionar operador..."
+                  placeholder="Seleccionar conductor..."
+                  onCreate={q => setCrearConductorQuery(q)}
+                  createLabel={q => `Crear conductor "${q}"`}
                 />
               </div>
               <div>
@@ -150,30 +235,22 @@ export function Checklist() {
                   value={patenteId}
                   onChange={setPatenteId}
                   placeholder="Seleccionar patente..."
+                  onCreate={q => setCrearVehiculoQuery(q)}
+                  createLabel={q => `Crear vehículo "${q}"`}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="label">Tipo vehículo</label>
-                  <select
-                    value={tipoVehiculo}
-                    onChange={e => setTipoVehiculo(e.target.value)}
-                    className="input"
-                  >
-                    <option value="">Seleccionar...</option>
-                    {TIPOS_VEHICULO.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="label">Línea</label>
-                  <select
-                    value={linea}
-                    onChange={e => setLinea(e.target.value)}
-                    className="input"
-                  >
-                    <option value="">Seleccionar...</option>
-                    {LINEAS.map(l => <option key={l} value={l}>{l}</option>)}
-                  </select>
+              <div>
+                <label className="label">Tipo de vehículo y línea</label>
+                <div className="min-h-[48px] border border-gray-200 rounded-xl px-4 py-2.5 bg-gray-50 flex items-center text-sm">
+                  {!patenteId ? (
+                    <span className="text-gray-400">Se completa solo al elegir la patente</span>
+                  ) : (
+                    <span className="text-gray-700">
+                      <span className="font-medium">{tipoVehiculo || 'Sin tipo registrado'}</span>
+                      <span className="text-gray-300 mx-2">·</span>
+                      <span className="font-medium">{linea || 'Sin línea registrada'}</span>
+                    </span>
+                  )}
                 </div>
               </div>
               <div>
@@ -204,10 +281,10 @@ export function Checklist() {
               </div>
             </div>
 
-            {/* 6 preguntas SI/NO */}
+            {/* 6 preguntas de estado */}
             <div className="space-y-3">
               <h2 className="font-semibold text-dark text-sm px-1">Revisión de sistemas</h2>
-              <p className="text-xs text-gray-400 px-1">SI = sin falla · NO = falla detectada</p>
+              <p className="text-xs text-gray-400 px-1">Marca el estado de cada sistema del vehículo</p>
               {PREGUNTAS.map((p, idx) => {
                 const r = respuestas[idx]
                 return (
@@ -215,44 +292,43 @@ export function Checklist() {
                     key={p.key}
                     className={`bg-white rounded-xl border-2 p-4 transition-colors ${r.falla ? 'border-fault/50 bg-fault/[0.03]' : 'border-gray-200'}`}
                   >
-                    <div className="flex items-start gap-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-dark text-sm mb-2">{idx + 1}. {p.label}</p>
-                        {r.falla && (
-                          <textarea
-                            placeholder="Observación (opcional)..."
-                            value={r.observacion}
-                            onChange={e => setObs(idx, e.target.value)}
-                            rows={2}
-                            className="w-full text-sm border border-fault/30 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-fault/30 resize-none bg-white"
-                          />
-                        )}
-                      </div>
-                      <div className="flex gap-2 flex-shrink-0">
+                    <p className="font-medium text-dark text-sm mb-3">{idx + 1}. {p.label}</p>
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-1.5">Estado</p>
+                      <div className="grid grid-cols-2 gap-2">
                         <button
                           type="button"
                           onClick={() => setFalla(idx, false)}
-                          className={`min-w-[52px] h-12 rounded-xl text-sm font-bold transition-all border ${
+                          className={`h-12 rounded-xl text-sm font-bold transition-all border ${
                             !r.falla
                               ? 'bg-primary text-white border-primary shadow-sm'
                               : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
                           }`}
                         >
-                          SI
+                          Buen estado
                         </button>
                         <button
                           type="button"
                           onClick={() => setFalla(idx, true)}
-                          className={`min-w-[52px] h-12 rounded-xl text-sm font-bold transition-all border ${
+                          className={`h-12 rounded-xl text-sm font-bold transition-all border ${
                             r.falla
                               ? 'bg-fault text-white border-fault shadow-sm'
                               : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
                           }`}
                         >
-                          NO
+                          Mal estado
                         </button>
                       </div>
                     </div>
+                    {r.falla && (
+                      <textarea
+                        placeholder="Observación (opcional)..."
+                        value={r.observacion}
+                        onChange={e => setObs(idx, e.target.value)}
+                        rows={2}
+                        className="w-full mt-3 text-sm border border-fault/30 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-fault/30 resize-none bg-white"
+                      />
+                    )}
                   </div>
                 )
               })}
@@ -300,6 +376,22 @@ export function Checklist() {
           </>
         )}
       </form>
+
+      {crearConductorQuery !== null && (
+        <CrearConductorModal
+          query={crearConductorQuery}
+          onClose={() => setCrearConductorQuery(null)}
+          onCreated={conductor => void handleCrearConductor(conductor)}
+        />
+      )}
+      {crearVehiculoQuery !== null && (
+        <CrearVehiculoModal
+          query={crearVehiculoQuery}
+          categorias={categoriasVehiculo}
+          onClose={() => setCrearVehiculoQuery(null)}
+          onCreated={vehiculo => void handleCrearVehiculo(vehiculo)}
+        />
+      )}
     </div>
   )
 }

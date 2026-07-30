@@ -1,10 +1,25 @@
 import { supabase } from './supabase'
 import { db, type QueueItem } from './db'
-import type { ChecklistPayload, IntervencionPayload, IntervencionMaquinariaPayload, QueueData, FotoLocal } from './offlineTypes'
+import type {
+  ChecklistPayload,
+  IntervencionPayload,
+  IntervencionMaquinariaPayload,
+  CrearConductorPayload,
+  CrearVehiculoPayload,
+  QueueData,
+  FotoLocal,
+} from './offlineTypes'
 
 export const QUEUE_CHANGED_EVENT = 'flota-queue-changed'
 
-export type { ChecklistPayload, IntervencionPayload, IntervencionMaquinariaPayload, QueueData }
+export type {
+  ChecklistPayload,
+  IntervencionPayload,
+  IntervencionMaquinariaPayload,
+  CrearConductorPayload,
+  CrearVehiculoPayload,
+  QueueData,
+}
 
 /* ─── Cached count (for synchronous readers like Header.tsx) ─── */
 
@@ -150,9 +165,23 @@ async function syncIntervencionMaquinaria(payload: IntervencionMaquinariaPayload
   }
 }
 
+async function syncCrearConductor(payload: CrearConductorPayload): Promise<void> {
+  const { error } = await supabase.from('operadores').insert(payload.conductor)
+  if (error) throw error
+}
+
+async function syncCrearVehiculo(payload: CrearVehiculoPayload): Promise<void> {
+  const { error } = await supabase.from('patentes').insert(payload.vehiculo)
+  if (error) throw error
+}
+
 async function syncItem(item: QueueItem): Promise<void> {
   if (item.data.type === 'checklist') {
     await syncChecklist(item.data)
+  } else if (item.data.type === 'crear_conductor') {
+    await syncCrearConductor(item.data)
+  } else if (item.data.type === 'crear_vehiculo') {
+    await syncCrearVehiculo(item.data)
   } else if (item.data.type.startsWith('intervencion_maquinaria_')) {
     await syncIntervencionMaquinaria(item.data as IntervencionMaquinariaPayload)
   } else {
@@ -224,6 +253,8 @@ function describeError(err: unknown): string {
 
 function labelFor(data: QueueData): string {
   if (data.type === 'checklist') return 'Checklist'
+  if (data.type === 'crear_conductor') return 'Conductor nuevo'
+  if (data.type === 'crear_vehiculo') return 'Vehículo nuevo'
   if (data.type.startsWith('intervencion_maquinaria_')) return 'Intervención de maquinaria'
   return 'Intervención de vehículo'
 }

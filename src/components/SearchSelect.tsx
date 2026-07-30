@@ -11,9 +11,20 @@ interface SearchSelectProps {
   onChange: (value: string) => void
   placeholder?: string
   disabled?: boolean
+  /** Si se entrega, muestra una acción "+ Crear ..." bajo la lista cuando hay texto escrito en el buscador. */
+  onCreate?: (query: string) => void
+  createLabel?: (query: string) => string
 }
 
-export function SearchSelect({ options, value, onChange, placeholder = 'Seleccionar...', disabled }: SearchSelectProps) {
+export function SearchSelect({
+  options,
+  value,
+  onChange,
+  placeholder = 'Seleccionar...',
+  disabled,
+  onCreate,
+  createLabel,
+}: SearchSelectProps) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
@@ -74,7 +85,7 @@ export function SearchSelect({ options, value, onChange, placeholder = 'Seleccio
             />
           </div>
           <div className="max-h-60 overflow-y-auto">
-            {filtered.length === 0 ? (
+            {filtered.length === 0 && !query.trim() ? (
               <p className="text-sm text-gray-400 text-center py-4">Sin resultados</p>
             ) : (
               filtered.map(o => (
@@ -91,6 +102,18 @@ export function SearchSelect({ options, value, onChange, placeholder = 'Seleccio
                   {o.label}
                 </button>
               ))
+            )}
+            {onCreate && query.trim() && (
+              <button
+                type="button"
+                onClick={() => { const q = query.trim(); setOpen(false); setQuery(''); onCreate(q) }}
+                className="w-full min-h-[44px] text-left px-4 py-2.5 text-sm font-semibold text-primary hover:bg-primary/5 border-t border-gray-100 flex items-center gap-2"
+              >
+                <svg viewBox="0 0 24 24" className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                {createLabel ? createLabel(query.trim()) : `Crear "${query.trim()}"`}
+              </button>
             )}
           </div>
         </div>

@@ -52,6 +52,7 @@ const ALL_CATALOGS: CatalogSpec[] = [
   { name: 'operadores', fetch: () => fetchTable('operadores', 'apellido') },
   { name: 'patentes', fetch: () => fetchTable('patentes', 'patente') },
   { name: 'fundos', fetch: () => fetchTable('fundos', 'nombre') },
+  { name: 'categorias_vehiculo', fetch: () => fetchCatalog('categorias_vehiculo') },
   { name: 'tipos_preventiva', fetch: () => fetchTiposPreventiva() },
   { name: 'maquinarias', fetch: () => fetchTable('maquinarias', 'codigo') },
   { name: 'lineas_operacion', fetch: () => fetchCatalog('lineas_operacion') },
@@ -65,6 +66,16 @@ const ALL_CATALOGS: CatalogSpec[] = [
   { name: 'productos_insumo', fetch: () => fetchCatalog('productos_insumo') },
   { name: 'condiciones_equipo', fetch: () => fetchCatalog('condiciones_equipo') },
 ]
+
+// Guarda de inmediato en IndexedDB una fila creada offline (conductor o vehículo nuevo)
+// para que aparezca en los selects de inmediato y sobreviva un reinicio de la app antes
+// de que la sincronización real la reemplace por la copia del servidor.
+export async function appendToCatalogCache<T extends { id: string }>(name: string, row: T): Promise<void> {
+  const existing = await db.catalogCache.get(name)
+  const data = ((existing?.data as T[] | undefined) ?? []).filter(r => r.id !== row.id)
+  data.push(row)
+  await db.catalogCache.put({ name, data, updatedAt: Date.now() })
+}
 
 let prefetching = false
 
