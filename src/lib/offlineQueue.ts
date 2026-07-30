@@ -6,6 +6,7 @@ import type {
   IntervencionMaquinariaPayload,
   CrearConductorPayload,
   CrearVehiculoPayload,
+  CrearLineaPayload,
   QueueData,
   FotoLocal,
 } from './offlineTypes'
@@ -18,6 +19,7 @@ export type {
   IntervencionMaquinariaPayload,
   CrearConductorPayload,
   CrearVehiculoPayload,
+  CrearLineaPayload,
   QueueData,
 }
 
@@ -175,6 +177,14 @@ async function syncCrearVehiculo(payload: CrearVehiculoPayload): Promise<void> {
   if (error) throw error
 }
 
+async function syncCrearLinea(payload: CrearLineaPayload): Promise<void> {
+  // lineas_operacion.id se autoasigna en el servidor (no tiene sentido client-side
+  // porque no es un uuid); si dos personas crean la misma línea sin conexión, el
+  // conflicto de `codigo` único simplemente descarta el duplicado.
+  const { error } = await supabase.from('lineas_operacion').insert(payload.linea)
+  if (error && error.code !== '23505') throw error
+}
+
 async function syncItem(item: QueueItem): Promise<void> {
   if (item.data.type === 'checklist') {
     await syncChecklist(item.data)
@@ -182,6 +192,8 @@ async function syncItem(item: QueueItem): Promise<void> {
     await syncCrearConductor(item.data)
   } else if (item.data.type === 'crear_vehiculo') {
     await syncCrearVehiculo(item.data)
+  } else if (item.data.type === 'crear_linea') {
+    await syncCrearLinea(item.data)
   } else if (item.data.type.startsWith('intervencion_maquinaria_')) {
     await syncIntervencionMaquinaria(item.data as IntervencionMaquinariaPayload)
   } else {
@@ -255,6 +267,7 @@ function labelFor(data: QueueData): string {
   if (data.type === 'checklist') return 'Checklist'
   if (data.type === 'crear_conductor') return 'Conductor nuevo'
   if (data.type === 'crear_vehiculo') return 'Vehículo nuevo'
+  if (data.type === 'crear_linea') return 'Línea nueva'
   if (data.type.startsWith('intervencion_maquinaria_')) return 'Intervención de maquinaria'
   return 'Intervención de vehículo'
 }

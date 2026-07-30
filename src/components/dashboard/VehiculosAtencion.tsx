@@ -37,16 +37,14 @@ export function VehiculosAtencion({ vehiculos, filtroEstado, loading, error }: P
         <Link
           key={v.id}
           to={`/vehiculos/${v.id}`}
-          className="flex items-center justify-between gap-4 px-5 py-4 hover:bg-gray-50 transition-colors flex-wrap"
+          className="flex flex-col gap-1 px-4 py-3 hover:bg-gray-50 transition-colors"
         >
-          <div className="min-w-0">
-            <div className="flex items-center gap-3 flex-wrap mb-1">
-              <span className="font-mono font-bold text-dark text-sm">{v.patente}</span>
-              <EstadoBadge estado={v.estado} />
-            </div>
-            <p className="text-xs text-gray-500">{v.motivo ?? 'Sin motivo registrado'}</p>
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-mono font-bold text-dark text-sm">{v.patente}</span>
+            <EstadoBadge estado={v.estado} />
           </div>
-          <span className="text-xs text-gray-400 shrink-0">{v.fecha ? tiempoRelativo(v.fecha) : '—'}</span>
+          <p className="text-xs text-gray-500 truncate">{v.motivo ?? 'Sin motivo registrado'}</p>
+          <p className="text-xs text-gray-400">{v.fecha ? tiempoRelativo(v.fecha) : '—'}</p>
         </Link>
       ))}
     </div>

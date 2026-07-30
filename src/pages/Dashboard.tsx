@@ -101,24 +101,6 @@ function DashboardContent() {
           <h2 className="text-lg font-bold text-dark mb-1">Flota Menor</h2>
           <p className="text-sm text-gray-500 mb-5">Vehículos — estado operativo ahora mismo.</p>
 
-          <PanelSection title="Semáforo de flota" hint="Click en un chip filtra la lista de abajo">
-            <SemaforoFlota
-              counts={estadoFlota.counts}
-              loading={estadoFlota.loading}
-              selected={estadoSeleccionado}
-              onSelect={setEstadoSeleccionado}
-            />
-          </PanelSection>
-
-          <PanelSection title="Vehículos que requieren atención" hint="Por estado operativo asignado manualmente">
-            <VehiculosAtencion
-              vehiculos={estadoFlota.vehiculos}
-              filtroEstado={estadoSeleccionado}
-              loading={estadoFlota.loading}
-              error={estadoFlota.error}
-            />
-          </PanelSection>
-
           <PanelSection title="Disponibilidad de flota" hint="Últimos 30 días">
             <div className="card">
               <DisponibilidadWidget
@@ -129,7 +111,25 @@ function DashboardContent() {
             </div>
           </PanelSection>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6">
+          <PanelSection title="Semáforo de flota" hint="Click en un chip filtra la lista de vehículos">
+            <SemaforoFlota
+              counts={estadoFlota.counts}
+              loading={estadoFlota.loading}
+              selected={estadoSeleccionado}
+              onSelect={setEstadoSeleccionado}
+            />
+          </PanelSection>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-x-6">
+            <PanelSection title="Vehículos que requieren atención" hint="Por estado operativo">
+              <VehiculosAtencion
+                vehiculos={estadoFlota.vehiculos}
+                filtroEstado={estadoSeleccionado}
+                loading={estadoFlota.loading}
+                error={estadoFlota.error}
+              />
+            </PanelSection>
+
             <PanelSection title="Órdenes de trabajo urgentes">
               <OTUrgentesSection items={otUrgentes.items} loading={otUrgentes.loading} error={otUrgentes.error} />
             </PanelSection>

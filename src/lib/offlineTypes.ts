@@ -122,9 +122,15 @@ export interface CrearVehiculoPayload {
   }
 }
 
+export interface CrearLineaPayload {
+  type: 'crear_linea'
+  linea: { codigo: string; nombre: string | null }
+}
+
 export type QueueData =
   | ChecklistPayload
   | IntervencionPayload
   | IntervencionMaquinariaPayload
   | CrearConductorPayload
   | CrearVehiculoPayload
+  | CrearLineaPayload

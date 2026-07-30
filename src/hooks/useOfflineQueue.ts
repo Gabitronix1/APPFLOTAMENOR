@@ -16,6 +16,7 @@ export type {
   IntervencionMaquinariaPayload,
   CrearConductorPayload,
   CrearVehiculoPayload,
+  CrearLineaPayload,
   FotoLocal,
 } from '../lib/offlineTypes'
 

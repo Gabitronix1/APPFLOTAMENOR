@@ -1,5 +1,6 @@
 import { useState, FormEvent } from 'react'
-import type { CategoriaPatente } from '../../types'
+import { SearchSelect } from '../SearchSelect'
+import type { CategoriaPatente, LineaOperacion } from '../../types'
 
 export interface NuevoVehiculoInput {
   patente: string
@@ -11,11 +12,13 @@ export interface NuevoVehiculoInput {
 interface Props {
   query: string
   categorias: CategoriaPatente[]
+  lineas: LineaOperacion[]
   onClose: () => void
   onCreated: (vehiculo: NuevoVehiculoInput) => void
+  onCrearLinea: (codigo: string) => void
 }
 
-export function CrearVehiculoModal({ query, categorias, onClose, onCreated }: Props) {
+export function CrearVehiculoModal({ query, categorias, lineas, onClose, onCreated, onCrearLinea }: Props) {
   const [patente, setPatente] = useState(query.trim().toUpperCase())
   const [categoriaId, setCategoriaId] = useState('')
   const [linea, setLinea] = useState('')
@@ -23,13 +26,24 @@ export function CrearVehiculoModal({ query, categorias, onClose, onCreated }: Pr
 
   const canSave = patente.trim().length >= 4
 
+  const lineaOptions = lineas.map(l => ({
+    value: l.codigo,
+    label: l.nombre && l.nombre !== l.codigo ? `${l.codigo} — ${l.nombre}` : l.codigo,
+  }))
+
+  function handleCrearLinea(query: string) {
+    const codigo = query.trim().toUpperCase()
+    onCrearLinea(codigo)
+    setLinea(codigo)
+  }
+
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (!canSave) return
     onCreated({
       patente: patente.trim().toUpperCase(),
       categoriaId,
-      linea: linea.trim().toUpperCase(),
+      linea,
       descripcion: descripcion.trim(),
     })
   }
@@ -64,11 +78,13 @@ export function CrearVehiculoModal({ query, categorias, onClose, onCreated }: Pr
           </div>
           <div>
             <label className="label">Línea (opcional)</label>
-            <input
-              className="input"
+            <SearchSelect
+              options={lineaOptions}
               value={linea}
-              onChange={e => setLinea(e.target.value)}
-              placeholder="Ej: CP2"
+              onChange={setLinea}
+              placeholder="Seleccionar línea..."
+              onCreate={handleCrearLinea}
+              createLabel={q => `Crear línea "${q.trim().toUpperCase()}"`}
             />
           </div>
           <div>

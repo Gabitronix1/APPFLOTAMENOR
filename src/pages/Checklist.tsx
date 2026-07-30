@@ -7,7 +7,7 @@ import { CrearConductorModal, type NuevoConductorInput } from '../components/che
 import { CrearVehiculoModal, type NuevoVehiculoInput } from '../components/checklist/CrearVehiculoModal'
 import { appendToCatalogCache } from '../lib/masterDataCache'
 import { PREGUNTAS } from '../lib/constants'
-import type { Operador, Patente } from '../types'
+import type { Operador, Patente, LineaOperacion } from '../types'
 
 interface Respuesta {
   falla: boolean
@@ -20,7 +20,7 @@ function emptyRespuestas(): Respuesta[] {
 
 export function Checklist() {
   const navigate = useNavigate()
-  const { operadores, patentes, categoriasVehiculo, loading } = useFormData()
+  const { operadores, patentes, categoriasVehiculo, lineasOperacion, loading } = useFormData()
   const { enqueue } = useOfflineQueue()
 
   const today = new Date().toISOString().slice(0, 10)
@@ -36,15 +36,17 @@ export function Checklist() {
   const [done, setDone] = useState(false)
   const [isOffline, setIsOffline] = useState(!navigator.onLine)
 
-  // Conductores/vehículos creados en esta sesión (aún no confirmados por el servidor),
+  // Conductores/vehículos/líneas creados en esta sesión (aún no confirmados por el servidor),
   // para que aparezcan de inmediato en los buscadores sin esperar la sincronización.
   const [conductoresLocales, setConductoresLocales] = useState<Operador[]>([])
   const [vehiculosLocales, setVehiculosLocales] = useState<Patente[]>([])
+  const [lineasLocales, setLineasLocales] = useState<LineaOperacion[]>([])
   const [crearConductorQuery, setCrearConductorQuery] = useState<string | null>(null)
   const [crearVehiculoQuery, setCrearVehiculoQuery] = useState<string | null>(null)
 
   const allOperadores = [...operadores, ...conductoresLocales]
   const allPatentes = [...patentes, ...vehiculosLocales]
+  const allLineas = [...lineasOperacion, ...lineasLocales]
 
   useEffect(() => {
     const up = () => setIsOffline(false)
@@ -134,6 +136,14 @@ export function Checklist() {
     })
     setPatenteId(id)
     setCrearVehiculoQuery(null)
+  }
+
+  function handleCrearLinea(codigo: string) {
+    if (allLineas.some(l => l.codigo === codigo)) return
+    const linea: LineaOperacion = { id: crypto.randomUUID(), codigo, nombre: codigo, activo: true }
+    setLineasLocales(prev => [...prev, linea])
+    void appendToCatalogCache('lineas_operacion', linea)
+    void enqueue({ type: 'crear_linea', linea: { codigo, nombre: codigo } })
   }
 
   function resetForm() {
@@ -388,8 +398,10 @@ export function Checklist() {
         <CrearVehiculoModal
           query={crearVehiculoQuery}
           categorias={categoriasVehiculo}
+          lineas={allLineas}
           onClose={() => setCrearVehiculoQuery(null)}
           onCreated={vehiculo => void handleCrearVehiculo(vehiculo)}
+          onCrearLinea={handleCrearLinea}
         />
       )}
     </div>
