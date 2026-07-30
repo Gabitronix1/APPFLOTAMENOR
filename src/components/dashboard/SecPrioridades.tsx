@@ -3,6 +3,14 @@ import { PREGUNTAS, fmtDate, fmtNum, severityLabel, severityColor } from '../../
 import type { VInspeccion } from '../../types'
 import type { PKey } from '../../lib/constants'
 
+function emptyPerSys(): Record<PKey, number> {
+  return Object.fromEntries(PREGUNTAS.map(p => [p.key, 0])) as Record<PKey, number>
+}
+
+function emptyPerSysObs(): Record<PKey, { obs: string; fecha: string } | null> {
+  return Object.fromEntries(PREGUNTAS.map(p => [p.key, null])) as Record<PKey, { obs: string; fecha: string } | null>
+}
+
 interface SecPrioridadesProps {
   data: VInspeccion[]
 }
@@ -36,8 +44,8 @@ function computeVehicleStats(data: VInspeccion[]): VehicleStat[] {
       map[pl] = {
         insps: [],
         withProb: 0,
-        perSys: { p1: 0, p2: 0, p3: 0, p4: 0, p5: 0, p6: 0 },
-        perSysObs: { p1: null, p2: null, p3: null, p4: null, p5: null, p6: null },
+        perSys: emptyPerSys(),
+        perSysObs: emptyPerSysObs(),
         latestRec: null,
       }
     }

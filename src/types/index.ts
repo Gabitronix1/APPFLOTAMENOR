@@ -27,12 +27,22 @@ export interface VInspeccion {
   p4: boolean
   p5: boolean
   p6: boolean
+  p7: boolean
+  p8: boolean
+  p9: boolean
+  p10: boolean
+  p11: boolean
   obs1: string | null
   obs2: string | null
   obs3: string | null
   obs4: string | null
   obs5: string | null
   obs6: string | null
+  obs7: string | null
+  obs8: string | null
+  obs9: string | null
+  obs10: string | null
+  obs11: string | null
   n_fallas: number
   n_resueltas: number
 }

@@ -1,10 +1,48 @@
 export const PREGUNTAS = [
-  { key: 'p1' as const, obs: 'obs1' as const, label: 'Fugas', short: 'Fugas' },
-  { key: 'p2' as const, obs: 'obs2' as const, label: 'Neumáticos', short: 'Neumat.' },
-  { key: 'p3' as const, obs: 'obs3' as const, label: 'Luces', short: 'Luces' },
-  { key: 'p4' as const, obs: 'obs4' as const, label: 'Frenos/Dir.', short: 'Frenos' },
-  { key: 'p5' as const, obs: 'obs5' as const, label: 'Ruidos/Alarmas', short: 'Ruidos' },
-  { key: 'p6' as const, obs: 'obs6' as const, label: 'Repuesto', short: 'Repuesto' },
+  {
+    key: 'p1' as const, obs: 'obs1' as const, label: 'Fugas', short: 'Fugas',
+    descripcion: 'Busque manchas frescas de fluidos bajo el motor o dentro de la cabina.',
+  },
+  {
+    key: 'p2' as const, obs: 'obs2' as const, label: 'Neumáticos', short: 'Neumat.',
+    descripcion: 'Revise visualmente la presión, desgaste de la huella y cortes en las 4 ruedas.',
+  },
+  {
+    key: 'p3' as const, obs: 'obs3' as const, label: 'Luces', short: 'Luces',
+    descripcion: 'Encienda las luces. Verifique que no haya ampolletas quemadas ni micas rotas.',
+  },
+  {
+    key: 'p4' as const, obs: 'obs4' as const, label: 'Frenos y Dirección', short: 'Frenos',
+    descripcion: 'Pruebe el freno de mano. En marcha corta, verifique frenado y que la dirección no tire hacia un lado.',
+  },
+  {
+    key: 'p5' as const, obs: 'obs5' as const, label: 'Tablero', short: 'Tablero',
+    descripcion: 'Encienda el motor. Confirme que no queden testigos de advertencia (luces rojas/amarillas) encendidos.',
+  },
+  {
+    key: 'p6' as const, obs: 'obs6' as const, label: 'Neumático de Repuesto', short: 'Repuesto',
+    descripcion: 'Verifique que esté en su lugar, inflado y sin daños visibles.',
+  },
+  {
+    key: 'p7' as const, obs: 'obs7' as const, label: 'Asientos y Cinturones', short: 'Asientos',
+    descripcion: 'Tire los cinturones para probar el bloqueo. Revise el anclaje firme del asiento.',
+  },
+  {
+    key: 'p8' as const, obs: 'obs8' as const, label: 'Parabrisas y Vidrios', short: 'Parabrisas',
+    descripcion: 'Busque trizaduras en los cristales y confirme que las plumillas no estén resecas o en mal estado.',
+  },
+  {
+    key: 'p9' as const, obs: 'obs9' as const, label: 'Espejos', short: 'Espejos',
+    descripcion: 'Revise que los espejos laterales y el retrovisor interior estén bien fijados y sin trizaduras.',
+  },
+  {
+    key: 'p10' as const, obs: 'obs10' as const, label: 'Kit de Emergencia', short: 'Emergencia',
+    descripcion: 'Revise la presencia y vigencia del extintor, botiquín y triángulos.',
+  },
+  {
+    key: 'p11' as const, obs: 'obs11' as const, label: 'Puertas y Portón', short: 'Puertas',
+    descripcion: 'Abra y cierre todas las puertas/portón trasero para asegurar su correcto enganche.',
+  },
 ]
 
 export type PKey = typeof PREGUNTAS[number]['key']

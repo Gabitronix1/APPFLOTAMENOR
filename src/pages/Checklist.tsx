@@ -18,6 +18,37 @@ function emptyRespuestas(): Respuesta[] {
   return PREGUNTAS.map(() => ({ falla: false, observacion: '' }))
 }
 
+interface Sugerencia {
+  tono: 'ok' | 'warn' | 'fault'
+  texto: string
+}
+
+function getSugerencia(operativo: boolean, sistemasConFalla: string[]): Sugerencia {
+  if (!operativo) {
+    return {
+      tono: 'fault',
+      texto: 'Marcaste el vehículo como no operativo. No debe circular hasta que mantención lo revise.',
+    }
+  }
+  if (sistemasConFalla.length === 0) {
+    return {
+      tono: 'ok',
+      texto: 'Sin problemas detectados en la revisión. El vehículo puede continuar en servicio con normalidad.',
+    }
+  }
+  const listado = sistemasConFalla.join(', ')
+  if (sistemasConFalla.length >= 3) {
+    return {
+      tono: 'warn',
+      texto: `Se detectaron ${sistemasConFalla.length} problemas (${listado}). Con esta cantidad de fallas, te sugerimos reconsiderar si el vehículo debería seguir operando y llevarlo a revisión antes de continuar.`,
+    }
+  }
+  return {
+    tono: 'warn',
+    texto: `Se detectó${sistemasConFalla.length > 1 ? 'n' : ''} ${sistemasConFalla.length} problema${sistemasConFalla.length > 1 ? 's' : ''} (${listado}). El vehículo puede seguir circulando, pero avisa a mantención para que lo revisen pronto.`,
+  }
+}
+
 export function Checklist() {
   const navigate = useNavigate()
   const { operadores, patentes, categoriasVehiculo, lineasOperacion, loading } = useFormData()
@@ -206,6 +237,9 @@ export function Checklist() {
   const patOptions = allPatentes.map(p => ({ value: p.id, label: p.patente + (p.descripcion ? ` — ${p.descripcion}` : '') }))
   const canSubmit = !!operadorId && !!patenteId
 
+  const fallasActivas = PREGUNTAS.filter((_, idx) => respuestas[idx]?.falla)
+  const sugerencia = getSugerencia(operativo, fallasActivas.map(p => p.label))
+
   return (
     <div className="min-h-[calc(100vh-64px)] bg-gray-50 pb-10">
       {/* Top bar */}
@@ -291,7 +325,7 @@ export function Checklist() {
               </div>
             </div>
 
-            {/* 6 preguntas de estado */}
+            {/* Preguntas de estado */}
             <div className="space-y-3">
               <h2 className="font-semibold text-dark text-sm px-1">Revisión de sistemas</h2>
               <p className="text-xs text-gray-400 px-1">Marca el estado de cada sistema del vehículo</p>
@@ -302,7 +336,8 @@ export function Checklist() {
                     key={p.key}
                     className={`bg-white rounded-xl border-2 p-4 transition-colors ${r.falla ? 'border-fault/50 bg-fault/[0.03]' : 'border-gray-200'}`}
                   >
-                    <p className="font-medium text-dark text-sm mb-3">{idx + 1}. {p.label}</p>
+                    <p className="font-medium text-dark text-sm mb-1">{idx + 1}. {p.label}</p>
+                    <p className="text-xs text-gray-500 mb-3">{p.descripcion}</p>
                     <div>
                       <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-1.5">Estado</p>
                       <div className="grid grid-cols-2 gap-2">
@@ -364,6 +399,20 @@ export function Checklist() {
               <p className={`text-xs font-semibold ${operativo ? 'text-primary' : 'text-fault'}`}>
                 {operativo ? 'Operativo — puede circular' : 'No operativo — requiere atención'}
               </p>
+
+              <div className={`rounded-xl border px-4 py-3 ${
+                sugerencia.tono === 'ok' ? 'bg-primary/5 border-primary/20'
+                : sugerencia.tono === 'warn' ? 'bg-warn/5 border-warn/20'
+                : 'bg-fault/5 border-fault/20'
+              }`}>
+                <p className={`text-xs font-bold uppercase tracking-wide mb-1 ${
+                  sugerencia.tono === 'ok' ? 'text-primary' : sugerencia.tono === 'warn' ? 'text-warn' : 'text-fault'
+                }`}>
+                  Sugerencia
+                </p>
+                <p className="text-sm text-gray-700">{sugerencia.texto}</p>
+              </div>
+
               <div>
                 <label className="label">Observación general (opcional)</label>
                 <textarea
