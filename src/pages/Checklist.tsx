@@ -6,7 +6,7 @@ import { SearchSelect } from '../components/SearchSelect'
 import { CrearConductorModal, type NuevoConductorInput } from '../components/checklist/CrearConductorModal'
 import { CrearVehiculoModal, type NuevoVehiculoInput } from '../components/checklist/CrearVehiculoModal'
 import { appendToCatalogCache } from '../lib/masterDataCache'
-import { PREGUNTAS } from '../lib/constants'
+import { PREGUNTAS, CRITICIDAD_ITEM, type PKey } from '../lib/constants'
 import type { Operador, Patente, LineaOperacion } from '../types'
 
 interface Respuesta {
@@ -23,29 +23,66 @@ interface Sugerencia {
   texto: string
 }
 
-function getSugerencia(operativo: boolean, sistemasConFalla: string[]): Sugerencia {
+interface ContextoAgravante {
+  nocturna: boolean
+  lluvia: boolean
+  testigoAbs: boolean
+  camionCombustible: boolean
+}
+
+// Severidad efectiva de un ítem en mal estado según la matriz de criticidad:
+// items "D" son siempre detención inmediata; items "P" escalan a "D" solo si
+// se cumple su condición agravante (circulación nocturna, lluvia, etc).
+function severidadEfectiva(key: PKey, ctx: ContextoAgravante): 'P' | 'D' {
+  const item = CRITICIDAD_ITEM[key]
+  if (item.base === 'D') return 'D'
+  switch (item.agravante?.tipo) {
+    case 'nocturna': return ctx.nocturna ? 'D' : 'P'
+    case 'lluvia': return ctx.lluvia ? 'D' : 'P'
+    case 'testigo_abs': return ctx.testigoAbs ? 'D' : 'P'
+    case 'camion_combustible': return ctx.camionCombustible ? 'D' : 'P'
+    default: return 'P'
+  }
+}
+
+function getSugerencia(operativo: boolean, fallas: { key: PKey; label: string }[], ctx: ContextoAgravante): Sugerencia {
   if (!operativo) {
     return {
       tono: 'fault',
       texto: 'Marcaste el vehículo como no operativo. No debe circular hasta que mantención lo revise.',
     }
   }
-  if (sistemasConFalla.length === 0) {
+  if (fallas.length === 0) {
     return {
       tono: 'ok',
       texto: 'Sin problemas detectados en la revisión. El vehículo puede continuar en servicio con normalidad.',
     }
   }
-  const listado = sistemasConFalla.join(', ')
-  if (sistemasConFalla.length >= 3) {
+
+  // Regla de dominancia de la matriz: D si hay al menos un ítem crítico;
+  // si no, P cuando hay 3 o más ítems de precaución en mal estado.
+  const conSeveridad = fallas.map(f => ({ ...f, severidad: severidadEfectiva(f.key, ctx) }))
+  const criticos = conSeveridad.filter(f => f.severidad === 'D')
+  const precaucion = conSeveridad.filter(f => f.severidad === 'P')
+
+  if (criticos.length > 0) {
+    const listado = criticos.map(f => f.label).join(', ')
     return {
-      tono: 'warn',
-      texto: `Se detectaron ${sistemasConFalla.length} problemas (${listado}). Con esta cantidad de fallas, te sugerimos reconsiderar si el vehículo debería seguir operando y llevarlo a revisión antes de continuar.`,
+      tono: 'fault',
+      texto: `Detención inmediata: ${listado}. ${criticos.length > 1 ? 'Requieren' : 'Requiere'} atención del vehículo lo antes posible, no debería seguir circulando hasta revisarlo.`,
     }
   }
+  if (precaucion.length >= 3) {
+    const listado = precaucion.map(f => f.label).join(', ')
+    return {
+      tono: 'warn',
+      texto: `Operar con precaución: se requiere atención programada del vehículo. Se detectaron ${precaucion.length} problemas (${listado}).`,
+    }
+  }
+  const listado = precaucion.map(f => f.label).join(', ')
   return {
     tono: 'warn',
-    texto: `Se detectó${sistemasConFalla.length > 1 ? 'n' : ''} ${sistemasConFalla.length} problema${sistemasConFalla.length > 1 ? 's' : ''} (${listado}). El vehículo puede seguir circulando, pero avisa a mantención para que lo revisen pronto.`,
+    texto: `Se detectó${precaucion.length > 1 ? 'n' : ''} ${precaucion.length} problema${precaucion.length > 1 ? 's' : ''} (${listado}). El vehículo puede seguir circulando, pero avisa a mantención para que lo revisen pronto.`,
   }
 }
 
@@ -64,6 +101,9 @@ export function Checklist() {
   const [obsGeneral, setObsGeneral] = useState('')
   const [operativo, setOperativo] = useState(true)
   const [respuestas, setRespuestas] = useState<Respuesta[]>(emptyRespuestas)
+  const [nocturna, setNocturna] = useState(false)
+  const [lluvia, setLluvia] = useState(false)
+  const [testigoAbs, setTestigoAbs] = useState(false)
   const [done, setDone] = useState(false)
   const [isOffline, setIsOffline] = useState(!navigator.onLine)
 
@@ -106,6 +146,7 @@ export function Checklist() {
     setRespuestas(prev => prev.map((r, i) =>
       i === idx ? { ...r, falla: v, observacion: v ? r.observacion : '' } : r
     ))
+    if (!v && PREGUNTAS[idx]?.key === 'p5') setTestigoAbs(false)
   }
 
   function setObs(idx: number, v: string) {
@@ -183,6 +224,9 @@ export function Checklist() {
     setObsGeneral('')
     setOperativo(true)
     setRespuestas(emptyRespuestas())
+    setNocturna(false)
+    setLluvia(false)
+    setTestigoAbs(false)
     setDone(false)
   }
 
@@ -243,7 +287,13 @@ export function Checklist() {
   const canSubmit = !!operadorId && !!patenteId
 
   const fallasActivas = PREGUNTAS.filter((_, idx) => respuestas[idx]?.falla)
-  const sugerencia = getSugerencia(operativo, fallasActivas.map(p => p.label))
+  const camionCombustible = tipoVehiculo.trim().toUpperCase().includes('COMBUSTIBLE')
+  const sugerencia = getSugerencia(
+    operativo,
+    fallasActivas.map(p => ({ key: p.key, label: p.label })),
+    { nocturna, lluvia, testigoAbs, camionCombustible },
+  )
+  const idxTablero = PREGUNTAS.findIndex(p => p.key === 'p5')
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-gray-50 pb-10">
@@ -391,9 +441,49 @@ export function Checklist() {
                         className="w-full mt-3 text-sm border border-fault/30 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-fault/30 resize-none bg-white"
                       />
                     )}
+                    {r.falla && idx === idxTablero && (
+                      <label className="flex items-center gap-2 mt-3 text-sm text-gray-700 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={testigoAbs}
+                          onChange={e => setTestigoAbs(e.target.checked)}
+                          className="w-4 h-4 accent-fault"
+                        />
+                        Es el testigo ABS (eleva la severidad a detención inmediata)
+                      </label>
+                    )}
                   </div>
                 )
               })}
+            </div>
+
+            {/* Condiciones que agravan la severidad de algunas fallas */}
+            <div className="card space-y-3">
+              <h2 className="font-semibold text-dark text-sm">Condiciones de circulación</h2>
+              <p className="text-xs text-gray-400">Algunas fallas son más graves bajo estas condiciones.</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNocturna(v => !v)}
+                  className={`h-12 rounded-xl text-sm font-bold transition-all border ${
+                    nocturna ? 'bg-dark text-white border-dark shadow-sm' : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  Circulación nocturna
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLluvia(v => !v)}
+                  className={`h-12 rounded-xl text-sm font-bold transition-all border ${
+                    lluvia ? 'bg-dark text-white border-dark shadow-sm' : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  Con lluvia
+                </button>
+              </div>
+              {camionCombustible && (
+                <p className="text-xs text-gray-400">Vehículo tipo camión combustible: el kit de emergencia es crítico.</p>
+              )}
             </div>
 
             {/* Operativo + obs general */}
