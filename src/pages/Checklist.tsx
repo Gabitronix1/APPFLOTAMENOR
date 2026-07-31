@@ -199,6 +199,7 @@ export function Checklist() {
         uuid_local: crypto.randomUUID(),
         obs_general: obsGeneral || null,
         operativo,
+        linea: linea || null,
       },
       respuestas: PREGUNTAS.map((_, idx) => ({
         pregunta_id: idx + 1,
@@ -235,6 +236,10 @@ export function Checklist() {
 
   const opOptions = allOperadores.map(o => ({ value: o.id, label: `${o.apellido}, ${o.nombre}` }))
   const patOptions = allPatentes.map(p => ({ value: p.id, label: p.patente + (p.descripcion ? ` — ${p.descripcion}` : '') }))
+  const lineaOptions = allLineas.map(l => ({
+    value: l.codigo,
+    label: l.nombre && l.nombre !== l.codigo ? `${l.codigo} — ${l.nombre}` : l.codigo,
+  }))
   const canSubmit = !!operadorId && !!patenteId
 
   const fallasActivas = PREGUNTAS.filter((_, idx) => respuestas[idx]?.falla)
@@ -284,18 +289,30 @@ export function Checklist() {
                 />
               </div>
               <div>
-                <label className="label">Tipo de vehículo y línea</label>
+                <label className="label">Tipo de vehículo</label>
                 <div className="min-h-[48px] border border-gray-200 rounded-xl px-4 py-2.5 bg-gray-50 flex items-center text-sm">
                   {!patenteId ? (
                     <span className="text-gray-400">Se completa solo al elegir la patente</span>
                   ) : (
-                    <span className="text-gray-700">
-                      <span className="font-medium">{tipoVehiculo || 'Sin tipo registrado'}</span>
-                      <span className="text-gray-300 mx-2">·</span>
-                      <span className="font-medium">{linea || 'Sin línea registrada'}</span>
-                    </span>
+                    <span className="font-medium text-gray-700">{tipoVehiculo || 'Sin tipo registrado'}</span>
                   )}
                 </div>
+              </div>
+              <div>
+                <label className="label">Línea</label>
+                <SearchSelect
+                  options={lineaOptions}
+                  value={linea}
+                  onChange={setLinea}
+                  placeholder={patenteId ? 'Seleccionar línea...' : 'Se completa sola al elegir la patente'}
+                  onCreate={q => {
+                    const codigo = q.trim().toUpperCase()
+                    handleCrearLinea(codigo)
+                    setLinea(codigo)
+                  }}
+                  createLabel={q => `Crear línea "${q.trim().toUpperCase()}"`}
+                />
+                <p className="text-xs text-gray-400 mt-1">Se completa sola con la línea del vehículo, pero puedes cambiarla.</p>
               </div>
               <div>
                 <label className="label">Odómetro (km)</label>

@@ -41,6 +41,7 @@ function OperadoresTab() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState({ nombre: '', apellido: '', rut: '', email: '' })
   const [saving, setSaving] = useState(false)
 
@@ -54,14 +55,35 @@ function OperadoresTab() {
 
   useEffect(() => { void load() }, [])
 
+  function abrirNuevo() {
+    setForm({ nombre: '', apellido: '', rut: '', email: '' })
+    setEditingId(null)
+    setShowForm(true)
+  }
+
+  function abrirEditar(op: Operador) {
+    setForm({ nombre: op.nombre, apellido: op.apellido, rut: op.rut ?? '', email: op.email ?? '' })
+    setEditingId(op.id)
+    setShowForm(true)
+  }
+
+  function cerrarForm() {
+    setShowForm(false)
+    setEditingId(null)
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setSaving(true)
-    const { error: err } = await supabase.from('operadores').insert({ ...form, activo: true })
+    const payload = { nombre: form.nombre, apellido: form.apellido, rut: form.rut || null, email: form.email || null }
+    const { error: err } = editingId
+      ? await supabase.from('operadores').update(payload).eq('id', editingId)
+      : await supabase.from('operadores').insert({ ...payload, activo: true })
     setSaving(false)
     if (err) { setError(err.message); return }
     setForm({ nombre: '', apellido: '', rut: '', email: '' })
     setShowForm(false)
+    setEditingId(null)
     void load()
   }
 
@@ -70,11 +92,25 @@ function OperadoresTab() {
     void load()
   }
 
+  async function handleDelete(op: Operador) {
+    if (!window.confirm(`¿Eliminar a ${op.apellido}, ${op.nombre}? Esta acción no se puede deshacer.`)) return
+    const { error: err } = await supabase.from('operadores').delete().eq('id', op.id)
+    if (err) {
+      if (err.code === '23503') {
+        alert('No se puede eliminar: tiene inspecciones, intervenciones u otros registros asociados. Puedes desactivarlo en su lugar.')
+      } else {
+        alert(err.message)
+      }
+      return
+    }
+    void load()
+  }
+
   return (
     <div className="space-y-4">
       {error && <div className="text-fault text-sm">{error}</div>}
       <div className="flex justify-end">
-        <button className="btn-primary btn-sm" onClick={() => setShowForm((v) => !v)}>
+        <button className="btn-primary btn-sm" onClick={() => (showForm ? cerrarForm() : abrirNuevo())}>
           {showForm ? 'Cancelar' : '+ Nuevo operador'}
         </button>
       </div>
@@ -99,7 +135,7 @@ function OperadoresTab() {
           </div>
           <div className="col-span-2 flex justify-end">
             <button type="submit" disabled={saving} className="btn-primary btn-sm">
-              {saving ? 'Guardando...' : 'Guardar'}
+              {saving ? 'Guardando...' : editingId ? 'Guardar cambios' : 'Guardar'}
             </button>
           </div>
         </form>
@@ -131,12 +167,18 @@ function OperadoresTab() {
                   <td className="table-td text-center">
                     {op.activo ? <span className="badge-ok">Activo</span> : <span className="badge-fault">Inactivo</span>}
                   </td>
-                  <td className="table-td text-right">
+                  <td className="table-td text-right whitespace-nowrap space-x-3">
+                    <button onClick={() => abrirEditar(op)} className="text-xs font-medium underline text-gray-600">
+                      Editar
+                    </button>
                     <button
                       onClick={() => void toggleActivo(op)}
                       className={`text-xs font-medium underline ${op.activo ? 'text-fault' : 'text-primary'}`}
                     >
                       {op.activo ? 'Desactivar' : 'Activar'}
+                    </button>
+                    <button onClick={() => void handleDelete(op)} className="text-xs font-medium underline text-fault">
+                      Eliminar
                     </button>
                   </td>
                 </tr>
@@ -198,6 +240,7 @@ function FundosTab() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState({ nombre: '', contrato: '' })
   const [saving, setSaving] = useState(false)
 
@@ -211,14 +254,34 @@ function FundosTab() {
 
   useEffect(() => { void load() }, [])
 
+  function abrirNuevo() {
+    setForm({ nombre: '', contrato: '' })
+    setEditingId(null)
+    setShowForm(true)
+  }
+
+  function abrirEditar(row: Fundo) {
+    setForm({ nombre: row.nombre, contrato: row.contrato ?? '' })
+    setEditingId(row.id)
+    setShowForm(true)
+  }
+
+  function cerrarForm() {
+    setShowForm(false)
+    setEditingId(null)
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setSaving(true)
-    const { error: err } = await supabase.from('fundos').insert({ ...form, activo: true })
+    const { error: err } = editingId
+      ? await supabase.from('fundos').update(form).eq('id', editingId)
+      : await supabase.from('fundos').insert({ ...form, activo: true })
     setSaving(false)
     if (err) { setError(err.message); return }
     setForm({ nombre: '', contrato: '' })
     setShowForm(false)
+    setEditingId(null)
     void load()
   }
 
@@ -227,11 +290,25 @@ function FundosTab() {
     void load()
   }
 
+  async function handleDelete(row: Fundo) {
+    if (!window.confirm(`¿Eliminar el fundo "${row.nombre}"? Esta acción no se puede deshacer.`)) return
+    const { error: err } = await supabase.from('fundos').delete().eq('id', row.id)
+    if (err) {
+      if (err.code === '23503') {
+        alert('No se puede eliminar: tiene inspecciones asociadas. Puedes desactivarlo en su lugar.')
+      } else {
+        alert(err.message)
+      }
+      return
+    }
+    void load()
+  }
+
   return (
     <div className="space-y-4">
       {error && <div className="text-fault text-sm">{error}</div>}
       <div className="flex justify-end">
-        <button className="btn-primary btn-sm" onClick={() => setShowForm((v) => !v)}>
+        <button className="btn-primary btn-sm" onClick={() => (showForm ? cerrarForm() : abrirNuevo())}>
           {showForm ? 'Cancelar' : '+ Nuevo fundo'}
         </button>
       </div>
@@ -247,7 +324,9 @@ function FundosTab() {
             <input className="input" required value={form.contrato} onChange={(e) => setForm((f) => ({ ...f, contrato: e.target.value }))} placeholder="CTR-001" />
           </div>
           <div className="col-span-2 flex justify-end">
-            <button type="submit" disabled={saving} className="btn-primary btn-sm">{saving ? 'Guardando...' : 'Guardar'}</button>
+            <button type="submit" disabled={saving} className="btn-primary btn-sm">
+              {saving ? 'Guardando...' : editingId ? 'Guardar cambios' : 'Guardar'}
+            </button>
           </div>
         </form>
       )}
@@ -276,9 +355,15 @@ function FundosTab() {
                   <td className="table-td text-center">
                     {row.activo ? <span className="badge-ok">Activo</span> : <span className="badge-fault">Inactivo</span>}
                   </td>
-                  <td className="table-td text-right">
+                  <td className="table-td text-right whitespace-nowrap space-x-3">
+                    <button onClick={() => abrirEditar(row)} className="text-xs font-medium underline text-gray-600">
+                      Editar
+                    </button>
                     <button onClick={() => void toggleActivo(row)} className={`text-xs font-medium underline ${row.activo ? 'text-fault' : 'text-primary'}`}>
                       {row.activo ? 'Desactivar' : 'Activar'}
+                    </button>
+                    <button onClick={() => void handleDelete(row)} className="text-xs font-medium underline text-fault">
+                      Eliminar
                     </button>
                   </td>
                 </tr>
@@ -328,6 +413,7 @@ function CatalogCrudTab<T extends { id: string; activo: boolean }>({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<Record<string, string>>(() => Object.fromEntries(campos.map((c) => [c.key, ''])))
   const [saving, setSaving] = useState(false)
 
@@ -341,24 +427,61 @@ function CatalogCrudTab<T extends { id: string; activo: boolean }>({
 
   useEffect(() => { void load() }, [table])
 
+  function abrirNuevo() {
+    setForm(Object.fromEntries(campos.map((c) => [c.key, ''])))
+    setEditingId(null)
+    setShowForm(true)
+  }
+
+  function abrirEditar(row: T) {
+    const r = row as unknown as Record<string, unknown>
+    setForm(Object.fromEntries(campos.map((c) => [c.key, r[c.key] != null ? String(r[c.key]) : ''])))
+    setEditingId(row.id)
+    setShowForm(true)
+  }
+
+  function cerrarForm() {
+    setShowForm(false)
+    setEditingId(null)
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setSaving(true)
-    const payload: Record<string, unknown> = { activo: true }
+    const payload: Record<string, unknown> = {}
     for (const c of campos) {
       const raw = form[c.key]?.trim() ?? ''
       payload[c.key] = raw || null
     }
-    const { error: err } = await supabase.from(table).insert(payload)
+    const { error: err } = editingId
+      ? await supabase.from(table).update(payload).eq('id', editingId)
+      : await supabase.from(table).insert({ ...payload, activo: true })
     setSaving(false)
     if (err) { setError(err.message); return }
     setForm(Object.fromEntries(campos.map((c) => [c.key, ''])))
     setShowForm(false)
+    setEditingId(null)
     void load()
   }
 
   async function toggleActivo(row: T) {
     await supabase.from(table).update({ activo: !row.activo }).eq('id', row.id)
+    void load()
+  }
+
+  async function handleDelete(row: T) {
+    const r = row as unknown as Record<string, unknown>
+    const nombre = campos[0] ? String(r[campos[0].key] ?? '') : ''
+    if (!window.confirm(`¿Eliminar ${nombreSingular} "${nombre}"? Esta acción no se puede deshacer.`)) return
+    const { error: err } = await supabase.from(table).delete().eq('id', row.id)
+    if (err) {
+      if (err.code === '23503') {
+        alert(`No se puede eliminar: está en uso en otros registros. Puedes desactivarlo en su lugar.`)
+      } else {
+        alert(err.message)
+      }
+      return
+    }
     void load()
   }
 
@@ -368,7 +491,7 @@ function CatalogCrudTab<T extends { id: string; activo: boolean }>({
     <div className="space-y-4">
       {error && <div className="text-fault text-sm">{error}</div>}
       <div className="flex justify-end">
-        <button className="btn-primary btn-sm" onClick={() => setShowForm((v) => !v)}>
+        <button className="btn-primary btn-sm" onClick={() => (showForm ? cerrarForm() : abrirNuevo())}>
           {showForm ? 'Cancelar' : `+ Nuevo ${nombreSingular}`}
         </button>
       </div>
@@ -405,7 +528,7 @@ function CatalogCrudTab<T extends { id: string; activo: boolean }>({
           ))}
           <div className="col-span-2 flex justify-end">
             <button type="submit" disabled={saving} className="btn-primary btn-sm">
-              {saving ? 'Guardando...' : 'Guardar'}
+              {saving ? 'Guardando...' : editingId ? 'Guardar cambios' : 'Guardar'}
             </button>
           </div>
         </form>
@@ -439,12 +562,18 @@ function CatalogCrudTab<T extends { id: string; activo: boolean }>({
                   <td className="table-td text-center">
                     {row.activo ? <span className="badge-ok">Activo</span> : <span className="badge-fault">Inactivo</span>}
                   </td>
-                  <td className="table-td text-right">
+                  <td className="table-td text-right whitespace-nowrap space-x-3">
+                    <button onClick={() => abrirEditar(row)} className="text-xs font-medium underline text-gray-600">
+                      Editar
+                    </button>
                     <button
                       onClick={() => void toggleActivo(row)}
                       className={`text-xs font-medium underline ${row.activo ? 'text-fault' : 'text-primary'}`}
                     >
                       {row.activo ? 'Desactivar' : 'Activar'}
+                    </button>
+                    <button onClick={() => void handleDelete(row)} className="text-xs font-medium underline text-fault">
+                      Eliminar
                     </button>
                   </td>
                 </tr>

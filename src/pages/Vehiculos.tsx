@@ -8,12 +8,17 @@ import { EstadoBadge } from '../components/vehiculos/EstadoBadge'
 export function Vehiculos() {
   const { vehiculos, loading, error } = useVehiculos()
   const [query, setQuery] = useState('')
+  const [mostrarEliminados, setMostrarEliminados] = useState(false)
+
+  const activos = useMemo(() => vehiculos.filter(v => v.activo), [vehiculos])
+  const eliminadosCount = vehiculos.length - activos.length
 
   const filtrados = useMemo(() => {
+    const base = mostrarEliminados ? vehiculos : activos
     const q = query.trim().toLowerCase()
-    if (!q) return vehiculos
-    return vehiculos.filter(v => v.patente.toLowerCase().includes(q))
-  }, [vehiculos, query])
+    if (!q) return base
+    return base.filter(v => v.patente.toLowerCase().includes(q))
+  }, [vehiculos, activos, mostrarEliminados, query])
 
   const grupos = useMemo(() => {
     const map = new Map<string, VehiculoResumen[]>()
@@ -31,18 +36,31 @@ export function Vehiculos() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Vehículos</h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            <span className="font-semibold text-gray-700">{vehiculos.length}</span> vehículos en la flota
+            <span className="font-semibold text-gray-700">{activos.length}</span> vehículos en la flota
           </p>
         </div>
-        <div className="relative w-full sm:w-64">
-          <SearchIcon className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Buscar por patente..."
-            className="input pl-9"
-          />
+        <div className="flex items-center gap-4 flex-wrap">
+          {eliminadosCount > 0 && (
+            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none whitespace-nowrap">
+              <input
+                type="checkbox"
+                checked={mostrarEliminados}
+                onChange={e => setMostrarEliminados(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+              />
+              Ver eliminados ({eliminadosCount})
+            </label>
+          )}
+          <div className="relative w-full sm:w-64">
+            <SearchIcon className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Buscar por patente..."
+              className="input pl-9"
+            />
+          </div>
         </div>
       </div>
 
@@ -64,11 +82,17 @@ export function Vehiculos() {
                   <Link
                     key={v.id}
                     to={`/vehiculos/${v.id}`}
-                    className="card hover:shadow-md hover:border-primary/30 transition-all block"
+                    className={`card hover:shadow-md hover:border-primary/30 transition-all block ${!v.activo ? 'opacity-60' : ''}`}
                   >
                     <div className="flex items-start justify-between gap-2 mb-3">
                       <span className="font-mono font-bold text-xl text-dark">{v.patente}</span>
-                      <EstadoBadge estado={v.estado} className="shrink-0" />
+                      {v.activo ? (
+                        <EstadoBadge estado={v.estado} className="shrink-0" />
+                      ) : (
+                        <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-700 text-white">
+                          Eliminado
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm text-gray-600 mb-4 line-clamp-2">{v.descripcion || 'Sin descripción'}</p>
                     <div className="flex items-center justify-between text-xs text-gray-400 border-t border-gray-100 pt-3">

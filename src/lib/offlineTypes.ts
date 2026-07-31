@@ -8,6 +8,7 @@ export interface ChecklistPayload {
     uuid_local: string
     obs_general: string | null
     operativo: boolean
+    linea: string | null
   }
   respuestas: { pregunta_id: number; valor: boolean; observacion: string | null }[]
 }

@@ -13,6 +13,7 @@ export interface VehiculoResumen {
   categoriaNombre: string
   ultimaActividad: string | null
   fallasActivas: number
+  activo: boolean
 }
 
 interface TimelineFecha {
@@ -75,6 +76,7 @@ export function useVehiculos(): State {
         categoriaNombre: (p.categoria_id && nombrePorCategoria.get(p.categoria_id)) || SIN_CATEGORIA,
         ultimaActividad: ultimaActividad.get(p.id) ?? null,
         fallasActivas: sumaFallasActivas(propias),
+        activo: p.activo,
       }
     })
   }, [allInspecciones, patentes, ultimaActividad, categorias])

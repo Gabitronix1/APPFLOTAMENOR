@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useVehiculoDetalle } from '../hooks/useVehiculoDetalle'
 import { useDocumentosVehiculo } from '../hooks/useDocumentosVehiculo'
@@ -158,6 +159,7 @@ export function VehiculoDetalle() {
   const [modalOpen, setModalOpen] = useState(false)
   const [estadoModalInicial, setEstadoModalInicial] = useState<EstadoVehiculo | null>(null)
   const [documentoEnEdicion, setDocumentoEnEdicion] = useState<DocumentoVencimiento | null>(null)
+  const [cambiandoActivo, setCambiandoActivo] = useState(false)
 
   const puedeGestionarFlota = puedeEditarGestion(perfil?.rol)
   const mostrarBannerAlta =
@@ -166,6 +168,36 @@ export function VehiculoDetalle() {
   function abrirModalEstado(estadoInicial: EstadoVehiculo | null) {
     setEstadoModalInicial(estadoInicial)
     setModalOpen(true)
+  }
+
+  async function eliminarVehiculo() {
+    if (!patente) return
+    if (
+      !window.confirm(
+        `¿Eliminar el vehículo ${patente.patente} de la flota?\n\nDejará de aparecer en las listas activas y en los formularios de checklist e intervención, pero se conserva todo su historial. Puedes reactivarlo cuando quieras desde esta misma página.`,
+      )
+    )
+      return
+    setCambiandoActivo(true)
+    const { error: updateError } = await supabase.from('patentes').update({ activo: false }).eq('id', patente.id)
+    setCambiandoActivo(false)
+    if (updateError) {
+      alert(updateError.message)
+      return
+    }
+    navigate('/vehiculos')
+  }
+
+  async function reactivarVehiculo() {
+    if (!patente) return
+    setCambiandoActivo(true)
+    const { error: updateError } = await supabase.from('patentes').update({ activo: true }).eq('id', patente.id)
+    setCambiandoActivo(false)
+    if (updateError) {
+      alert(updateError.message)
+      return
+    }
+    refetch()
   }
 
   function toggleTipo(t: TipoEventoTimeline) {
@@ -233,16 +265,49 @@ export function VehiculoDetalle() {
             <div className="flex items-center gap-3 flex-wrap">
               <span className="font-mono font-bold text-3xl text-dark">{patente.patente}</span>
               <EstadoBadge estado={patente.estado_actual} />
+              {!patente.activo && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-700 text-white">
+                  Eliminado
+                </span>
+              )}
             </div>
             <p className="text-sm text-gray-500 mt-1">{patente.descripcion || 'Sin descripción'}</p>
           </div>
         </div>
         {puedeGestionarFlota && (
-          <button onClick={() => abrirModalEstado(null)} className="btn-secondary btn-sm shrink-0">
-            Cambiar estado
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button onClick={() => abrirModalEstado(null)} className="btn-secondary btn-sm">
+              Cambiar estado
+            </button>
+            {patente.activo ? (
+              <button
+                onClick={() => void eliminarVehiculo()}
+                disabled={cambiandoActivo}
+                className="btn-danger btn-sm disabled:opacity-50"
+              >
+                Eliminar
+              </button>
+            ) : (
+              <button
+                onClick={() => void reactivarVehiculo()}
+                disabled={cambiandoActivo}
+                className="btn-primary btn-sm disabled:opacity-50"
+              >
+                Reactivar
+              </button>
+            )}
+          </div>
         )}
       </div>
+
+      {!patente.activo && (
+        <div className="bg-gray-100 border border-gray-300 rounded-xl px-4 py-3 mb-6">
+          <p className="text-sm text-gray-600">
+            Este vehículo fue eliminado de la flota activa (ya no pertenece a la empresa) y no aparece en los
+            formularios de checklist ni intervención. Su historial se conserva íntegro.
+          </p>
+        </div>
+      )}
 
       {patente.afecta_indicadores === false && (
         <div className="bg-warn/10 border border-warn/30 rounded-xl px-4 py-3 mb-6">
