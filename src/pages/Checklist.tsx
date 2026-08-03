@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import { useFormData } from '../hooks/useFormData'
 import { useOfflineQueue } from '../hooks/useOfflineQueue'
 import { SearchSelect } from '../components/SearchSelect'
@@ -7,6 +8,7 @@ import { CrearConductorModal, type NuevoConductorInput } from '../components/che
 import { CrearVehiculoModal, type NuevoVehiculoInput } from '../components/checklist/CrearVehiculoModal'
 import { appendToCatalogCache } from '../lib/masterDataCache'
 import { PREGUNTAS, CRITICIDAD_ITEM, type PKey } from '../lib/constants'
+import { esRolAdministrativo } from '../lib/roles'
 import type { Operador, Patente, LineaOperacion } from '../types'
 
 interface Respuesta {
@@ -88,6 +90,8 @@ function getSugerencia(operativo: boolean, fallas: { key: PKey; label: string }[
 
 export function Checklist() {
   const navigate = useNavigate()
+  const { perfil } = useAuth()
+  const puedeCrearMaestros = esRolAdministrativo(perfil?.rol)
   const { operadores, patentes, categoriasVehiculo, lineasOperacion, loading } = useFormData()
   const { enqueue } = useOfflineQueue()
 
@@ -323,7 +327,7 @@ export function Checklist() {
                   value={operadorId}
                   onChange={setOperadorId}
                   placeholder="Seleccionar conductor..."
-                  onCreate={q => setCrearConductorQuery(q)}
+                  onCreate={puedeCrearMaestros ? q => setCrearConductorQuery(q) : undefined}
                   createLabel={q => `Crear conductor "${q}"`}
                 />
               </div>
@@ -334,7 +338,7 @@ export function Checklist() {
                   value={patenteId}
                   onChange={setPatenteId}
                   placeholder="Seleccionar patente..."
-                  onCreate={q => setCrearVehiculoQuery(q)}
+                  onCreate={puedeCrearMaestros ? q => setCrearVehiculoQuery(q) : undefined}
                   createLabel={q => `Crear vehículo "${q}"`}
                 />
               </div>
