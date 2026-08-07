@@ -7,7 +7,7 @@ import { SearchSelect } from '../components/SearchSelect'
 import { CrearConductorModal, type NuevoConductorInput } from '../components/checklist/CrearConductorModal'
 import { CrearVehiculoModal, type NuevoVehiculoInput } from '../components/checklist/CrearVehiculoModal'
 import { appendToCatalogCache } from '../lib/masterDataCache'
-import { PREGUNTAS, CRITICIDAD_ITEM, type PKey } from '../lib/constants'
+import { PREGUNTAS, CRITICIDAD_ITEM, ESTADO_LABELS_OVERRIDE, type PKey } from '../lib/constants'
 import { esRolAdministrativo } from '../lib/roles'
 import type { Operador, Patente, LineaOperacion } from '../types'
 
@@ -29,19 +29,22 @@ interface ContextoAgravante {
   nocturna: boolean
   lluvia: boolean
   testigoAbs: boolean
+  testigoRojo: boolean
   camionCombustible: boolean
 }
 
 // Severidad efectiva de un ítem en mal estado según la matriz de criticidad:
 // items "D" son siempre detención inmediata; items "P" escalan a "D" solo si
 // se cumple su condición agravante (circulación nocturna, lluvia, etc).
+// En el tablero, el testigo naranjo por sí solo se queda en precaución (P);
+// el testigo rojo o el ABS (aunque encienda ámbar, indica que las ruedas pueden bloquearse) escalan a D.
 function severidadEfectiva(key: PKey, ctx: ContextoAgravante): 'P' | 'D' {
   const item = CRITICIDAD_ITEM[key]
   if (item.base === 'D') return 'D'
   switch (item.agravante?.tipo) {
     case 'nocturna': return ctx.nocturna ? 'D' : 'P'
     case 'lluvia': return ctx.lluvia ? 'D' : 'P'
-    case 'testigo_abs': return ctx.testigoAbs ? 'D' : 'P'
+    case 'testigo_critico': return (ctx.testigoAbs || ctx.testigoRojo) ? 'D' : 'P'
     case 'camion_combustible': return ctx.camionCombustible ? 'D' : 'P'
     default: return 'P'
   }
@@ -107,6 +110,8 @@ export function Checklist() {
   const [respuestas, setRespuestas] = useState<Respuesta[]>(emptyRespuestas)
   const [nocturna, setNocturna] = useState(false)
   const [lluvia, setLluvia] = useState(false)
+  const [testigoNaranjo, setTestigoNaranjo] = useState(false)
+  const [testigoRojo, setTestigoRojo] = useState(false)
   const [testigoAbs, setTestigoAbs] = useState(false)
   const [done, setDone] = useState(false)
   const [isOffline, setIsOffline] = useState(!navigator.onLine)
@@ -150,7 +155,11 @@ export function Checklist() {
     setRespuestas(prev => prev.map((r, i) =>
       i === idx ? { ...r, falla: v, observacion: v ? r.observacion : '' } : r
     ))
-    if (!v && PREGUNTAS[idx]?.key === 'p5') setTestigoAbs(false)
+    if (!v && PREGUNTAS[idx]?.key === 'p5') {
+      setTestigoNaranjo(false)
+      setTestigoRojo(false)
+      setTestigoAbs(false)
+    }
   }
 
   function setObs(idx: number, v: string) {
@@ -230,6 +239,8 @@ export function Checklist() {
     setRespuestas(emptyRespuestas())
     setNocturna(false)
     setLluvia(false)
+    setTestigoNaranjo(false)
+    setTestigoRojo(false)
     setTestigoAbs(false)
     setDone(false)
   }
@@ -295,7 +306,7 @@ export function Checklist() {
   const sugerencia = getSugerencia(
     operativo,
     fallasActivas.map(p => ({ key: p.key, label: p.label })),
-    { nocturna, lluvia, testigoAbs, camionCombustible },
+    { nocturna, lluvia, testigoAbs, testigoRojo, camionCombustible },
   )
   const idxTablero = PREGUNTAS.findIndex(p => p.key === 'p5')
 
@@ -402,6 +413,7 @@ export function Checklist() {
               <p className="text-xs text-gray-400 px-1">Marca el estado de cada sistema del vehículo</p>
               {PREGUNTAS.map((p, idx) => {
                 const r = respuestas[idx]
+                const estadoLabels = ESTADO_LABELS_OVERRIDE[p.key]
                 return (
                   <div
                     key={p.key}
@@ -421,7 +433,7 @@ export function Checklist() {
                               : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
                           }`}
                         >
-                          Buen estado
+                          {estadoLabels?.ok ?? 'Buen estado'}
                         </button>
                         <button
                           type="button"
@@ -432,7 +444,7 @@ export function Checklist() {
                               : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
                           }`}
                         >
-                          Mal estado
+                          {estadoLabels?.falla ?? 'Mal estado'}
                         </button>
                       </div>
                     </div>
@@ -446,15 +458,38 @@ export function Checklist() {
                       />
                     )}
                     {r.falla && idx === idxTablero && (
-                      <label className="flex items-center gap-2 mt-3 text-sm text-gray-700 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={testigoAbs}
-                          onChange={e => setTestigoAbs(e.target.checked)}
-                          className="w-4 h-4 accent-fault"
-                        />
-                        Es el testigo ABS (eleva la severidad a detención inmediata)
-                      </label>
+                      <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                          ¿Qué testigo(s) están encendidos?
+                        </p>
+                        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={testigoNaranjo}
+                            onChange={e => setTestigoNaranjo(e.target.checked)}
+                            className="w-4 h-4 accent-warn"
+                          />
+                          Testigo naranjo — revisión pronto (reparación programada)
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={testigoRojo}
+                            onChange={e => setTestigoRojo(e.target.checked)}
+                            className="w-4 h-4 accent-fault"
+                          />
+                          Testigo rojo — detener el vehículo de inmediato (fuera de servicio)
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={testigoAbs}
+                            onChange={e => setTestigoAbs(e.target.checked)}
+                            className="w-4 h-4 accent-fault"
+                          />
+                          Testigo ABS — enciende ámbar pero es crítico (las ruedas pueden bloquearse)
+                        </label>
+                      </div>
                     )}
                   </div>
                 )

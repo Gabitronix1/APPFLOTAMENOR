@@ -51,20 +51,26 @@ export type ObsKey = typeof PREGUNTAS[number]['obs']
 // Matriz de criticidad (planilla "Personal que conduce", hoja "Criticidad"):
 // severidad base de cada ítem en mal estado, y la condición que lo agrava
 // de "precaución" (P) a "detención inmediata" (D).
-export type Agravante = 'nocturna' | 'lluvia' | 'testigo_abs' | 'camion_combustible'
+export type Agravante = 'nocturna' | 'lluvia' | 'testigo_critico' | 'camion_combustible'
 
 export const CRITICIDAD_ITEM: Record<PKey, { base: 'P' | 'D'; agravante?: { tipo: Agravante; comentario: string } }> = {
   p1: { base: 'P' }, // Fugas
   p2: { base: 'P' }, // Neumáticos
   p3: { base: 'P', agravante: { tipo: 'nocturna', comentario: 'Circulación nocturna' } }, // Luces
   p4: { base: 'D' }, // Frenos y Dirección
-  p5: { base: 'P', agravante: { tipo: 'testigo_abs', comentario: 'Testigo ABS encendido' } }, // Tablero
+  p5: { base: 'P', agravante: { tipo: 'testigo_critico', comentario: 'Testigo rojo o ABS encendido' } }, // Tablero
   p6: { base: 'P' }, // Neumático de Repuesto
   p7: { base: 'D' }, // Asientos y Cinturones
   p8: { base: 'P', agravante: { tipo: 'lluvia', comentario: 'Con lluvia' } }, // Parabrisas y Vidrios
   p9: { base: 'D' }, // Espejos
   p10: { base: 'P', agravante: { tipo: 'camion_combustible', comentario: 'Camión combustible' } }, // Kit de Emergencia
   p11: { base: 'D' }, // Puertas y Portón
+}
+
+// Textos alternativos para los botones "Buen estado"/"Mal estado" en ítems donde
+// esa redacción genérica no calza bien (ej: el tablero no tiene "buen/mal estado", tiene testigos).
+export const ESTADO_LABELS_OVERRIDE: Partial<Record<PKey, { ok: string; falla: string }>> = {
+  p5: { ok: 'No hay testigos encendidos', falla: 'Hay testigos encendidos' },
 }
 
 export const BRAND = {
