@@ -10,7 +10,15 @@ export interface ChecklistPayload {
     operativo: boolean
     linea: string | null
   }
-  respuestas: { pregunta_id: number; valor: boolean; observacion: string | null }[]
+  respuestas: {
+    pregunta_id: number
+    valor: boolean
+    observacion: string | null
+    /** Solo aplica a la pregunta Tablero (id 5); null en el resto de las preguntas. */
+    testigo_naranjo?: boolean | null
+    testigo_rojo?: boolean | null
+    testigo_abs?: boolean | null
+  }[]
 }
 
 export interface FotoLocal {

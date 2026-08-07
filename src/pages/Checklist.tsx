@@ -260,10 +260,13 @@ export function Checklist() {
         operativo,
         linea: linea || null,
       },
-      respuestas: PREGUNTAS.map((_, idx) => ({
+      respuestas: PREGUNTAS.map((p, idx) => ({
         pregunta_id: idx + 1,
         valor: respuestas[idx].falla,
         observacion: respuestas[idx].observacion || null,
+        testigo_naranjo: p.key === 'p5' ? testigoNaranjo : null,
+        testigo_rojo: p.key === 'p5' ? testigoRojo : null,
+        testigo_abs: p.key === 'p5' ? testigoAbs : null,
       })),
     })
     setDone(true)
