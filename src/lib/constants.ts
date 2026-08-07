@@ -70,7 +70,13 @@ export const CRITICIDAD_ITEM: Record<PKey, { base: 'P' | 'D'; agravante?: { tipo
 // Textos alternativos para los botones "Buen estado"/"Mal estado" en ítems donde
 // esa redacción genérica no calza bien (ej: el tablero no tiene "buen/mal estado", tiene testigos).
 export const ESTADO_LABELS_OVERRIDE: Partial<Record<PKey, { ok: string; falla: string }>> = {
+  p1: { ok: 'Sin fugas', falla: 'Hay fugas' },
+  p3: { ok: 'Todas las luces funcionan', falla: 'Hay luces quemadas o rotas' },
   p5: { ok: 'No hay testigos encendidos', falla: 'Hay testigos encendidos' },
+  p6: { ok: 'Está y en buen estado', falla: 'Falta o está dañado' },
+  p8: { ok: 'Sin daños', falla: 'Hay trizaduras o plumillas malas' },
+  p10: { ok: 'Completo y vigente', falla: 'Incompleto o vencido' },
+  p11: { ok: 'Cierran bien', falla: 'No enganchan bien' },
 }
 
 export const BRAND = {
