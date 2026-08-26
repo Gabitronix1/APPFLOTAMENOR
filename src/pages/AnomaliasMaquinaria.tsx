@@ -1,9 +1,15 @@
 import { useState, useEffect } from 'react'
+import { useAuth } from '../context/AuthContext'
 import { useCatalog } from '../hooks/useCatalog'
 import { fetchTable, fetchCatalog, fetchResponsablesMaquinaria } from '../lib/masterDataCache'
 import { useOfflineQueue } from '../hooks/useOfflineQueue'
+import { useAnomaliasMaquinaria, type AnomaliaMaquinariaRow } from '../hooks/useAnomaliasMaquinaria'
+import { supabase } from '../lib/supabase'
 import { SearchSelect } from '../components/SearchSelect'
-import type { Maquinaria, LineaOperacion, ResponsableMaquinaria, CriticidadAnomalia } from '../types'
+import { fmtDate } from '../lib/constants'
+import { puedeEditarGestion } from '../lib/roles'
+import { CRITICIDAD_ANOMALIA_INFO, CRITICIDADES_ANOMALIA, ESTADO_ANOMALIA_INFO, ESTADOS_ANOMALIA } from '../lib/anomaliasMaquinaria'
+import type { Maquinaria, LineaOperacion, ResponsableMaquinaria, CriticidadAnomalia, EstadoAnomalia } from '../types'
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10)
@@ -21,7 +27,161 @@ interface AnomaliaRegistrada {
   criticidad: CriticidadAnomalia
 }
 
+function PendientesView() {
+  const { perfil, user } = useAuth()
+  const { rows, loading, error, refetch } = useAnomaliasMaquinaria()
+  const responsables = useCatalog<ResponsableMaquinaria>('responsables_maquinaria', () => fetchResponsablesMaquinaria())
+  const [soloPendientes, setSoloPendientes] = useState(true)
+  const [criticidadFiltro, setCriticidadFiltro] = useState<CriticidadAnomalia | 'todas'>('todas')
+  const [savingId, setSavingId] = useState<string | null>(null)
+
+  const puedeGestionar = puedeEditarGestion(perfil?.rol)
+
+  function puedeEditarFila(row: AnomaliaMaquinariaRow) {
+    return puedeGestionar || (perfil?.rol === 'mecanico_maquinaria' && row.responsable_id === user?.id)
+  }
+
+  const filtradas = rows.filter(r => {
+    if (soloPendientes && r.estado === 'resuelta') return false
+    if (criticidadFiltro !== 'todas' && r.criticidad !== criticidadFiltro) return false
+    return true
+  })
+
+  async function cambiarEstado(row: AnomaliaMaquinariaRow, estado: EstadoAnomalia) {
+    setSavingId(row.id)
+    const { error: err } = await supabase
+      .from('anomalias_maquinaria')
+      .update({ estado, fecha_cierre: estado === 'resuelta' ? todayISO() : null })
+      .eq('id', row.id)
+    setSavingId(null)
+    if (err) { alert(err.message); return }
+    refetch()
+  }
+
+  async function reasignar(row: AnomaliaMaquinariaRow, responsableId: string) {
+    setSavingId(row.id)
+    const { error: err } = await supabase
+      .from('anomalias_maquinaria')
+      .update({ responsable_id: responsableId || null })
+      .eq('id', row.id)
+    setSavingId(null)
+    if (err) { alert(err.message); return }
+    refetch()
+  }
+
+  const responsableOptions = responsables.data.map(r => ({ value: r.id, label: r.nombre }))
+
+  return (
+    <div className="max-w-3xl mx-auto px-4 space-y-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1">
+          {[{ v: true, label: 'Pendientes' }, { v: false, label: 'Todas' }].map(o => (
+            <button
+              key={String(o.v)}
+              onClick={() => setSoloPendientes(o.v)}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                soloPendientes === o.v ? 'bg-primary text-white' : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+        <select
+          value={criticidadFiltro}
+          onChange={e => setCriticidadFiltro(e.target.value as CriticidadAnomalia | 'todas')}
+          className="input w-auto"
+        >
+          <option value="todas">Todas las criticidades</option>
+          {CRITICIDADES_ANOMALIA.map(c => (
+            <option key={c} value={c}>{CRITICIDAD_ANOMALIA_INFO[c].label}</option>
+          ))}
+        </select>
+      </div>
+
+      {error && <div className="text-fault text-sm">{error}</div>}
+
+      {loading ? (
+        <div className="text-sm text-gray-400 animate-pulse">Cargando anomalías...</div>
+      ) : filtradas.length === 0 ? (
+        <div className="card text-center text-gray-400 py-12">
+          {soloPendientes ? 'No hay anomalías pendientes.' : 'No hay anomalías registradas.'}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filtradas.map(row => {
+            const vencida =
+              row.estado !== 'resuelta' &&
+              !!row.plazo_reparacion &&
+              new Date(row.plazo_reparacion) < new Date(new Date().toDateString())
+            const editable = puedeEditarFila(row)
+            return (
+              <div key={row.id} className="card space-y-3">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <p className="font-mono font-bold text-dark text-sm">
+                      {row.maquinariaCodigo}{row.maquinariaNombre ? ` — ${row.maquinariaNombre}` : ''}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {row.lineaCodigo ? `${row.lineaCodigo} · ` : ''}{fmtDate(row.fecha)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${CRITICIDAD_ANOMALIA_INFO[row.criticidad].badgeClass}`}>
+                      {CRITICIDAD_ANOMALIA_INFO[row.criticidad].label}
+                    </span>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${ESTADO_ANOMALIA_INFO[row.estado].badgeClass}`}>
+                      {ESTADO_ANOMALIA_INFO[row.estado].label}
+                    </span>
+                  </div>
+                </div>
+
+                <p className="text-sm text-gray-700">{row.descripcion}</p>
+
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
+                  {row.plazo_reparacion && (
+                    <span className={vencida ? 'text-fault font-semibold' : ''}>
+                      Plazo: {fmtDate(row.plazo_reparacion)}{vencida ? ' (vencido)' : ''}
+                    </span>
+                  )}
+                  <span>Responsable: {row.responsableNombre ?? 'Sin asignar'}</span>
+                </div>
+
+                {editable && (
+                  <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100">
+                    <select
+                      value={row.estado}
+                      disabled={savingId === row.id}
+                      onChange={e => void cambiarEstado(row, e.target.value as EstadoAnomalia)}
+                      className="input w-auto text-xs py-1.5"
+                    >
+                      {ESTADOS_ANOMALIA.map(e => (
+                        <option key={e} value={e}>{ESTADO_ANOMALIA_INFO[e].label}</option>
+                      ))}
+                    </select>
+                    {puedeGestionar && (
+                      <div className="w-56">
+                        <SearchSelect
+                          options={responsableOptions}
+                          value={row.responsable_id ?? ''}
+                          onChange={v => void reasignar(row, v)}
+                          placeholder="Reasignar responsable..."
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function AnomaliasMaquinaria() {
+  const [vista, setVista] = useState<'registrar' | 'pendientes'>('registrar')
   const maquinarias = useCatalog<Maquinaria>('maquinarias', () => fetchTable('maquinarias', 'codigo'))
   const lineas = useCatalog<LineaOperacion>('lineas_operacion', () => fetchCatalog('lineas_operacion'))
   const responsables = useCatalog<ResponsableMaquinaria>('responsables_maquinaria', () => fetchResponsablesMaquinaria())
@@ -101,7 +261,28 @@ export function AnomaliasMaquinaria() {
         </div>
       </div>
 
-      {loading ? (
+      <div className="max-w-lg mx-auto px-4 mb-4">
+        <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1">
+          {([
+            { v: 'registrar', label: 'Registrar' },
+            { v: 'pendientes', label: 'Pendientes' },
+          ] as const).map(o => (
+            <button
+              key={o.v}
+              onClick={() => setVista(o.v)}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                vista === o.v ? 'bg-primary text-white' : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {vista === 'pendientes' ? (
+        <PendientesView />
+      ) : loading ? (
         <div className="text-center py-16 text-gray-400">Cargando datos...</div>
       ) : (
         <div className="max-w-lg mx-auto px-4 space-y-4">
