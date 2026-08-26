@@ -40,6 +40,30 @@ export async function fetchCodigosFalla(): Promise<CodigoFallaRow[]> {
   )
 }
 
+interface ResponsableRow {
+  id: string
+  nombre: string
+  // perfiles no tiene columna `activo`; se deja en true para encajar con el shape
+  // que usan los demás catálogos (ver ResponsableMaquinaria en types/index.ts).
+  activo: true
+}
+
+// Responsables asignables a una anomalía de maquinaria: perfiles con rol de mecánico
+// de maquinaria o de jefatura, mostrando el nombre de su operador vinculado.
+export async function fetchResponsablesMaquinaria(): Promise<ResponsableRow[]> {
+  const { data } = await supabase
+    .from('perfiles')
+    .select('id, operadores(nombre, apellido)')
+    .in('rol', ['mecanico_maquinaria', 'jefe_maquinarias', 'supervisor_maquinarias', 'jefe_cdg'])
+  return (
+    (data ?? []) as unknown as { id: string; operadores: { nombre: string; apellido: string } | null }[]
+  ).map(r => ({
+    id: r.id,
+    nombre: r.operadores ? `${r.operadores.apellido}, ${r.operadores.nombre}` : 'Sin nombre registrado',
+    activo: true,
+  }))
+}
+
 interface CatalogSpec {
   name: string
   fetch: () => Promise<unknown[]>
@@ -65,6 +89,7 @@ const ALL_CATALOGS: CatalogSpec[] = [
   { name: 'tareas_otra_maquinaria', fetch: () => fetchCatalog('tareas_otra_maquinaria') },
   { name: 'productos_insumo', fetch: () => fetchCatalog('productos_insumo') },
   { name: 'condiciones_equipo', fetch: () => fetchCatalog('condiciones_equipo') },
+  { name: 'responsables_maquinaria', fetch: () => fetchResponsablesMaquinaria() },
 ]
 
 // Guarda de inmediato en IndexedDB una fila creada offline (conductor o vehículo nuevo)

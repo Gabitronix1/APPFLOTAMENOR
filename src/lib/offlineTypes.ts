@@ -115,6 +115,19 @@ export interface IntervencionMaquinariaPayload {
   fotoDetalle?: FotoLocal
 }
 
+export interface AnomaliaMaquinariaPayload {
+  type: 'anomalia_maquinaria'
+  anomalia: {
+    maquinaria_id: string
+    linea_id: string | null
+    fecha: string
+    descripcion: string
+    criticidad: 'baja' | 'media' | 'alta'
+    plazo_reparacion: string | null
+    responsable_id: string | null
+  }
+}
+
 export interface CrearConductorPayload {
   type: 'crear_conductor'
   conductor: { id: string; nombre: string; apellido: string; rut: string | null }
@@ -140,6 +153,7 @@ export type QueueData =
   | ChecklistPayload
   | IntervencionPayload
   | IntervencionMaquinariaPayload
+  | AnomaliaMaquinariaPayload
   | CrearConductorPayload
   | CrearVehiculoPayload
   | CrearLineaPayload

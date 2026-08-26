@@ -289,6 +289,12 @@ export interface VMaquinariaTimeline {
   operador: string | null
 }
 
+export interface ResponsableMaquinaria {
+  id: string
+  nombre: string
+  activo: true
+}
+
 export type CriticidadAnomalia = 'baja' | 'media' | 'alta'
 export type EstadoAnomalia = 'abierta' | 'en_progreso' | 'resuelta'
 

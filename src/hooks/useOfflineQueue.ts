@@ -14,6 +14,7 @@ export type {
   ChecklistPayload,
   IntervencionPayload,
   IntervencionMaquinariaPayload,
+  AnomaliaMaquinariaPayload,
   CrearConductorPayload,
   CrearVehiculoPayload,
   CrearLineaPayload,

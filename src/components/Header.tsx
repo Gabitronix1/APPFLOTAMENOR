@@ -152,6 +152,9 @@ export function Header() {
               {puedeIntervencionMaquinaria && (
                 <NavLink to="/intervencion-maquinaria" className={dropdownLinkClass}>Intervención Maquinaria</NavLink>
               )}
+              {puedeIntervencionMaquinaria && (
+                <NavLink to="/anomalias-maquinaria" className={dropdownLinkClass}>Anomalías TPM</NavLink>
+              )}
               {puedeAdmin && (
                 <NavLink to="/maquinarias" className={dropdownLinkClass}>Maquinarias</NavLink>
               )}
@@ -236,6 +239,9 @@ export function Header() {
             <MobileNavGroup label="Flota Mayor">
               {puedeIntervencionMaquinaria && (
                 <NavLink to="/intervencion-maquinaria" className={mobileLinkClass} onClick={() => setMobileOpen(false)}>Intervención Maquinaria</NavLink>
+              )}
+              {puedeIntervencionMaquinaria && (
+                <NavLink to="/anomalias-maquinaria" className={mobileLinkClass} onClick={() => setMobileOpen(false)}>Anomalías TPM</NavLink>
               )}
               {puedeAdmin && (
                 <NavLink to="/maquinarias" className={mobileLinkClass} onClick={() => setMobileOpen(false)}>Maquinarias</NavLink>

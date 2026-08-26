@@ -10,6 +10,7 @@ import { Maestros } from './pages/Maestros'
 import { Checklist } from './pages/Checklist'
 import { Intervencion } from './pages/Intervencion'
 import { IntervencionMaquinaria } from './pages/IntervencionMaquinaria'
+import { AnomaliasMaquinaria } from './pages/AnomaliasMaquinaria'
 import { Vehiculos } from './pages/Vehiculos'
 import { VehiculoDetalle } from './pages/VehiculoDetalle'
 import { Vencimientos } from './pages/Vencimientos'
@@ -42,6 +43,7 @@ function AppLayout() {
           </Route>
           <Route element={<RequireRol roles={ROLES_INTERVENCION_MAQUINARIA} />}>
             <Route path="intervencion-maquinaria" element={<IntervencionMaquinaria />} />
+            <Route path="anomalias-maquinaria" element={<AnomaliasMaquinaria />} />
           </Route>
           <Route element={<RequireRol roles={ROLES_ORDENES_TRABAJO} />}>
             <Route path="ordenes-trabajo" element={<OrdenesTrabajo />} />

@@ -4,6 +4,7 @@ import type {
   ChecklistPayload,
   IntervencionPayload,
   IntervencionMaquinariaPayload,
+  AnomaliaMaquinariaPayload,
   CrearConductorPayload,
   CrearVehiculoPayload,
   CrearLineaPayload,
@@ -17,6 +18,7 @@ export type {
   ChecklistPayload,
   IntervencionPayload,
   IntervencionMaquinariaPayload,
+  AnomaliaMaquinariaPayload,
   CrearConductorPayload,
   CrearVehiculoPayload,
   CrearLineaPayload,
@@ -167,6 +169,11 @@ async function syncIntervencionMaquinaria(payload: IntervencionMaquinariaPayload
   }
 }
 
+async function syncAnomaliaMaquinaria(payload: AnomaliaMaquinariaPayload): Promise<void> {
+  const { error } = await supabase.from('anomalias_maquinaria').insert(payload.anomalia)
+  if (error) throw error
+}
+
 async function syncCrearConductor(payload: CrearConductorPayload): Promise<void> {
   const { error } = await supabase.from('operadores').insert(payload.conductor)
   if (error) throw error
@@ -194,6 +201,8 @@ async function syncItem(item: QueueItem): Promise<void> {
     await syncCrearVehiculo(item.data)
   } else if (item.data.type === 'crear_linea') {
     await syncCrearLinea(item.data)
+  } else if (item.data.type === 'anomalia_maquinaria') {
+    await syncAnomaliaMaquinaria(item.data)
   } else if (item.data.type.startsWith('intervencion_maquinaria_')) {
     await syncIntervencionMaquinaria(item.data as IntervencionMaquinariaPayload)
   } else {
@@ -268,6 +277,7 @@ function labelFor(data: QueueData): string {
   if (data.type === 'crear_conductor') return 'Conductor nuevo'
   if (data.type === 'crear_vehiculo') return 'Vehículo nuevo'
   if (data.type === 'crear_linea') return 'Línea nueva'
+  if (data.type === 'anomalia_maquinaria') return 'Anomalía de maquinaria'
   if (data.type.startsWith('intervencion_maquinaria_')) return 'Intervención de maquinaria'
   return 'Intervención de vehículo'
 }
