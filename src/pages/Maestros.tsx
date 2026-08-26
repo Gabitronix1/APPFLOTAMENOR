@@ -1,5 +1,7 @@
 import { useEffect, useState, FormEvent, ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
+import { SearchSelect } from '../components/SearchSelect'
+import { ROL_LABELS } from '../lib/roles'
 import type {
   Operador,
   Patente,
@@ -17,9 +19,10 @@ import type {
   TareaOtraMaquinaria,
   ProductoInsumo,
   CondicionEquipo,
+  Rol,
 } from '../types'
 
-type Grupo = 'flota_menor' | 'flota_mayor'
+type Grupo = 'flota_menor' | 'flota_mayor' | 'usuarios'
 type TabMenor = 'operadores' | 'patentes' | 'fundos'
 type TabMayor =
   | 'maquinarias'
@@ -665,6 +668,255 @@ function CodigosFallaTab() {
   )
 }
 
+/* ─── Usuarios ─── */
+const ROLES_OPCIONES = Object.keys(ROL_LABELS) as Rol[]
+
+interface PerfilConOperador {
+  id: string
+  rol: Rol
+  operador_id: string | null
+  operadores: { nombre: string; apellido: string; rut: string | null } | null
+}
+
+function NuevoUsuarioModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const [operadores, setOperadores] = useState<Operador[]>([])
+  const [operadorId, setOperadorId] = useState('')
+  const [nombre, setNombre] = useState('')
+  const [apellido, setApellido] = useState('')
+  const [rut, setRut] = useState('')
+  const [email, setEmail] = useState('')
+  const [rol, setRol] = useState<Rol>('mecanico_maquinaria')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    void supabase
+      .from('operadores')
+      .select('id, nombre, apellido, rut, email, activo')
+      .eq('activo', true)
+      .order('apellido')
+      .then(({ data }) => setOperadores((data ?? []) as Operador[]))
+  }, [])
+
+  const usaOperadorExistente = operadorId !== ''
+  const canSave = !!email.trim() && (usaOperadorExistente || (!!nombre.trim() && !!apellido.trim()))
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    if (!canSave) return
+    setSaving(true)
+    setError(null)
+
+    const { data, error: fnError } = await supabase.functions.invoke('gestionar-usuario', {
+      body: usaOperadorExistente
+        ? { action: 'crear', email: email.trim(), rol, operador_id: operadorId }
+        : { action: 'crear', email: email.trim(), rol, nombre: nombre.trim(), apellido: apellido.trim(), rut: rut.trim() },
+    })
+
+    setSaving(false)
+    const apiError = (data as { error?: string } | null)?.error
+    if (fnError || apiError) {
+      setError(apiError || fnError?.message || 'No se pudo crear el usuario.')
+      return
+    }
+    onCreated()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+        <h2 className="text-lg font-bold text-dark mb-1">Nuevo usuario</h2>
+        <p className="text-xs text-gray-400 mb-4">
+          Se le envía un correo de invitación para que defina su propia contraseña.
+        </p>
+        <form onSubmit={e => void handleSubmit(e)} className="space-y-4">
+          <div>
+            <label className="label">Vincular a operador existente (opcional)</label>
+            <SearchSelect
+              options={operadores.map(o => ({ value: o.id, label: `${o.apellido}, ${o.nombre}` }))}
+              value={operadorId}
+              onChange={setOperadorId}
+              placeholder="Buscar operador..."
+            />
+          </div>
+
+          {!usaOperadorExistente && (
+            <>
+              <div>
+                <label className="label">Nombre</label>
+                <input className="input" value={nombre} onChange={e => setNombre(e.target.value)} required={!usaOperadorExistente} />
+              </div>
+              <div>
+                <label className="label">Apellido</label>
+                <input className="input" value={apellido} onChange={e => setApellido(e.target.value)} required={!usaOperadorExistente} />
+              </div>
+              <div>
+                <label className="label">RUT (opcional)</label>
+                <input className="input" value={rut} onChange={e => setRut(e.target.value)} placeholder="12.345.678-9" />
+              </div>
+            </>
+          )}
+
+          <div>
+            <label className="label">Email</label>
+            <input
+              type="email"
+              className="input"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="nombre@empresa.cl"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="label">Rol</label>
+            <select className="input" value={rol} onChange={e => setRol(e.target.value as Rol)} required>
+              {ROLES_OPCIONES.map(r => (
+                <option key={r} value={r}>{ROL_LABELS[r]}</option>
+              ))}
+            </select>
+          </div>
+
+          {error && <p className="text-fault text-xs">{error}</p>}
+
+          <div className="flex gap-2 justify-end pt-2">
+            <button type="button" onClick={onClose} className="btn-secondary btn-sm">
+              Cancelar
+            </button>
+            <button type="submit" disabled={saving || !canSave} className="btn-primary btn-sm">
+              {saving ? 'Enviando invitación...' : 'Crear e invitar'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+function UsuariosTab() {
+  const [rows, setRows] = useState<PerfilConOperador[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [showModal, setShowModal] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editRol, setEditRol] = useState<Rol>('conductor_logistico')
+  const [saving, setSaving] = useState(false)
+
+  async function load() {
+    setLoading(true)
+    const { data, error: err } = await supabase
+      .from('perfiles')
+      .select('id, rol, operador_id, operadores(nombre, apellido, rut)')
+      .order('rol')
+    if (err) setError(err.message)
+    else setRows((data ?? []) as unknown as PerfilConOperador[])
+    setLoading(false)
+  }
+
+  useEffect(() => { void load() }, [])
+
+  function abrirEditar(row: PerfilConOperador) {
+    setEditingId(row.id)
+    setEditRol(row.rol)
+  }
+
+  async function guardarRol(perfilId: string) {
+    setSaving(true)
+    setError(null)
+    const { data, error: fnError } = await supabase.functions.invoke('gestionar-usuario', {
+      body: { action: 'actualizar_rol', perfil_id: perfilId, rol: editRol },
+    })
+    setSaving(false)
+    const apiError = (data as { error?: string } | null)?.error
+    if (fnError || apiError) {
+      setError(apiError || fnError?.message || 'No se pudo actualizar el rol.')
+      return
+    }
+    setEditingId(null)
+    void load()
+  }
+
+  return (
+    <div className="space-y-4">
+      {error && <div className="text-fault text-sm">{error}</div>}
+      <div className="flex justify-end">
+        <button className="btn-primary btn-sm" onClick={() => setShowModal(true)}>
+          + Nuevo usuario
+        </button>
+      </div>
+
+      <div className="card p-0 overflow-hidden">
+        {loading ? (
+          <div className="p-6 text-sm text-gray-400 animate-pulse">Cargando...</div>
+        ) : (
+          <table className="w-full divide-y divide-gray-200">
+            <thead>
+              <tr>
+                <th className="table-th">Nombre</th>
+                <th className="table-th">RUT</th>
+                <th className="table-th">Rol</th>
+                <th className="table-th"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {rows.length === 0 && (
+                <tr><td colSpan={4} className="table-td text-center text-gray-400 py-8">Sin registros.</td></tr>
+              )}
+              {rows.map(row => (
+                <tr key={row.id} className="hover:bg-gray-50">
+                  <td className="table-td">
+                    {row.operadores ? `${row.operadores.apellido}, ${row.operadores.nombre}` : '—'}
+                  </td>
+                  <td className="table-td font-mono text-xs">{row.operadores?.rut ?? '—'}</td>
+                  <td className="table-td">
+                    {editingId === row.id ? (
+                      <select className="input" value={editRol} onChange={e => setEditRol(e.target.value as Rol)}>
+                        {ROLES_OPCIONES.map(r => (
+                          <option key={r} value={r}>{ROL_LABELS[r]}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      ROL_LABELS[row.rol]
+                    )}
+                  </td>
+                  <td className="table-td text-right whitespace-nowrap space-x-3">
+                    {editingId === row.id ? (
+                      <>
+                        <button onClick={() => setEditingId(null)} className="text-xs font-medium underline text-gray-600">
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={() => void guardarRol(row.id)}
+                          disabled={saving}
+                          className="text-xs font-medium underline text-primary"
+                        >
+                          {saving ? 'Guardando...' : 'Guardar'}
+                        </button>
+                      </>
+                    ) : (
+                      <button onClick={() => abrirEditar(row)} className="text-xs font-medium underline text-gray-600">
+                        Cambiar rol
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {showModal && (
+        <NuevoUsuarioModal
+          onClose={() => setShowModal(false)}
+          onCreated={() => { setShowModal(false); void load() }}
+        />
+      )}
+    </div>
+  )
+}
+
 /* ─── Página principal ─── */
 export function Maestros() {
   const [grupo, setGrupo] = useState<Grupo>('flota_menor')
@@ -674,6 +926,7 @@ export function Maestros() {
   const gruposTabs: { key: Grupo; label: string }[] = [
     { key: 'flota_menor', label: 'Flota Menor' },
     { key: 'flota_mayor', label: 'Flota Mayor' },
+    { key: 'usuarios', label: 'Usuarios' },
   ]
 
   const tabsMenor: { key: TabMenor; label: string }[] = [
@@ -734,6 +987,8 @@ export function Maestros() {
           {tabMenor === 'patentes' && <PatentesTab />}
           {tabMenor === 'fundos' && <FundosTab />}
         </>
+      ) : grupo === 'usuarios' ? (
+        <UsuariosTab />
       ) : (
         <>
           <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 flex-wrap w-fit">

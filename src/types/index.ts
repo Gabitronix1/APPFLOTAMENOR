@@ -288,3 +288,23 @@ export interface VMaquinariaTimeline {
   subtitulo: string | null
   operador: string | null
 }
+
+export type CriticidadAnomalia = 'baja' | 'media' | 'alta'
+export type EstadoAnomalia = 'abierta' | 'en_progreso' | 'resuelta'
+
+// Detección de anomalías y plan de acción (TPM) por equipo de flota mayor.
+export interface AnomaliaMaquinaria {
+  id: string
+  maquinaria_id: string
+  linea_id: string | null
+  fecha: string
+  descripcion: string
+  criticidad: CriticidadAnomalia
+  plazo_reparacion: string | null
+  responsable_id: string | null
+  estado: EstadoAnomalia
+  fecha_cierre: string | null
+  costo: number | null
+  creado_por: string
+  created_at: string
+}
