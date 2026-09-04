@@ -18,6 +18,8 @@ export interface ChecklistPayload {
     testigo_naranjo?: boolean | null
     testigo_rojo?: boolean | null
     testigo_abs?: boolean | null
+    /** Solo aplica a la pregunta Espejos (id 9); null en el resto de las preguntas. */
+    afecta_campo_visual?: boolean | null
   }[]
 }
 

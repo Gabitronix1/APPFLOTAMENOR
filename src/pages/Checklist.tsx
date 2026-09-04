@@ -31,6 +31,7 @@ interface ContextoAgravante {
   testigoAbs: boolean
   testigoRojo: boolean
   camionCombustible: boolean
+  afectaVisual: boolean
 }
 
 // Severidad efectiva de un ítem en mal estado según la matriz de criticidad:
@@ -46,6 +47,7 @@ function severidadEfectiva(key: PKey, ctx: ContextoAgravante): 'P' | 'D' {
     case 'lluvia': return ctx.lluvia ? 'D' : 'P'
     case 'testigo_critico': return (ctx.testigoAbs || ctx.testigoRojo) ? 'D' : 'P'
     case 'camion_combustible': return ctx.camionCombustible ? 'D' : 'P'
+    case 'afecta_visual': return ctx.afectaVisual ? 'D' : 'P'
     default: return 'P'
   }
 }
@@ -113,6 +115,7 @@ export function Checklist() {
   const [testigoNaranjo, setTestigoNaranjo] = useState(false)
   const [testigoRojo, setTestigoRojo] = useState(false)
   const [testigoAbs, setTestigoAbs] = useState(false)
+  const [afectaVisual, setAfectaVisual] = useState(false)
   const [done, setDone] = useState(false)
   const [isOffline, setIsOffline] = useState(!navigator.onLine)
 
@@ -159,6 +162,9 @@ export function Checklist() {
       setTestigoNaranjo(false)
       setTestigoRojo(false)
       setTestigoAbs(false)
+    }
+    if (!v && PREGUNTAS[idx]?.key === 'p9') {
+      setAfectaVisual(false)
     }
   }
 
@@ -242,6 +248,7 @@ export function Checklist() {
     setTestigoNaranjo(false)
     setTestigoRojo(false)
     setTestigoAbs(false)
+    setAfectaVisual(false)
     setDone(false)
   }
 
@@ -267,6 +274,7 @@ export function Checklist() {
         testigo_naranjo: p.key === 'p5' ? testigoNaranjo : null,
         testigo_rojo: p.key === 'p5' ? testigoRojo : null,
         testigo_abs: p.key === 'p5' ? testigoAbs : null,
+        afecta_campo_visual: p.key === 'p9' ? afectaVisual : null,
       })),
     })
     setDone(true)
@@ -309,9 +317,10 @@ export function Checklist() {
   const sugerencia = getSugerencia(
     operativo,
     fallasActivas.map(p => ({ key: p.key, label: p.label })),
-    { nocturna, lluvia, testigoAbs, testigoRojo, camionCombustible },
+    { nocturna, lluvia, testigoAbs, testigoRojo, camionCombustible, afectaVisual },
   )
   const idxTablero = PREGUNTAS.findIndex(p => p.key === 'p5')
+  const idxEspejos = PREGUNTAS.findIndex(p => p.key === 'p9')
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-gray-50 pb-10">
@@ -491,6 +500,19 @@ export function Checklist() {
                             className="w-4 h-4 accent-fault"
                           />
                           Testigo ABS — enciende ámbar pero es crítico (las ruedas pueden bloquearse)
+                        </label>
+                      </div>
+                    )}
+                    {r.falla && idx === idxEspejos && (
+                      <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
+                        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={afectaVisual}
+                            onChange={e => setAfectaVisual(e.target.checked)}
+                            className="w-4 h-4 accent-fault"
+                          />
+                          Afecta el campo visual — detener el vehículo de inmediato
                         </label>
                       </div>
                     )}

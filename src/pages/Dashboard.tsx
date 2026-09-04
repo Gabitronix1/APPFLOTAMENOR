@@ -22,7 +22,7 @@ import { SecPrioridades } from '../components/dashboard/SecPrioridades'
 import { SecTrazabilidadOperadores } from '../components/dashboard/SecTrazabilidadOperadores'
 import { SecCobertura } from '../components/dashboard/SecCobertura'
 import { fmtDate } from '../lib/constants'
-import { esRolAdministrativo } from '../lib/roles'
+import { esRolAdministrativo, puedeVerDashboardFlotaMenor } from '../lib/roles'
 import type { EstadoMaquinaria, EstadoVehiculo, VInspeccion } from '../types'
 
 function applyFilters(data: VInspeccion[], f: Filters): VInspeccion[] {
@@ -43,16 +43,19 @@ function DashboardContent() {
   const { perfil } = useAuth()
   const { allInspecciones, operadores, patentes, loading, error } = useInspecciones()
 
-  const puedeGestionarFlota = esRolAdministrativo(perfil?.rol)
+  // Flota Menor también la ve Bodega (puede gestionar guías de despacho); Flota Mayor/Maquinaria
+  // queda solo para los roles administrativos, ya que no es su área.
+  const puedeVerFlotaMenor = puedeVerDashboardFlotaMenor(perfil?.rol)
+  const puedeVerFlotaMayor = esRolAdministrativo(perfil?.rol)
   const [estadoSeleccionado, setEstadoSeleccionado] = useState<EstadoVehiculo | null>(null)
   const [estadoMaquinariaSeleccionado, setEstadoMaquinariaSeleccionado] = useState<EstadoMaquinaria | null>(null)
 
-  const estadoFlota = useEstadoFlota(puedeGestionarFlota)
-  const disponibilidad = useDisponibilidad(puedeGestionarFlota)
-  const otUrgentes = useOTUrgentes(puedeGestionarFlota)
-  const vencimientos = useVencimientosResumen(puedeGestionarFlota)
-  const estadoFlotaMaquinaria = useEstadoFlotaMaquinaria(puedeGestionarFlota)
-  const disponibilidadMaquinaria = useDisponibilidadMaquinaria(puedeGestionarFlota)
+  const estadoFlota = useEstadoFlota(puedeVerFlotaMenor)
+  const disponibilidad = useDisponibilidad(puedeVerFlotaMenor)
+  const otUrgentes = useOTUrgentes(puedeVerFlotaMenor)
+  const vencimientos = useVencimientosResumen(puedeVerFlotaMenor)
+  const estadoFlotaMaquinaria = useEstadoFlotaMaquinaria(puedeVerFlotaMayor)
+  const disponibilidadMaquinaria = useDisponibilidadMaquinaria(puedeVerFlotaMayor)
 
   const filteredData = useMemo(
     () => applyFilters(allInspecciones, filters),
@@ -96,7 +99,7 @@ function DashboardContent() {
         <p className="text-sm text-gray-500">Estado, atención requerida y trazabilidad de reportes.</p>
       </div>
 
-      {puedeGestionarFlota && (
+      {puedeVerFlotaMenor && (
         <div className="mb-10">
           <h2 className="text-lg font-bold text-dark mb-1">Flota Menor</h2>
           <p className="text-sm text-gray-500 mb-5">Vehículos — estado operativo ahora mismo.</p>
@@ -184,7 +187,7 @@ function DashboardContent() {
         <SecCobertura data={filteredData} patentesNomina={patentes} />
       </PanelSection>
 
-      {puedeGestionarFlota && (
+      {puedeVerFlotaMayor && (
         <div className="mt-10">
           <div className="border-b border-gray-200 mb-6" />
           <h2 className="text-lg font-bold text-dark mb-1">Flota Mayor</h2>

@@ -18,9 +18,12 @@ import { Maquinarias } from './pages/Maquinarias'
 import { MaquinariaDetalle } from './pages/MaquinariaDetalle'
 import { GuiasDespacho } from './pages/GuiasDespacho'
 import { GuiaDespachoDetalle } from './pages/GuiaDespachoDetalle'
+import { DashboardGuiasDespacho } from './pages/DashboardGuiasDespacho'
 import {
   ROLES_ADMINISTRATIVOS,
+  ROLES_DASHBOARD_FLOTA_MENOR,
   ROLES_GUIAS_DESPACHO,
+  ROLES_GUIAS_DESPACHO_GESTION,
   ROLES_INTERVENCION,
   ROLES_INTERVENCION_MAQUINARIA,
   ROLES_MAESTROS,
@@ -51,12 +54,17 @@ function AppLayout() {
           <Route element={<RequireRol roles={ROLES_ORDENES_TRABAJO} />}>
             <Route path="ordenes-trabajo" element={<OrdenesTrabajo />} />
           </Route>
+          <Route element={<RequireRol roles={ROLES_GUIAS_DESPACHO_GESTION} />}>
+            <Route path="guias-despacho/dashboard" element={<DashboardGuiasDespacho />} />
+          </Route>
           <Route element={<RequireRol roles={ROLES_GUIAS_DESPACHO} />}>
             <Route path="guias-despacho" element={<GuiasDespacho />} />
             <Route path="guias-despacho/:id" element={<GuiaDespachoDetalle />} />
           </Route>
-          <Route element={<RequireRol roles={ROLES_ADMINISTRATIVOS} />}>
+          <Route element={<RequireRol roles={ROLES_DASHBOARD_FLOTA_MENOR} />}>
             <Route path="dashboard" element={<Dashboard />} />
+          </Route>
+          <Route element={<RequireRol roles={ROLES_ADMINISTRATIVOS} />}>
             <Route path="vehiculos" element={<Vehiculos />} />
             <Route path="vehiculos/:id" element={<VehiculoDetalle />} />
             <Route path="vencimientos" element={<Vencimientos />} />

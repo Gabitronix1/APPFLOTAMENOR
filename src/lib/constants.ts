@@ -13,7 +13,7 @@ export const PREGUNTAS = [
   },
   {
     key: 'p4' as const, obs: 'obs4' as const, label: 'Frenos y Dirección', short: 'Frenos',
-    descripcion: 'Pruebe el freno de mano. En marcha corta, verifique frenado y que la dirección no tire hacia un lado.',
+    descripcion: 'Pruebe el freno de mano. En marcha corta, verifique frenado y que la dirección no tire hacia un lado. Si al soltar el volante el vehículo cambia de dirección de inmediato, el daño es severo: detener el vehículo.',
   },
   {
     key: 'p5' as const, obs: 'obs5' as const, label: 'Tablero', short: 'Tablero',
@@ -41,7 +41,7 @@ export const PREGUNTAS = [
   },
   {
     key: 'p11' as const, obs: 'obs11' as const, label: 'Puertas y Portón', short: 'Puertas',
-    descripcion: 'Abra y cierre todas las puertas/portón trasero para asegurar su correcto enganche.',
+    descripcion: 'Abra y cierre todas las puertas y el portón trasero usando la manilla interna y externa. Marca "Mal estado" solo si alguna puerta definitivamente no abre o no cierra.',
   },
 ]
 
@@ -51,7 +51,7 @@ export type ObsKey = typeof PREGUNTAS[number]['obs']
 // Matriz de criticidad (planilla "Personal que conduce", hoja "Criticidad"):
 // severidad base de cada ítem en mal estado, y la condición que lo agrava
 // de "precaución" (P) a "detención inmediata" (D).
-export type Agravante = 'nocturna' | 'lluvia' | 'testigo_critico' | 'camion_combustible'
+export type Agravante = 'nocturna' | 'lluvia' | 'testigo_critico' | 'camion_combustible' | 'afecta_visual'
 
 export const CRITICIDAD_ITEM: Record<PKey, { base: 'P' | 'D'; agravante?: { tipo: Agravante; comentario: string } }> = {
   p1: { base: 'P' }, // Fugas
@@ -62,7 +62,7 @@ export const CRITICIDAD_ITEM: Record<PKey, { base: 'P' | 'D'; agravante?: { tipo
   p6: { base: 'P' }, // Neumático de Repuesto
   p7: { base: 'D' }, // Asientos y Cinturones
   p8: { base: 'P', agravante: { tipo: 'lluvia', comentario: 'Con lluvia' } }, // Parabrisas y Vidrios
-  p9: { base: 'D' }, // Espejos
+  p9: { base: 'P', agravante: { tipo: 'afecta_visual', comentario: 'Afecta el campo visual' } }, // Espejos
   p10: { base: 'P', agravante: { tipo: 'camion_combustible', comentario: 'Camión combustible' } }, // Kit de Emergencia
   p11: { base: 'D' }, // Puertas y Portón
 }

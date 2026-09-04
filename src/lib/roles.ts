@@ -44,6 +44,14 @@ export function esRolAdministrativo(rol: Rol | undefined): boolean {
   return !!rol && ROLES_ADMINISTRATIVOS.includes(rol)
 }
 
+// El dashboard de Flota Menor (semáforo, disponibilidad, OT urgentes, vencimientos) también
+// lo ve Bodega, aunque no tenga el resto de permisos administrativos (Vehículos, Maquinarias, etc).
+export const ROLES_DASHBOARD_FLOTA_MENOR: Rol[] = [...ROLES_ADMINISTRATIVOS, 'encargado_bodega']
+
+export function puedeVerDashboardFlotaMenor(rol: Rol | undefined): boolean {
+  return !!rol && ROLES_DASHBOARD_FLOTA_MENOR.includes(rol)
+}
+
 // Cambiar estado / Actualizar documento / Agregar-Editar en Maestros.
 export function puedeEditarGestion(rol: Rol | undefined): boolean {
   return !!rol && ROLES_JEFES.includes(rol)
