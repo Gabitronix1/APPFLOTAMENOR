@@ -6,6 +6,7 @@ import { listQueue, syncAll } from '../lib/offlineQueue'
 import {
   ROL_LABELS,
   ROLES_ADMINISTRATIVOS,
+  ROLES_GUIAS_DESPACHO,
   ROLES_INTERVENCION,
   ROLES_INTERVENCION_MAQUINARIA,
   ROLES_JEFES,
@@ -108,6 +109,7 @@ export function Header() {
   const puedeAdmin = !!perfil && ROLES_ADMINISTRATIVOS.includes(perfil.rol)
   const puedeIntervencionMaquinaria = !!perfil && ROLES_INTERVENCION_MAQUINARIA.includes(perfil.rol)
   const puedeJefe = !!perfil && ROLES_JEFES.includes(perfil.rol)
+  const puedeGuias = !!perfil && ROLES_GUIAS_DESPACHO.includes(perfil.rol)
 
   const mostrarFlotaMenor = puedeIntervencion || puedeOT || puedeAdmin
   const mostrarFlotaMayor = puedeIntervencionMaquinaria || puedeAdmin
@@ -164,6 +166,11 @@ export function Header() {
           {puedeAdmin && (
             <NavLink to="/dashboard" className={navLinkClass}>
               Dashboard
+            </NavLink>
+          )}
+          {puedeGuias && (
+            <NavLink to="/guias-despacho" className={navLinkClass}>
+              Guías de Despacho
             </NavLink>
           )}
           {puedeJefe && (
@@ -249,10 +256,13 @@ export function Header() {
             </MobileNavGroup>
           )}
 
-          {(puedeAdmin || puedeJefe) && (
+          {(puedeAdmin || puedeGuias || puedeJefe) && (
             <MobileNavGroup label="Administración">
               {puedeAdmin && (
                 <NavLink to="/dashboard" className={mobileLinkClass} onClick={() => setMobileOpen(false)}>Dashboard</NavLink>
+              )}
+              {puedeGuias && (
+                <NavLink to="/guias-despacho" className={mobileLinkClass} onClick={() => setMobileOpen(false)}>Guías de Despacho</NavLink>
               )}
               {puedeJefe && (
                 <NavLink to="/maestros" className={mobileLinkClass} onClick={() => setMobileOpen(false)}>Maestros</NavLink>

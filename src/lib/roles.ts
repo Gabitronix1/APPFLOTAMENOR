@@ -8,6 +8,7 @@ export const ROL_LABELS: Record<Rol, string> = {
   supervisor_maquinarias: 'Supervisor de Maquinarias',
   ingeniero_confiabilidad: 'Ingeniero de Confiabilidad',
   jefe_cdg: 'Jefe de CDG',
+  encargado_bodega: 'Encargado de Bodega',
 }
 
 // Acceso a Dashboard, Vehículos y Vencimientos, y gestión de OT por igual.
@@ -29,6 +30,16 @@ export const ROLES_ORDENES_TRABAJO: Rol[] = ['mecanico_flota_menor', ...ROLES_AD
 
 export const ROLES_MAESTROS: Rol[] = ROLES_JEFES
 
+// Encargado de Bodega crea y cierra guías; los administrativos también gestionan la pestaña completa.
+export const ROLES_GUIAS_DESPACHO_GESTION: Rol[] = ['encargado_bodega', ...ROLES_ADMINISTRATIVOS]
+
+// El conductor logístico asignado marca despacho/recepción de sus propias guías.
+export const ROLES_GUIAS_DESPACHO: Rol[] = ['conductor_logistico', ...ROLES_GUIAS_DESPACHO_GESTION]
+
+export function puedeGestionarGuia(rol: Rol | undefined): boolean {
+  return !!rol && ROLES_GUIAS_DESPACHO_GESTION.includes(rol)
+}
+
 export function esRolAdministrativo(rol: Rol | undefined): boolean {
   return !!rol && ROLES_ADMINISTRATIVOS.includes(rol)
 }
@@ -45,5 +56,7 @@ export function puedeGestionarOT(rol: Rol | undefined): boolean {
 }
 
 export function getDefaultRoute(rol: Rol | undefined): string {
-  return esRolAdministrativo(rol) ? '/dashboard' : '/checklist'
+  if (esRolAdministrativo(rol)) return '/dashboard'
+  if (rol === 'encargado_bodega') return '/guias-despacho'
+  return '/checklist'
 }

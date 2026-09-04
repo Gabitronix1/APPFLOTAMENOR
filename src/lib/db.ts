@@ -18,6 +18,7 @@ export interface CatalogCacheRow {
 export interface PerfilCacheRow {
   userId: string
   rol: string
+  operadorId: string | null
 }
 
 export interface SubmittedLogRow {

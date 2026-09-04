@@ -18,6 +18,10 @@ export type {
   CrearConductorPayload,
   CrearVehiculoPayload,
   CrearLineaPayload,
+  CrearFundoPayload,
+  GuiaDespachoCrearPayload,
+  GuiaDespachoDespacharPayload,
+  GuiaDespachoRecibirPayload,
   FotoLocal,
 } from '../lib/offlineTypes'
 

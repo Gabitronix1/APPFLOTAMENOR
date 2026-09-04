@@ -8,6 +8,10 @@ import type {
   CrearConductorPayload,
   CrearVehiculoPayload,
   CrearLineaPayload,
+  CrearFundoPayload,
+  GuiaDespachoCrearPayload,
+  GuiaDespachoDespacharPayload,
+  GuiaDespachoRecibirPayload,
   QueueData,
   FotoLocal,
 } from './offlineTypes'
@@ -22,6 +26,10 @@ export type {
   CrearConductorPayload,
   CrearVehiculoPayload,
   CrearLineaPayload,
+  CrearFundoPayload,
+  GuiaDespachoCrearPayload,
+  GuiaDespachoDespacharPayload,
+  GuiaDespachoRecibirPayload,
   QueueData,
 }
 
@@ -192,6 +200,94 @@ async function syncCrearLinea(payload: CrearLineaPayload): Promise<void> {
   if (error && error.code !== '23505') throw error
 }
 
+async function syncCrearFundo(payload: CrearFundoPayload): Promise<void> {
+  const { error } = await supabase.from('fundos').insert({ ...payload.fundo, activo: true })
+  if (error && error.code !== '23505') throw error
+}
+
+async function syncGuiaDespachoCrear(payload: GuiaDespachoCrearPayload): Promise<void> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) throw new Error('Sesión inválida, no se pudo crear la guía.')
+
+  const { data: guia, error: guiaErr } = await supabase
+    .from('guias_despacho')
+    .insert({ ...payload.guia, creado_por: user.id })
+    .select('id')
+    .single()
+  if (guiaErr || !guia) throw guiaErr ?? new Error('No se pudo crear la guía de despacho')
+
+  const { error: itemsErr } = await supabase
+    .from('guias_despacho_items')
+    .insert(payload.items.map(i => ({ ...i, guia_id: (guia as { id: string }).id })))
+  if (itemsErr) throw itemsErr
+}
+
+async function syncGuiaDespachoDespachar(payload: GuiaDespachoDespacharPayload): Promise<void> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) throw new Error('Sesión inválida, no se pudo despachar la guía.')
+
+  let fotoPath: string | null = null
+  if (payload.fotoDespacho) {
+    fotoPath = await subirFoto('fotos-guias-despacho', `${payload.guia_id}-despacho.${payload.fotoDespacho.ext}`, payload.fotoDespacho)
+  }
+
+  for (const item of payload.items) {
+    const { error } = await supabase
+      .from('guias_despacho_items')
+      .update({ cantidad_enviada: item.cantidad_enviada })
+      .eq('id', item.item_id)
+    if (error) throw error
+  }
+
+  const { error: guiaErr } = await supabase
+    .from('guias_despacho')
+    .update({
+      estado: 'despachada',
+      despachado_por: user.id,
+      fecha_despacho: new Date().toISOString(),
+      ...(fotoPath ? { foto_despacho_path: fotoPath } : {}),
+    })
+    .eq('id', payload.guia_id)
+  if (guiaErr) throw guiaErr
+}
+
+async function syncGuiaDespachoRecibir(payload: GuiaDespachoRecibirPayload): Promise<void> {
+  const [fotoPath, firmaPath] = await Promise.all([
+    payload.fotoRecepcion
+      ? subirFoto('fotos-guias-despacho', `${payload.guia_id}-recepcion.${payload.fotoRecepcion.ext}`, payload.fotoRecepcion)
+      : Promise.resolve(null),
+    subirFoto('fotos-guias-despacho', `${payload.guia_id}-firma.${payload.firmaRecepcion.ext}`, payload.firmaRecepcion),
+  ])
+
+  for (const item of payload.items) {
+    const { error } = await supabase
+      .from('guias_despacho_items')
+      .update({
+        cantidad_recibida: item.cantidad_recibida,
+        cantidad_devuelta: item.cantidad_devuelta,
+        observacion: item.observacion,
+      })
+      .eq('id', item.item_id)
+    if (error) throw error
+  }
+
+  const { error: guiaErr } = await supabase
+    .from('guias_despacho')
+    .update({
+      estado: 'recibida',
+      recibido_por_nombre: payload.recibido_por_nombre,
+      fecha_recepcion: new Date().toISOString(),
+      ...(fotoPath ? { foto_recepcion_path: fotoPath } : {}),
+      firma_recepcion_path: firmaPath,
+    })
+    .eq('id', payload.guia_id)
+  if (guiaErr) throw guiaErr
+}
+
 async function syncItem(item: QueueItem): Promise<void> {
   if (item.data.type === 'checklist') {
     await syncChecklist(item.data)
@@ -201,6 +297,14 @@ async function syncItem(item: QueueItem): Promise<void> {
     await syncCrearVehiculo(item.data)
   } else if (item.data.type === 'crear_linea') {
     await syncCrearLinea(item.data)
+  } else if (item.data.type === 'crear_fundo') {
+    await syncCrearFundo(item.data)
+  } else if (item.data.type === 'guia_despacho_crear') {
+    await syncGuiaDespachoCrear(item.data)
+  } else if (item.data.type === 'guia_despacho_despachar') {
+    await syncGuiaDespachoDespachar(item.data)
+  } else if (item.data.type === 'guia_despacho_recibir') {
+    await syncGuiaDespachoRecibir(item.data)
   } else if (item.data.type === 'anomalia_maquinaria') {
     await syncAnomaliaMaquinaria(item.data)
   } else if (item.data.type.startsWith('intervencion_maquinaria_')) {
@@ -277,6 +381,10 @@ function labelFor(data: QueueData): string {
   if (data.type === 'crear_conductor') return 'Conductor nuevo'
   if (data.type === 'crear_vehiculo') return 'Vehículo nuevo'
   if (data.type === 'crear_linea') return 'Línea nueva'
+  if (data.type === 'crear_fundo') return 'Fundo nuevo'
+  if (data.type === 'guia_despacho_crear') return 'Guía de despacho nueva'
+  if (data.type === 'guia_despacho_despachar') return 'Guía de despacho: despacho'
+  if (data.type === 'guia_despacho_recibir') return 'Guía de despacho: recepción'
   if (data.type === 'anomalia_maquinaria') return 'Anomalía de maquinaria'
   if (data.type.startsWith('intervencion_maquinaria_')) return 'Intervención de maquinaria'
   return 'Intervención de vehículo'

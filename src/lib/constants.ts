@@ -100,6 +100,14 @@ export function fmtNum(n: number): string {
   return n.toLocaleString('es-CL')
 }
 
+// Datos de la empresa para el encabezado de documentos impresos (ej. guías de despacho).
+export const EMPRESA = {
+  nombre: 'S.A.F. Doña Isidora Limitada',
+  rut: '77.295.120-5',
+  direccion: 'Jorge Giacaman 281',
+  giro: 'Explotación de Bosques',
+}
+
 export function tiempoRelativo(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime()
   const diffMin = Math.floor(diffMs / 60000)

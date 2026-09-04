@@ -240,6 +240,7 @@ function PatentesTab() {
 /* ─── Fundos ─── */
 function FundosTab() {
   const [rows, setRows] = useState<Fundo[]>([])
+  const [lineas, setLineas] = useState<LineaOperacion[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
@@ -255,7 +256,25 @@ function FundosTab() {
     setLoading(false)
   }
 
-  useEffect(() => { void load() }, [])
+  async function loadLineas() {
+    const { data } = await supabase.from('lineas_operacion').select('*').order('codigo')
+    setLineas((data ?? []) as unknown as LineaOperacion[])
+  }
+
+  useEffect(() => { void load(); void loadLineas() }, [])
+
+  const lineaOptions = lineas.map(l => ({
+    value: l.codigo,
+    label: l.nombre && l.nombre !== l.codigo ? `${l.codigo} — ${l.nombre}` : l.codigo,
+  }))
+
+  async function handleCrearLinea(query: string) {
+    const codigo = query.trim().toUpperCase()
+    const { error: err } = await supabase.from('lineas_operacion').insert({ codigo })
+    if (err && err.code !== '23505') { setError(err.message); return }
+    await loadLineas()
+    setForm(f => ({ ...f, contrato: codigo }))
+  }
 
   function abrirNuevo() {
     setForm({ nombre: '', contrato: '' })
@@ -323,11 +342,18 @@ function FundosTab() {
             <input className="input" required value={form.nombre} onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))} />
           </div>
           <div>
-            <label className="label">Contrato</label>
-            <input className="input" required value={form.contrato} onChange={(e) => setForm((f) => ({ ...f, contrato: e.target.value }))} placeholder="CTR-001" />
+            <label className="label">Contrato / línea de negocio</label>
+            <SearchSelect
+              options={lineaOptions}
+              value={form.contrato}
+              onChange={(v) => setForm((f) => ({ ...f, contrato: v }))}
+              placeholder="Seleccionar contrato..."
+              onCreate={(q) => void handleCrearLinea(q)}
+              createLabel={(q) => `Crear contrato "${q.trim().toUpperCase()}"`}
+            />
           </div>
           <div className="col-span-2 flex justify-end">
-            <button type="submit" disabled={saving} className="btn-primary btn-sm">
+            <button type="submit" disabled={saving || !form.contrato} className="btn-primary btn-sm">
               {saving ? 'Guardando...' : editingId ? 'Guardar cambios' : 'Guardar'}
             </button>
           </div>
@@ -354,7 +380,7 @@ function FundosTab() {
               {rows.map((row) => (
                 <tr key={row.id} className="hover:bg-gray-50">
                   <td className="table-td font-semibold">{row.nombre}</td>
-                  <td className="table-td font-mono text-xs">{row.contrato}</td>
+                  <td className="table-td font-mono text-xs">{row.contrato || '—'}</td>
                   <td className="table-td text-center">
                     {row.activo ? <span className="badge-ok">Activo</span> : <span className="badge-fault">Inactivo</span>}
                   </td>

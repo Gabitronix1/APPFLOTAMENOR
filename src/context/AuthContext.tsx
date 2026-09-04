@@ -24,19 +24,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data, error } = await supabase
         .from('perfiles')
-        .select('id, rol')
+        .select('id, rol, operador_id')
         .eq('id', userId)
         .single()
       if (error || !data) throw error ?? new Error('Perfil no encontrado')
       setPerfil(data)
-      await db.perfilCache.put({ userId, rol: data.rol })
+      await db.perfilCache.put({ userId, rol: data.rol, operadorId: data.operador_id })
       // Precarga todos los catálogos maestros (no solo los de la página actual) para que
       // cualquier formulario funcione offline sin depender de qué página se visitó primero.
       void prefetchAllCatalogs()
     } catch {
       // Sin conexión (o falla de red) al arrancar: usar la última copia local del perfil
       const cached = await db.perfilCache.get(userId)
-      setPerfil(cached ? { id: userId, rol: cached.rol as Perfil['rol'] } : null)
+      setPerfil(cached ? { id: userId, rol: cached.rol as Perfil['rol'], operador_id: cached.operadorId } : null)
     }
   }
 

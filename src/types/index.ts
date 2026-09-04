@@ -6,10 +6,12 @@ export type Rol =
   | 'supervisor_maquinarias'
   | 'ingeniero_confiabilidad'
   | 'jefe_cdg'
+  | 'encargado_bodega'
 
 export interface Perfil {
   id: string
   rol: Rol
+  operador_id: string | null
 }
 
 export interface VInspeccion {
@@ -121,7 +123,7 @@ export interface Patente {
 export interface Fundo {
   id: string
   nombre: string
-  contrato: string
+  contrato: string | null
   activo: boolean
 }
 
@@ -313,4 +315,56 @@ export interface AnomaliaMaquinaria {
   costo: number | null
   creado_por: string
   created_at: string
+}
+
+/* ─── Guías de Despacho ─── */
+
+export type EstadoGuiaDespacho = 'borrador' | 'despachada' | 'recibida' | 'cerrada' | 'cancelada'
+
+export interface GuiaDespachoItem {
+  id: string
+  guia_id: string
+  producto_id: string
+  equipo_id: string | null
+  cantidad_planificada: number
+  cantidad_enviada: number | null
+  cantidad_recibida: number | null
+  cantidad_devuelta: number | null
+  observacion: string | null
+  orden: number | null
+}
+
+export interface GuiaDespacho {
+  id: string
+  folio: number
+  fundo_id: string
+  contrato: string | null
+  almacen_origen: string
+  patente_id: string | null
+  conductor_id: string | null
+  estado: EstadoGuiaDespacho
+  comentarios: string | null
+  creado_por: string
+  despachado_por: string | null
+  fecha_despacho: string | null
+  foto_despacho_path: string | null
+  recibido_por_nombre: string | null
+  fecha_recepcion: string | null
+  foto_recepcion_path: string | null
+  firma_recepcion_path: string | null
+  cerrado_por: string | null
+  fecha_cierre: string | null
+  created_at: string
+}
+
+// Guía con los datos de referencia ya resueltos para listado/detalle (join a fundos/patentes/operadores).
+export interface GuiaDespachoConDatos extends GuiaDespacho {
+  fundo: string
+  patente: string | null
+  conductor: string | null
+}
+
+export interface GuiaDespachoItemConDatos extends GuiaDespachoItem {
+  producto: string
+  equipo: string | null
 }

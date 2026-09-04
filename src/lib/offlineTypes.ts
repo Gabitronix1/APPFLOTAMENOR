@@ -149,6 +149,40 @@ export interface CrearLineaPayload {
   linea: { codigo: string; nombre: string | null }
 }
 
+export interface CrearFundoPayload {
+  type: 'crear_fundo'
+  fundo: { id: string; nombre: string; contrato: string }
+}
+
+export interface GuiaDespachoCrearPayload {
+  type: 'guia_despacho_crear'
+  guia: {
+    fundo_id: string
+    contrato: string | null
+    patente_id: string | null
+    conductor_id: string | null
+    comentarios: string | null
+  }
+  items: { producto_id: string; equipo_id: string | null; cantidad_planificada: number }[]
+}
+
+export interface GuiaDespachoDespacharPayload {
+  type: 'guia_despacho_despachar'
+  /** Id real de la guía en el servidor: solo se puede encolar sobre una guía ya sincronizada. */
+  guia_id: string
+  items: { item_id: string; cantidad_enviada: number }[]
+  fotoDespacho?: FotoLocal
+}
+
+export interface GuiaDespachoRecibirPayload {
+  type: 'guia_despacho_recibir'
+  guia_id: string
+  recibido_por_nombre: string
+  items: { item_id: string; cantidad_recibida: number; cantidad_devuelta: number; observacion: string | null }[]
+  fotoRecepcion?: FotoLocal
+  firmaRecepcion: FotoLocal
+}
+
 export type QueueData =
   | ChecklistPayload
   | IntervencionPayload
@@ -157,3 +191,7 @@ export type QueueData =
   | CrearConductorPayload
   | CrearVehiculoPayload
   | CrearLineaPayload
+  | CrearFundoPayload
+  | GuiaDespachoCrearPayload
+  | GuiaDespachoDespacharPayload
+  | GuiaDespachoRecibirPayload

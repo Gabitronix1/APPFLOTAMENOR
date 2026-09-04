@@ -16,8 +16,11 @@ import { VehiculoDetalle } from './pages/VehiculoDetalle'
 import { Vencimientos } from './pages/Vencimientos'
 import { Maquinarias } from './pages/Maquinarias'
 import { MaquinariaDetalle } from './pages/MaquinariaDetalle'
+import { GuiasDespacho } from './pages/GuiasDespacho'
+import { GuiaDespachoDetalle } from './pages/GuiaDespachoDetalle'
 import {
   ROLES_ADMINISTRATIVOS,
+  ROLES_GUIAS_DESPACHO,
   ROLES_INTERVENCION,
   ROLES_INTERVENCION_MAQUINARIA,
   ROLES_MAESTROS,
@@ -47,6 +50,10 @@ function AppLayout() {
           </Route>
           <Route element={<RequireRol roles={ROLES_ORDENES_TRABAJO} />}>
             <Route path="ordenes-trabajo" element={<OrdenesTrabajo />} />
+          </Route>
+          <Route element={<RequireRol roles={ROLES_GUIAS_DESPACHO} />}>
+            <Route path="guias-despacho" element={<GuiasDespacho />} />
+            <Route path="guias-despacho/:id" element={<GuiaDespachoDetalle />} />
           </Route>
           <Route element={<RequireRol roles={ROLES_ADMINISTRATIVOS} />}>
             <Route path="dashboard" element={<Dashboard />} />

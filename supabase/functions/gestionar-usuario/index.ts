@@ -16,6 +16,7 @@ const ROLES_VALIDOS = [
   'supervisor_maquinarias',
   'ingeniero_confiabilidad',
   'jefe_cdg',
+  'encargado_bodega',
 ]
 
 const CORS_HEADERS = {
