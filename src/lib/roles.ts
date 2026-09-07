@@ -27,13 +27,13 @@ export const ROLES_INTERVENCION: Rol[] = ['mecanico_flota_menor', 'jefe_maquinar
 
 export const ROLES_INTERVENCION_MAQUINARIA: Rol[] = ['mecanico_maquinaria', 'jefe_maquinarias', 'jefe_cdg']
 
-export const ROLES_ORDENES_TRABAJO: Rol[] = ['mecanico_flota_menor', ...ROLES_ADMINISTRATIVOS]
+export const ROLES_ORDENES_TRABAJO: Rol[] = ['mecanico_flota_menor', 'encargado_flota_menor', ...ROLES_ADMINISTRATIVOS]
 
 export const ROLES_MAESTROS: Rol[] = ROLES_JEFES
 
-// Encargado de Bodega y Encargado de Flota Menor crean y cierran guías; los administrativos
-// también gestionan la pestaña completa.
-export const ROLES_GUIAS_DESPACHO_GESTION: Rol[] = ['encargado_bodega', 'encargado_flota_menor', ...ROLES_ADMINISTRATIVOS]
+// Encargado de Bodega crea y cierra guías; los administrativos también gestionan la pestaña
+// completa. Encargado de Flota Menor NO participa de Guías de Despacho (ver Checklist/OT).
+export const ROLES_GUIAS_DESPACHO_GESTION: Rol[] = ['encargado_bodega', ...ROLES_ADMINISTRATIVOS]
 
 // El conductor logístico asignado marca despacho/recepción de sus propias guías.
 export const ROLES_GUIAS_DESPACHO: Rol[] = ['conductor_logistico', ...ROLES_GUIAS_DESPACHO_GESTION]
@@ -61,9 +61,10 @@ export function puedeEditarGestion(rol: Rol | undefined): boolean {
 }
 
 // Asignar / Cerrar directo / Cancelar / cambiar prioridad en Órdenes de trabajo:
-// los 4 roles administrativos gestionan por igual (excepción respecto a la regla general).
+// los 4 roles administrativos gestionan por igual (excepción respecto a la regla general),
+// y también el Encargado de Flota Menor.
 export function puedeGestionarOT(rol: Rol | undefined): boolean {
-  return esRolAdministrativo(rol)
+  return esRolAdministrativo(rol) || rol === 'encargado_flota_menor'
 }
 
 export function getDefaultRoute(rol: Rol | undefined): string {

@@ -4,7 +4,7 @@ import { useOrdenesTrabajo } from '../hooks/useOrdenesTrabajo'
 import { supabase } from '../lib/supabase'
 import { ESTADO_OT_INFO, PRIORIDADES_OT, PRIORIDAD_OT_INFO } from '../lib/ordenesTrabajo'
 import { fmtDate } from '../lib/constants'
-import { esRolAdministrativo } from '../lib/roles'
+import { puedeGestionarOT } from '../lib/roles'
 import { FallaRow } from '../components/resoluciones/FallaRow'
 import { AsignarModal } from '../components/resoluciones/AsignarModal'
 import { CerrarDirectoModal } from '../components/resoluciones/CerrarDirectoModal'
@@ -91,7 +91,7 @@ export function OrdenesTrabajo() {
           <h1 className="text-2xl font-bold text-gray-900 mb-1">Órdenes de trabajo</h1>
           <p className="text-sm text-gray-500 mb-6">Fallas detectadas en inspecciones, agrupadas por inspección.</p>
         </div>
-        {esRolAdministrativo(perfil?.rol) && (
+        {puedeGestionarOT(perfil?.rol) && (
           <button onClick={() => window.print()} className="btn-secondary btn-sm shrink-0">
             Exportar PDF
           </button>
