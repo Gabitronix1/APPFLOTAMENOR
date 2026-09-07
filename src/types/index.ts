@@ -7,6 +7,7 @@ export type Rol =
   | 'ingeniero_confiabilidad'
   | 'jefe_cdg'
   | 'encargado_bodega'
+  | 'encargado_flota_menor'
 
 export interface Perfil {
   id: string

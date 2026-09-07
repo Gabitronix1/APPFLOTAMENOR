@@ -9,6 +9,7 @@ export const ROL_LABELS: Record<Rol, string> = {
   ingeniero_confiabilidad: 'Ingeniero de Confiabilidad',
   jefe_cdg: 'Jefe de CDG',
   encargado_bodega: 'Encargado de Bodega',
+  encargado_flota_menor: 'Encargado de Flota Menor',
 }
 
 // Acceso a Dashboard, Vehículos y Vencimientos, y gestión de OT por igual.
@@ -30,8 +31,9 @@ export const ROLES_ORDENES_TRABAJO: Rol[] = ['mecanico_flota_menor', ...ROLES_AD
 
 export const ROLES_MAESTROS: Rol[] = ROLES_JEFES
 
-// Encargado de Bodega crea y cierra guías; los administrativos también gestionan la pestaña completa.
-export const ROLES_GUIAS_DESPACHO_GESTION: Rol[] = ['encargado_bodega', ...ROLES_ADMINISTRATIVOS]
+// Encargado de Bodega y Encargado de Flota Menor crean y cierran guías; los administrativos
+// también gestionan la pestaña completa.
+export const ROLES_GUIAS_DESPACHO_GESTION: Rol[] = ['encargado_bodega', 'encargado_flota_menor', ...ROLES_ADMINISTRATIVOS]
 
 // El conductor logístico asignado marca despacho/recepción de sus propias guías.
 export const ROLES_GUIAS_DESPACHO: Rol[] = ['conductor_logistico', ...ROLES_GUIAS_DESPACHO_GESTION]
@@ -45,8 +47,9 @@ export function esRolAdministrativo(rol: Rol | undefined): boolean {
 }
 
 // El dashboard de Flota Menor (semáforo, disponibilidad, OT urgentes, vencimientos) también
-// lo ve Bodega, aunque no tenga el resto de permisos administrativos (Vehículos, Maquinarias, etc).
-export const ROLES_DASHBOARD_FLOTA_MENOR: Rol[] = [...ROLES_ADMINISTRATIVOS, 'encargado_bodega']
+// lo ven Bodega y el Encargado de Flota Menor, aunque no tengan el resto de permisos
+// administrativos (Vehículos, Maquinarias, etc).
+export const ROLES_DASHBOARD_FLOTA_MENOR: Rol[] = [...ROLES_ADMINISTRATIVOS, 'encargado_bodega', 'encargado_flota_menor']
 
 export function puedeVerDashboardFlotaMenor(rol: Rol | undefined): boolean {
   return !!rol && ROLES_DASHBOARD_FLOTA_MENOR.includes(rol)
@@ -65,6 +68,7 @@ export function puedeGestionarOT(rol: Rol | undefined): boolean {
 
 export function getDefaultRoute(rol: Rol | undefined): string {
   if (esRolAdministrativo(rol)) return '/dashboard'
+  if (rol === 'encargado_flota_menor') return '/dashboard'
   if (rol === 'encargado_bodega') return '/guias-despacho'
   return '/checklist'
 }
