@@ -1,10 +1,15 @@
 import { useMemo } from 'react'
 import { useGuiasDespacho } from '../hooks/useGuiasDespacho'
+import { useGuiasDespachoKpis } from '../hooks/useGuiasDespachoKpis'
 import { ESTADO_GUIA_INFO, formatFolio } from '../lib/guiasDespacho'
 import { fmtDate } from '../lib/constants'
 import { toCsv, downloadCsv } from '../lib/csv'
 import { KpiCard } from '../components/vehiculos/KpiCard'
 import type { EstadoGuiaDespacho, GuiaDespachoConDatos } from '../types'
+
+function fmtPct(v: number | null): string {
+  return v === null ? '—' : `${Math.round(v * 100)}%`
+}
 
 function agruparPor(guias: GuiaDespachoConDatos[], key: (g: GuiaDespachoConDatos) => string): { nombre: string; cantidad: number }[] {
   const counts = new Map<string, number>()
@@ -60,6 +65,7 @@ function TablaResumen({ titulo, filas }: { titulo: string; filas: { nombre: stri
 
 export function DashboardGuiasDespacho() {
   const { guias, loading, error } = useGuiasDespacho()
+  const { kpis: kpisPct, loading: loadingKpis } = useGuiasDespachoKpis()
 
   const kpis = useMemo(() => {
     const porEstado = (e: EstadoGuiaDespacho) => guias.filter(g => g.estado === e).length
@@ -95,13 +101,34 @@ export function DashboardGuiasDespacho() {
         <div className="text-sm text-gray-400 animate-pulse">Cargando...</div>
       ) : (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
             <KpiCard label="Total" value={kpis.total} />
             <KpiCard label={ESTADO_GUIA_INFO.borrador.label} value={kpis.borrador} />
             <KpiCard label={ESTADO_GUIA_INFO.despachada.label} value={kpis.despachada} />
             <KpiCard label={ESTADO_GUIA_INFO.recibida.label} value={kpis.recibida} />
             <KpiCard label={ESTADO_GUIA_INFO.cerrada.label} value={kpis.cerrada} />
             <KpiCard label={ESTADO_GUIA_INFO.cancelada.label} value={kpis.cancelada} accent={kpis.cancelada > 0} />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
+            <div title="Guías que ya salieron de bodega (despachada, recibida o cerrada) sobre el total de guías no canceladas.">
+              <KpiCard
+                label="% Guías despachadas"
+                value={loadingKpis ? '…' : fmtPct(kpisPct.pctGuiasDespachadas)}
+              />
+            </div>
+            <div title="De las guías despachadas, cuántas fueron confirmadas en faena (recibida o cerrada).">
+              <KpiCard
+                label="% Guías entregadas con éxito"
+                value={loadingKpis ? '…' : fmtPct(kpisPct.pctGuiasEntregadasExito)}
+              />
+            </div>
+            <div title="De las unidades enviadas en guías ya recibidas/cerradas, cuántas llegaron confirmadas en faena.">
+              <KpiCard
+                label="% Productos entregados con éxito"
+                value={loadingKpis ? '…' : fmtPct(kpisPct.pctProductosEntregadosExito)}
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
