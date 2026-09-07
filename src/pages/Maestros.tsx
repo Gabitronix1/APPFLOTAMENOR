@@ -820,6 +820,144 @@ function NuevoUsuarioModal({ onClose, onCreated }: { onClose: () => void; onCrea
   )
 }
 
+interface SolicitudConOperador {
+  id: string
+  email: string
+  rol_solicitado: Rol | null
+  created_at: string
+  operadores: { nombre: string; apellido: string; rut: string | null } | null
+}
+
+function SolicitudesPendientesPanel({ onResuelta }: { onResuelta: () => void }) {
+  const [rows, setRows] = useState<SolicitudConOperador[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [rolPorSolicitud, setRolPorSolicitud] = useState<Record<string, Rol>>({})
+  const [resolviendoId, setResolviendoId] = useState<string | null>(null)
+
+  async function load() {
+    setLoading(true)
+    const { data, error: err } = await supabase
+      .from('solicitudes_acceso')
+      .select('id, email, rol_solicitado, created_at, operadores(nombre, apellido, rut)')
+      .eq('estado', 'pendiente')
+      .order('created_at')
+    if (err) setError(err.message)
+    else {
+      const solicitudes = (data ?? []) as unknown as SolicitudConOperador[]
+      setRows(solicitudes)
+      setRolPorSolicitud(prev => {
+        const next = { ...prev }
+        for (const s of solicitudes) {
+          if (!next[s.id]) next[s.id] = s.rol_solicitado ?? 'conductor_logistico'
+        }
+        return next
+      })
+    }
+    setLoading(false)
+  }
+
+  useEffect(() => { void load() }, [])
+
+  async function aprobar(id: string) {
+    setResolviendoId(id)
+    setError(null)
+    const { data, error: fnError } = await supabase.functions.invoke('gestionar-usuario', {
+      body: { action: 'aprobar_solicitud', solicitud_id: id, rol: rolPorSolicitud[id] },
+    })
+    setResolviendoId(null)
+    const apiError = (data as { error?: string } | null)?.error
+    if (fnError || apiError) {
+      setError(apiError || fnError?.message || 'No se pudo aprobar la solicitud.')
+      return
+    }
+    void load()
+    onResuelta()
+  }
+
+  async function rechazar(id: string) {
+    if (!window.confirm('¿Rechazar esta solicitud? La cuenta creada quedará eliminada.')) return
+    setResolviendoId(id)
+    setError(null)
+    const { data, error: fnError } = await supabase.functions.invoke('gestionar-usuario', {
+      body: { action: 'rechazar_solicitud', solicitud_id: id },
+    })
+    setResolviendoId(null)
+    const apiError = (data as { error?: string } | null)?.error
+    if (fnError || apiError) {
+      setError(apiError || fnError?.message || 'No se pudo rechazar la solicitud.')
+      return
+    }
+    void load()
+  }
+
+  if (!loading && rows.length === 0) return null
+
+  return (
+    <div className="card p-0 overflow-hidden border-warn/40">
+      <div className="px-4 pt-4 pb-2 flex items-center gap-2">
+        <h3 className="font-semibold text-dark text-sm">Solicitudes de acceso pendientes</h3>
+        {rows.length > 0 && <span className="badge-warn">{rows.length}</span>}
+      </div>
+      <p className="text-xs text-gray-400 px-4 pb-3">Cuentas autoregistradas desde el Login, esperando que les asignes su rol final.</p>
+      {error && <div className="text-fault text-sm px-4 pb-3">{error}</div>}
+      {loading ? (
+        <div className="p-6 text-sm text-gray-400 animate-pulse">Cargando...</div>
+      ) : (
+        <table className="w-full divide-y divide-gray-200">
+          <thead>
+            <tr>
+              <th className="table-th">Nombre</th>
+              <th className="table-th">RUT</th>
+              <th className="table-th">Email</th>
+              <th className="table-th">Rol a asignar</th>
+              <th className="table-th"></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {rows.map(row => (
+              <tr key={row.id} className="hover:bg-gray-50">
+                <td className="table-td">
+                  {row.operadores ? `${row.operadores.apellido}, ${row.operadores.nombre}` : '—'}
+                </td>
+                <td className="table-td font-mono text-xs">{row.operadores?.rut ?? '—'}</td>
+                <td className="table-td text-xs">{row.email}</td>
+                <td className="table-td">
+                  <select
+                    className="input"
+                    value={rolPorSolicitud[row.id] ?? 'conductor_logistico'}
+                    onChange={e => setRolPorSolicitud(prev => ({ ...prev, [row.id]: e.target.value as Rol }))}
+                  >
+                    {ROLES_OPCIONES.map(r => (
+                      <option key={r} value={r}>{ROL_LABELS[r]}</option>
+                    ))}
+                  </select>
+                </td>
+                <td className="table-td text-right whitespace-nowrap space-x-3">
+                  <button
+                    onClick={() => void rechazar(row.id)}
+                    disabled={resolviendoId === row.id}
+                    className="text-xs font-medium underline text-fault"
+                  >
+                    Rechazar
+                  </button>
+                  <button
+                    onClick={() => void aprobar(row.id)}
+                    disabled={resolviendoId === row.id}
+                    className="text-xs font-medium underline text-primary"
+                  >
+                    {resolviendoId === row.id ? 'Guardando...' : 'Aprobar'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  )
+}
+
 function UsuariosTab() {
   const [rows, setRows] = useState<PerfilConOperador[]>([])
   const [loading, setLoading] = useState(true)
@@ -865,6 +1003,8 @@ function UsuariosTab() {
 
   return (
     <div className="space-y-4">
+      <SolicitudesPendientesPanel onResuelta={() => void load()} />
+
       {error && <div className="text-fault text-sm">{error}</div>}
       <div className="flex justify-end">
         <button className="btn-primary btn-sm" onClick={() => setShowModal(true)}>

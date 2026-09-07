@@ -15,6 +15,20 @@ export interface Perfil {
   operador_id: string | null
 }
 
+export type EstadoSolicitudAcceso = 'pendiente' | 'aprobada' | 'rechazada'
+
+// Autoregistro de cuentas nuevas (conductores/mecánicos) desde el Login, pendiente
+// de que un jefe le asigne el rol final en Maestros > Usuarios.
+export interface SolicitudAcceso {
+  id: string
+  user_id: string
+  operador_id: string
+  email: string
+  rol_solicitado: Rol | null
+  estado: EstadoSolicitudAcceso
+  created_at: string
+}
+
 export interface VInspeccion {
   id: string
   fecha: string

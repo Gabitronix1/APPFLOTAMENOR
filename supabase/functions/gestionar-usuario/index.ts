@@ -96,6 +96,56 @@ Deno.serve(async (req) => {
       return jsonResponse({ ok: true, id: invited.user.id })
     }
 
+    if (body.action === 'aprobar_solicitud') {
+      const { solicitud_id, rol } = body
+      if (!solicitud_id || !ROLES_VALIDOS.includes(rol)) throw new Error('Datos inválidos.')
+
+      const { data: solicitud, error: solicitudError } = await admin
+        .from('solicitudes_acceso')
+        .select('id, user_id, operador_id, estado')
+        .eq('id', solicitud_id)
+        .single()
+      if (solicitudError || !solicitud) throw solicitudError ?? new Error('Solicitud no encontrada.')
+      if (solicitud.estado !== 'pendiente') throw new Error('Esta solicitud ya fue resuelta.')
+
+      const { error: perfilInsertError } = await admin
+        .from('perfiles')
+        .insert({ id: solicitud.user_id, operador_id: solicitud.operador_id, rol })
+      if (perfilInsertError) throw perfilInsertError
+
+      const { error: updateError } = await admin
+        .from('solicitudes_acceso')
+        .update({ estado: 'aprobada', resuelta_por: userData.user.id, resuelta_en: new Date().toISOString() })
+        .eq('id', solicitud_id)
+      if (updateError) throw updateError
+
+      return jsonResponse({ ok: true })
+    }
+
+    if (body.action === 'rechazar_solicitud') {
+      const { solicitud_id } = body
+      if (!solicitud_id) throw new Error('Datos inválidos.')
+
+      const { data: solicitud, error: solicitudError } = await admin
+        .from('solicitudes_acceso')
+        .select('id, user_id, estado')
+        .eq('id', solicitud_id)
+        .single()
+      if (solicitudError || !solicitud) throw solicitudError ?? new Error('Solicitud no encontrada.')
+      if (solicitud.estado !== 'pendiente') throw new Error('Esta solicitud ya fue resuelta.')
+
+      const { error: updateError } = await admin
+        .from('solicitudes_acceso')
+        .update({ estado: 'rechazada', resuelta_por: userData.user.id, resuelta_en: new Date().toISOString() })
+        .eq('id', solicitud_id)
+      if (updateError) throw updateError
+
+      // Revoca el acceso: sin perfil ni cuenta, no puede volver a entrar con ese correo.
+      await admin.auth.admin.deleteUser(solicitud.user_id)
+
+      return jsonResponse({ ok: true })
+    }
+
     throw new Error('Acción no reconocida.')
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Error desconocido.'

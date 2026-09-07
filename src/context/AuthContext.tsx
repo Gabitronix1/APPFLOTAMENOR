@@ -30,13 +30,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error || !data) throw error ?? new Error('Perfil no encontrado')
       setPerfil(data)
       await db.perfilCache.put({ userId, rol: data.rol, operadorId: data.operador_id })
-      // Precarga todos los catálogos maestros (no solo los de la página actual) para que
-      // cualquier formulario funcione offline sin depender de qué página se visitó primero.
-      void prefetchAllCatalogs()
     } catch {
-      // Sin conexión (o falla de red) al arrancar: usar la última copia local del perfil
+      // Sin conexión (o falla de red) al arrancar, o cuenta recién autoregistrada que aún
+      // no tiene rol asignado: usar la última copia local del perfil si existe.
       const cached = await db.perfilCache.get(userId)
       setPerfil(cached ? { id: userId, rol: cached.rol as Perfil['rol'], operador_id: cached.operadorId } : null)
+    } finally {
+      // Precarga todos los catálogos maestros (no solo los de la página actual) para que
+      // cualquier formulario funcione offline sin depender de qué página se visitó primero.
+      // Se hace pase lo que pase con el perfil: el Checklist es de acceso abierto a cualquier
+      // usuario logueado, incluida una cuenta autoregistrada aún sin rol/aprobación.
+      void prefetchAllCatalogs()
     }
   }
 

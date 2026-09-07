@@ -38,6 +38,11 @@ export const ROLES_GUIAS_DESPACHO_GESTION: Rol[] = ['encargado_bodega', ...ROLES
 // El conductor logístico asignado marca despacho/recepción de sus propias guías.
 export const ROLES_GUIAS_DESPACHO: Rol[] = ['conductor_logistico', ...ROLES_GUIAS_DESPACHO_GESTION]
 
+// Roles que una persona puede "solicitar" al autoregistrarse desde el Login (ver
+// Edge Function solicitar-acceso): solo roles de terreno, nunca jefaturas/administrativos.
+// Un jefe confirma (o cambia) el rol final al aprobar la solicitud en Maestros > Usuarios.
+export const ROLES_AUTOSERVICIO: Rol[] = ['conductor_logistico', 'mecanico_flota_menor', 'mecanico_maquinaria']
+
 export function puedeGestionarGuia(rol: Rol | undefined): boolean {
   return !!rol && ROLES_GUIAS_DESPACHO_GESTION.includes(rol)
 }

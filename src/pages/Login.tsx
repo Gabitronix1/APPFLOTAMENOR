@@ -2,23 +2,39 @@ import { useState, FormEvent, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { getDefaultRoute } from '../lib/roles'
+import { getDefaultRoute, ROLES_AUTOSERVICIO, ROL_LABELS } from '../lib/roles'
+import type { Rol } from '../types'
+
+type Modo = 'login' | 'recuperar' | 'registro'
 
 export function Login() {
   const { session, perfil, loading } = useAuth()
   const navigate = useNavigate()
+  const [modo, setModo] = useState<Modo>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [modoRecuperar, setModoRecuperar] = useState(false)
   const [recuperarEnviado, setRecuperarEnviado] = useState(false)
+
+  // Registro
+  const [nombre, setNombre] = useState('')
+  const [apellido, setApellido] = useState('')
+  const [rut, setRut] = useState('')
+  const [rolSolicitado, setRolSolicitado] = useState<Rol>('conductor_logistico')
+  const [codigo, setCodigo] = useState('')
 
   useEffect(() => {
     if (!loading && session) {
       navigate(getDefaultRoute(perfil?.rol), { replace: true })
     }
   }, [session, perfil, loading, navigate])
+
+  function cambiarModo(nuevo: Modo) {
+    setModo(nuevo)
+    setError(null)
+    setRecuperarEnviado(false)
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -47,8 +63,42 @@ export function Login() {
     setRecuperarEnviado(true)
   }
 
+  async function handleRegistro(e: FormEvent) {
+    e.preventDefault()
+    setError(null)
+    setSubmitting(true)
+
+    const { data, error: fnError } = await supabase.functions.invoke('solicitar-acceso', {
+      body: {
+        email: email.trim(),
+        password,
+        nombre: nombre.trim(),
+        apellido: apellido.trim(),
+        rut: rut.trim() || undefined,
+        rol_solicitado: rolSolicitado,
+        codigo: codigo.trim(),
+      },
+    })
+
+    const apiError = (data as { error?: string } | null)?.error
+    if (fnError || apiError) {
+      setSubmitting(false)
+      setError(apiError || fnError?.message || 'No se pudo crear la cuenta.')
+      return
+    }
+
+    // Cuenta creada: entra directo. Sin rol asignado aún puede usar el Checklist mientras
+    // un jefe aprueba su rol final en Maestros > Usuarios.
+    const { error: authError } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
+    setSubmitting(false)
+    if (authError) {
+      setError('Cuenta creada, pero no se pudo iniciar sesión automáticamente. Intenta ingresar manualmente.')
+      cambiarModo('login')
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-dark flex flex-col items-center justify-center px-4">
+    <div className="min-h-screen bg-dark flex flex-col items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
@@ -60,7 +110,7 @@ export function Login() {
 
         {/* Card */}
         <div className="bg-white/5 border border-white/10 rounded-2xl p-8 backdrop-blur-sm">
-          {modoRecuperar ? (
+          {modo === 'recuperar' && (
             <>
               <h2 className="text-white font-semibold text-lg mb-2">Recuperar contraseña</h2>
               {recuperarEnviado ? (
@@ -105,13 +155,136 @@ export function Login() {
               )}
               <button
                 type="button"
-                onClick={() => { setModoRecuperar(false); setRecuperarEnviado(false); setError(null) }}
+                onClick={() => cambiarModo('login')}
                 className="w-full text-center text-xs text-gray-400 hover:text-white mt-4 underline"
               >
                 Volver a iniciar sesión
               </button>
             </>
-          ) : (
+          )}
+
+          {modo === 'registro' && (
+            <>
+              <h2 className="text-white font-semibold text-lg mb-1">Crear cuenta</h2>
+              <p className="text-gray-400 text-sm mb-6">
+                Para personal nuevo de terreno (conductores y mecánicos). Pide el código de acceso a tu jefe directo.
+              </p>
+              <form onSubmit={(e) => void handleRegistro(e)} className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="nombre" className="block text-sm font-medium text-gray-300 mb-1">Nombre</label>
+                    <input
+                      id="nombre"
+                      required
+                      value={nombre}
+                      onChange={(e) => setNombre(e.target.value)}
+                      className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2.5 text-white placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="apellido" className="block text-sm font-medium text-gray-300 mb-1">Apellido</label>
+                    <input
+                      id="apellido"
+                      required
+                      value={apellido}
+                      onChange={(e) => setApellido(e.target.value)}
+                      className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2.5 text-white placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="rut" className="block text-sm font-medium text-gray-300 mb-1">RUT (opcional)</label>
+                  <input
+                    id="rut"
+                    value={rut}
+                    onChange={(e) => setRut(e.target.value)}
+                    placeholder="12.345.678-9"
+                    className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2.5 text-white placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="rol" className="block text-sm font-medium text-gray-300 mb-1">Tu función</label>
+                  <select
+                    id="rol"
+                    value={rolSolicitado}
+                    onChange={(e) => setRolSolicitado(e.target.value as Rol)}
+                    className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent [&>option]:text-dark"
+                  >
+                    {ROLES_AUTOSERVICIO.map((r) => (
+                      <option key={r} value={r}>{ROL_LABELS[r]}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">Un jefe confirma tu rol final al aprobar la cuenta.</p>
+                </div>
+
+                <div>
+                  <label htmlFor="email-registro" className="block text-sm font-medium text-gray-300 mb-1">Correo electrónico</label>
+                  <input
+                    id="email-registro"
+                    type="email"
+                    required
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="usuario@empresa.cl"
+                    className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2.5 text-white placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="password-registro" className="block text-sm font-medium text-gray-300 mb-1">Contraseña</label>
+                  <input
+                    id="password-registro"
+                    type="password"
+                    required
+                    minLength={6}
+                    autoComplete="new-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Mínimo 6 caracteres"
+                    className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2.5 text-white placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="codigo" className="block text-sm font-medium text-gray-300 mb-1">Código de acceso</label>
+                  <input
+                    id="codigo"
+                    required
+                    value={codigo}
+                    onChange={(e) => setCodigo(e.target.value)}
+                    placeholder="Te lo entrega tu jefe"
+                    className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2.5 text-white placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  />
+                </div>
+
+                {error && (
+                  <p className="text-fault text-sm bg-fault/10 border border-fault/30 rounded-lg px-3 py-2">
+                    {error}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-lg transition-colors text-sm mt-2"
+                >
+                  {submitting ? 'Creando cuenta...' : 'Crear cuenta'}
+                </button>
+              </form>
+              <button
+                type="button"
+                onClick={() => cambiarModo('login')}
+                className="w-full text-center text-xs text-gray-400 hover:text-white mt-4 underline"
+              >
+                Volver a iniciar sesión
+              </button>
+            </>
+          )}
+
+          {modo === 'login' && (
             <>
               <h2 className="text-white font-semibold text-lg mb-6">Iniciar sesión</h2>
 
@@ -163,13 +336,22 @@ export function Login() {
                 </button>
               </form>
 
-              <button
-                type="button"
-                onClick={() => { setModoRecuperar(true); setError(null) }}
-                className="w-full text-center text-xs text-gray-400 hover:text-white mt-4 underline"
-              >
-                ¿Olvidaste tu contraseña?
-              </button>
+              <div className="flex items-center justify-between mt-4">
+                <button
+                  type="button"
+                  onClick={() => cambiarModo('registro')}
+                  className="text-xs text-gray-400 hover:text-white underline"
+                >
+                  Crear cuenta
+                </button>
+                <button
+                  type="button"
+                  onClick={() => cambiarModo('recuperar')}
+                  className="text-xs text-gray-400 hover:text-white underline"
+                >
+                  ¿Olvidaste tu contraseña?
+                </button>
+              </div>
             </>
           )}
         </div>
