@@ -32,6 +32,7 @@ Deno.serve(async (req) => {
 
     if (!email || !password) throw new Error('Falta email o contraseña.')
     if (!nombre?.trim() || !apellido?.trim()) throw new Error('Falta nombre y apellido.')
+    if (!rut?.trim()) throw new Error('Falta el RUT.')
     if (!ROLES_SOLICITABLES.includes(rol_solicitado)) throw new Error('Rol solicitado inválido.')
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
@@ -45,7 +46,7 @@ Deno.serve(async (req) => {
 
     const { data: operador, error: opError } = await admin
       .from('operadores')
-      .insert({ nombre: nombre.trim(), apellido: apellido.trim(), rut: rut?.trim() || null, activo: true })
+      .insert({ nombre: nombre.trim(), apellido: apellido.trim(), rut: rut.trim(), activo: true })
       .select('id')
       .single()
     if (opError) throw opError

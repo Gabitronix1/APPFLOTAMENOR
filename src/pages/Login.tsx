@@ -73,7 +73,7 @@ export function Login() {
         password,
         nombre: nombre.trim(),
         apellido: apellido.trim(),
-        rut: rut.trim() || undefined,
+        rut: rut.trim(),
         rol_solicitado: rolSolicitado,
       },
     })
@@ -192,9 +192,10 @@ export function Login() {
                 </div>
 
                 <div>
-                  <label htmlFor="rut" className="block text-sm font-medium text-gray-300 mb-1">RUT (opcional)</label>
+                  <label htmlFor="rut" className="block text-sm font-medium text-gray-300 mb-1">RUT</label>
                   <input
                     id="rut"
+                    required
                     value={rut}
                     onChange={(e) => setRut(e.target.value)}
                     placeholder="12.345.678-9"
