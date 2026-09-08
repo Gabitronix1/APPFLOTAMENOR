@@ -7,11 +7,54 @@ import type { Rol } from '../types'
 
 type Modo = 'login' | 'recuperar' | 'registro'
 
+// Todas las cuentas son @isidorachile.cl: se pide solo la parte antes de la arroba
+// (inicial + apellido, ej. "rgutierrez") para que sea más rápido de escribir en el celular.
+const DOMINIO = '@isidorachile.cl'
+
+function emailCompleto(usuario: string): string {
+  const limpio = usuario.trim().toLowerCase()
+  return limpio.includes('@') ? limpio : `${limpio}${DOMINIO}`
+}
+
+function UsuarioInput({
+  id,
+  value,
+  onChange,
+  autoFocus,
+}: {
+  id: string
+  value: string
+  onChange: (v: string) => void
+  autoFocus?: boolean
+}) {
+  return (
+    <div className="flex rounded-lg border border-white/20 overflow-hidden focus-within:ring-2 focus-within:ring-primary">
+      <input
+        id={id}
+        type="text"
+        required
+        autoFocus={autoFocus}
+        autoComplete="username"
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="min-w-0 flex-1 bg-white/10 px-3 py-2.5 text-white placeholder-gray-500 text-sm focus:outline-none"
+        placeholder="inicial.apellido"
+      />
+      <span className="flex items-center px-3 bg-white/5 text-gray-400 text-sm border-l border-white/20 whitespace-nowrap">
+        {DOMINIO}
+      </span>
+    </div>
+  )
+}
+
 export function Login() {
   const { session, perfil, loading } = useAuth()
   const navigate = useNavigate()
   const [modo, setModo] = useState<Modo>('login')
-  const [email, setEmail] = useState('')
+  const [usuario, setUsuario] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -39,10 +82,10 @@ export function Login() {
     e.preventDefault()
     setError(null)
     setSubmitting(true)
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
+    const { error: authError } = await supabase.auth.signInWithPassword({ email: emailCompleto(usuario), password })
     setSubmitting(false)
     if (authError) {
-      setError('Credenciales incorrectas. Verifica tu email y contraseña.')
+      setError('Credenciales incorrectas. Verifica tu usuario y contraseña.')
     }
   }
 
@@ -50,7 +93,7 @@ export function Login() {
     e.preventDefault()
     setError(null)
     setSubmitting(true)
-    const { error: authError } = await supabase.auth.resetPasswordForEmail(email, {
+    const { error: authError } = await supabase.auth.resetPasswordForEmail(emailCompleto(usuario), {
       redirectTo: window.location.origin,
     })
     setSubmitting(false)
@@ -67,9 +110,10 @@ export function Login() {
     setError(null)
     setSubmitting(true)
 
+    const email = emailCompleto(usuario)
     const { data, error: fnError } = await supabase.functions.invoke('solicitar-acceso', {
       body: {
-        email: email.trim(),
+        email,
         password,
         nombre: nombre.trim(),
         apellido: apellido.trim(),
@@ -87,7 +131,7 @@ export function Login() {
 
     // Cuenta creada: entra directo. Sin rol asignado aún puede usar el Checklist mientras
     // un jefe aprueba su rol final en Maestros > Usuarios.
-    const { error: authError } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
     setSubmitting(false)
     if (authError) {
       setError('Cuenta creada, pero no se pudo iniciar sesión automáticamente. Intenta ingresar manualmente.')
@@ -113,26 +157,17 @@ export function Login() {
               <h2 className="text-white font-semibold text-lg mb-2">Recuperar contraseña</h2>
               {recuperarEnviado ? (
                 <p className="text-gray-300 text-sm">
-                  Si el correo <span className="font-medium">{email}</span> tiene una cuenta, te enviamos un enlace para definir tu contraseña. Revisa tu bandeja de entrada (y spam).
+                  Si el usuario <span className="font-medium">{emailCompleto(usuario)}</span> tiene una cuenta, te enviamos un enlace para definir tu contraseña. Revisa tu bandeja de entrada (y spam).
                 </p>
               ) : (
                 <>
-                  <p className="text-gray-400 text-sm mb-6">Ingresa tu correo y te enviaremos un enlace para definir una contraseña nueva.</p>
+                  <p className="text-gray-400 text-sm mb-6">Ingresa tu usuario y te enviaremos un enlace para definir una contraseña nueva.</p>
                   <form onSubmit={(e) => void handleRecuperar(e)} className="space-y-4">
                     <div>
                       <label htmlFor="email-recuperar" className="block text-sm font-medium text-gray-300 mb-1">
-                        Correo electrónico
+                        Usuario
                       </label>
-                      <input
-                        id="email-recuperar"
-                        type="email"
-                        required
-                        autoComplete="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2.5 text-white placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                        placeholder="usuario@empresa.cl"
-                      />
+                      <UsuarioInput id="email-recuperar" value={usuario} onChange={setUsuario} autoFocus />
                     </div>
 
                     {error && (
@@ -219,17 +254,8 @@ export function Login() {
                 </div>
 
                 <div>
-                  <label htmlFor="email-registro" className="block text-sm font-medium text-gray-300 mb-1">Correo electrónico</label>
-                  <input
-                    id="email-registro"
-                    type="email"
-                    required
-                    autoComplete="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="usuario@empresa.cl"
-                    className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2.5 text-white placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  />
+                  <label htmlFor="email-registro" className="block text-sm font-medium text-gray-300 mb-1">Usuario</label>
+                  <UsuarioInput id="email-registro" value={usuario} onChange={setUsuario} />
                 </div>
 
                 <div>
@@ -278,18 +304,9 @@ export function Login() {
               <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-1">
-                    Correo electrónico
+                    Usuario
                   </label>
-                  <input
-                    id="email"
-                    type="email"
-                    required
-                    autoComplete="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2.5 text-white placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                    placeholder="usuario@empresa.cl"
-                  />
+                  <UsuarioInput id="email" value={usuario} onChange={setUsuario} autoFocus />
                 </div>
 
                 <div>
