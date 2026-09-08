@@ -5,10 +5,7 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
 // Autoservicio de cuentas para personal de terreno nuevo (conductores/mecánicos): no requiere
-// sesión (verify_jwt = false). Un código compartido con el equipo evita que cualquiera en
-// internet se cree una cuenta; no es un secreto criptográfico, solo un filtro básico.
-// Para rotarlo, cambia este valor y vuelve a desplegar la función.
-const CODIGO_REGISTRO = 'ISIDORA2026'
+// sesión (verify_jwt = false). Queda sin rol hasta que un jefe la aprueba en Maestros > Usuarios.
 
 // Únicos roles que una persona puede "solicitar" al autoregistrarse — nunca roles de
 // jefatura/administrativos, esos solo los asigna un jefe desde Maestros > Usuarios.
@@ -31,9 +28,8 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json()
-    const { email, password, nombre, apellido, rut, rol_solicitado, codigo } = body
+    const { email, password, nombre, apellido, rut, rol_solicitado } = body
 
-    if (codigo !== CODIGO_REGISTRO) throw new Error('Código de acceso incorrecto.')
     if (!email || !password) throw new Error('Falta email o contraseña.')
     if (!nombre?.trim() || !apellido?.trim()) throw new Error('Falta nombre y apellido.')
     if (!ROLES_SOLICITABLES.includes(rol_solicitado)) throw new Error('Rol solicitado inválido.')

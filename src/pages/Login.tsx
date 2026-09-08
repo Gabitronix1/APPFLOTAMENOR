@@ -22,7 +22,6 @@ export function Login() {
   const [apellido, setApellido] = useState('')
   const [rut, setRut] = useState('')
   const [rolSolicitado, setRolSolicitado] = useState<Rol>('conductor_logistico')
-  const [codigo, setCodigo] = useState('')
 
   useEffect(() => {
     if (!loading && session) {
@@ -76,7 +75,6 @@ export function Login() {
         apellido: apellido.trim(),
         rut: rut.trim() || undefined,
         rol_solicitado: rolSolicitado,
-        codigo: codigo.trim(),
       },
     })
 
@@ -167,7 +165,7 @@ export function Login() {
             <>
               <h2 className="text-white font-semibold text-lg mb-1">Crear cuenta</h2>
               <p className="text-gray-400 text-sm mb-6">
-                Para personal nuevo de terreno (conductores y mecánicos). Pide el código de acceso a tu jefe directo.
+                Para personal nuevo de terreno (conductores y mecánicos).
               </p>
               <form onSubmit={(e) => void handleRegistro(e)} className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
@@ -244,18 +242,6 @@ export function Login() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Mínimo 6 caracteres"
-                    className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2.5 text-white placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="codigo" className="block text-sm font-medium text-gray-300 mb-1">Código de acceso</label>
-                  <input
-                    id="codigo"
-                    required
-                    value={codigo}
-                    onChange={(e) => setCodigo(e.target.value)}
-                    placeholder="Te lo entrega tu jefe"
                     className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2.5 text-white placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                   />
                 </div>
