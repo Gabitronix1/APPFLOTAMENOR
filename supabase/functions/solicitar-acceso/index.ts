@@ -76,7 +76,11 @@ Deno.serve(async (req) => {
     if (!rutLimpio) throw new Error('Falta el RUT.')
     if (!rutValido(rutLimpio)) throw new ErrorConCodigo('El RUT no es válido. Revisa el número y el dígito verificador.', 'rut_invalido')
     if (!password || String(password).length < 6) throw new Error('La clave debe tener al menos 6 caracteres.')
-    if (!ROLES_SOLICITABLES.includes(rol_solicitado)) throw new Error('Rol solicitado inválido.')
+    // Función (cargo) elegida o agregada con "+" en el registro. Si es una de las funciones
+    // base, llega como rol; si es otra, llega como texto y el jefe asigna el rol al aprobar.
+    const funcion = String(body.funcion ?? '').trim().replace(/\s+/g, ' ').slice(0, 60)
+    const rolSolicitado = ROLES_SOLICITABLES.includes(rol_solicitado) ? rol_solicitado : null
+    if (!rolSolicitado && funcion.length < 2) throw new Error('Indica tu función.')
 
     const rut = `${rutLimpio.slice(0, -1)}-${rutLimpio.slice(-1)}`
     // Compatibilidad con la versión anterior de la app, que enviaba un correo.
@@ -133,10 +137,18 @@ Deno.serve(async (req) => {
       user_id: created.user.id,
       operador_id: operadorId,
       email,
-      rol_solicitado,
+      rol_solicitado: rolSolicitado,
+      funcion: funcion || null,
       vinculo_existente: vinculoExistente,
     })
     if (solicitudError) throw solicitudError
+
+    // Una función nueva queda disponible para todos en el registro (si ya existía, el índice
+    // único por nombre la ignora).
+    if (!rolSolicitado && funcion) {
+      const { error: funcionError } = await admin.from('funciones_personal').insert({ nombre: funcion })
+      if (funcionError && funcionError.code !== '23505') console.error('funciones_personal', funcionError)
+    }
 
     return jsonResponse({ ok: true, operador_id: operadorId, email })
   } catch (err) {

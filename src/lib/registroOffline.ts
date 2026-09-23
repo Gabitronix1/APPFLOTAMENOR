@@ -20,7 +20,10 @@ export interface RegistroPendiente {
   rut: string
   nombre: string
   apellido: string
-  rolSolicitado: Rol
+  /** Rol pedido si eligió una función base; null si eligió o agregó otra función. */
+  rolSolicitado: Rol | null
+  /** Función (cargo) elegida cuando no es una de las base. */
+  funcion?: string
   password: string
   /** Operador local que el Checklist ya usa como conductor mientras no hay cuenta. */
   operadorId: string
@@ -96,7 +99,8 @@ export async function crearCuenta(datos: {
   rut: string
   nombre: string
   apellido: string
-  rolSolicitado: Rol
+  rolSolicitado: Rol | null
+  funcion?: string
   password: string
   operadorId?: string
 }): Promise<ResultadoRegistro> {
@@ -106,6 +110,7 @@ export async function crearCuenta(datos: {
       nombre: datos.nombre,
       apellido: datos.apellido,
       rol_solicitado: datos.rolSolicitado,
+      funcion: datos.funcion,
       password: datos.password,
       operador_id: datos.operadorId,
     },

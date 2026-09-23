@@ -877,6 +877,7 @@ interface SolicitudConOperador {
   id: string
   email: string
   vinculo_existente: boolean
+  funcion: string | null
   rol_solicitado: Rol | null
   created_at: string
   operadores: { nombre: string; apellido: string; rut: string | null } | null
@@ -893,7 +894,7 @@ function SolicitudesPendientesPanel({ onResuelta }: { onResuelta: () => void }) 
     setLoading(true)
     const { data, error: err } = await supabase
       .from('solicitudes_acceso')
-      .select('id, email, vinculo_existente, rol_solicitado, created_at, operadores(nombre, apellido, rut)')
+      .select('id, email, vinculo_existente, funcion, rol_solicitado, created_at, operadores(nombre, apellido, rut)')
       .eq('estado', 'pendiente')
       .order('created_at')
     if (err) setError(err.message)
@@ -962,7 +963,7 @@ function SolicitudesPendientesPanel({ onResuelta }: { onResuelta: () => void }) 
               <th className="table-th">Nombre</th>
               <th className="table-th">RUT</th>
               <th className="table-th">Ingreso</th>
-              <th className="table-th">Rol a asignar</th>
+              <th className="table-th">Permisos (rol) a asignar</th>
               <th className="table-th"></th>
             </tr>
           </thead>
@@ -980,6 +981,11 @@ function SolicitudesPendientesPanel({ onResuelta }: { onResuelta: () => void }) 
                 <td className="table-td font-mono text-xs">{row.operadores?.rut ?? '—'}</td>
                 <td className="table-td text-xs">{row.email.endsWith(`@${DOMINIO_RUT}`) ? 'RUT y clave' : row.email}</td>
                 <td className="table-td">
+                  {row.funcion && (
+                    <p className="text-xs text-gray-600 mb-1">
+                      Función indicada: <span className="font-medium">{row.funcion}</span>
+                    </p>
+                  )}
                   <select
                     className="input"
                     value={rolPorSolicitud[row.id] ?? 'conductor_logistico'}
@@ -1092,6 +1098,65 @@ function AccesoModal({ usuario, onClose, onSaved }: { usuario: PerfilConOperador
   )
 }
 
+function FuncionesPersonalPanel() {
+  const [rows, setRows] = useState<{ id: string; nombre: string }[]>([])
+  const [error, setError] = useState<string | null>(null)
+  const [abierto, setAbierto] = useState(false)
+
+  async function load() {
+    const { data, error: err } = await supabase.from('funciones_personal').select('id, nombre').order('nombre')
+    if (err) setError(err.message)
+    else setRows((data ?? []) as { id: string; nombre: string }[])
+  }
+
+  useEffect(() => { void load() }, [])
+
+  async function eliminar(row: { id: string; nombre: string }) {
+    if (!window.confirm(`¿Quitar la función "${row.nombre}" de las opciones del registro? Las cuentas que ya la indicaron no cambian.`)) return
+    const { error: err } = await supabase.from('funciones_personal').delete().eq('id', row.id)
+    if (err) setError(err.message)
+    else void load()
+  }
+
+  return (
+    <div className="card p-0 overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setAbierto(a => !a)}
+        className="w-full flex items-center justify-between px-4 py-3 text-left"
+      >
+        <span className="font-semibold text-dark text-sm">
+          Funciones agregadas en el registro <span className="text-gray-400 font-normal">({rows.length})</span>
+        </span>
+        <span className="text-xs text-gray-500 underline">{abierto ? 'Ocultar' : 'Ver'}</span>
+      </button>
+      {abierto && (
+        <div className="px-4 pb-4">
+          <p className="text-xs text-gray-400 mb-3">
+            Cargos que el personal agregó con "+" al crear su cuenta. Les aparecen a todos como opción; quita los mal
+            escritos o repetidos. Los permisos los sigue definiendo el rol que asignas al aprobar.
+          </p>
+          {error && <p className="text-fault text-xs mb-2">{error}</p>}
+          {rows.length === 0 ? (
+            <p className="text-sm text-gray-400">Aún no hay funciones agregadas.</p>
+          ) : (
+            <ul className="divide-y divide-gray-100">
+              {rows.map(row => (
+                <li key={row.id} className="flex items-center justify-between py-2 text-sm">
+                  <span>{row.nombre}</span>
+                  <button onClick={() => void eliminar(row)} className="text-xs font-medium underline text-fault">
+                    Quitar
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function UsuariosTab() {
   const [rows, setRows] = useState<PerfilConOperador[]>([])
   const [loading, setLoading] = useState(true)
@@ -1141,6 +1206,7 @@ function UsuariosTab() {
   return (
     <div className="space-y-4">
       <SolicitudesPendientesPanel onResuelta={() => void load()} />
+      <FuncionesPersonalPanel />
 
       {error && <div className="text-fault text-sm">{error}</div>}
       {mensaje && <div className="text-primary text-sm">{mensaje}</div>}

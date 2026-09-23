@@ -13,6 +13,7 @@ import {
   tomarErrorRegistro,
 } from '../lib/registroOffline'
 import { useOnline } from '../hooks/useOnline'
+import { agregarFuncionLocal, descargarFunciones, funcionesGuardadas, normalizarFuncion } from '../lib/funcionesPersonal'
 import type { Rol } from '../types'
 
 // Ingreso principal: RUT + clave (personal de terreno, sin correo). Las jefaturas pueden
@@ -155,7 +156,12 @@ export function Login() {
   // Registro
   const [nombre, setNombre] = useState('')
   const [apellido, setApellido] = useState('')
-  const [rolSolicitado, setRolSolicitado] = useState<Rol>('conductor_logistico')
+  // Función elegida: "rol:<rol>" para las funciones base (dan permisos), "f:<nombre>" para
+  // las agregadas con "+" (el jefe asigna los permisos al aprobar).
+  const [funcionSel, setFuncionSel] = useState('rol:conductor_logistico')
+  const [funcionesExtra, setFuncionesExtra] = useState<string[]>(() => funcionesGuardadas())
+  const [agregandoFuncion, setAgregandoFuncion] = useState(false)
+  const [nuevaFuncion, setNuevaFuncion] = useState('')
 
   useEffect(() => {
     if (!loading && session) navigate(getDefaultRoute(perfil?.rol), { replace: true })
@@ -165,8 +171,30 @@ export function Login() {
   // Con señal, deja listos en el celular los catálogos del Checklist (patentes, líneas)
   // para que un registro posterior sin señal pueda trabajar.
   useEffect(() => {
-    if (online) void descargarCatalogosPublicos()
+    if (online) {
+      void descargarCatalogosPublicos()
+      void descargarFunciones().then(setFuncionesExtra)
+    }
   }, [online])
+
+  const nombresBase = ROLES_AUTOSERVICIO.map(r => ROL_LABELS[r].toLowerCase())
+
+  function confirmarNuevaFuncion() {
+    const nombre = normalizarFuncion(nuevaFuncion)
+    if (nombre.length < 2) return
+    // Si coincide con una función base, se elige esa (así mantiene sus permisos).
+    const base = ROLES_AUTOSERVICIO.find(r => ROL_LABELS[r].toLowerCase() === nombre.toLowerCase())
+    if (base) {
+      setFuncionSel(`rol:${base}`)
+    } else {
+      const existente = funcionesExtra.find(f => f.toLowerCase() === nombre.toLowerCase())
+      const final = existente ?? agregarFuncionLocal(nombre)
+      if (!existente) setFuncionesExtra(funcionesGuardadas())
+      setFuncionSel(`f:${final}`)
+    }
+    setNuevaFuncion('')
+    setAgregandoFuncion(false)
+  }
 
   function cambiarModo(nuevo: Modo) {
     setModo(nuevo)
@@ -263,7 +291,8 @@ export function Login() {
       rut,
       nombre: nombre.trim(),
       apellido: apellido.trim(),
-      rolSolicitado,
+      rolSolicitado: funcionSel.startsWith('rol:') ? (funcionSel.slice(4) as Rol) : null,
+      funcion: funcionSel.startsWith('f:') ? funcionSel.slice(2) : undefined,
       password,
     }
 
@@ -437,19 +466,63 @@ export function Login() {
                   <RutInput id="rut-registro" value={rut} onChange={setRut} />
                 </Campo>
 
-                <Campo id="rol" label="Tu función" ayuda="Un jefe confirma tu función al aprobar la cuenta.">
-                  <select
-                    id="rol"
-                    value={rolSolicitado}
-                    onChange={e => setRolSolicitado(e.target.value as Rol)}
-                    className={`${inputClass} [&>option]:text-dark`}
-                  >
-                    {ROLES_AUTOSERVICIO.map(r => (
-                      <option key={r} value={r}>
-                        {ROL_LABELS[r]}
-                      </option>
-                    ))}
-                  </select>
+                <Campo id="rol" label="Tu función" ayuda="¿No está la tuya? Toca + para agregarla. Un jefe confirma tu función al aprobar la cuenta.">
+                  <div className="flex gap-2">
+                    <select
+                      id="rol"
+                      value={funcionSel}
+                      onChange={e => setFuncionSel(e.target.value)}
+                      className={`${inputClass} min-w-0 flex-1 [&>option]:text-dark`}
+                    >
+                      {ROLES_AUTOSERVICIO.map(r => (
+                        <option key={r} value={`rol:${r}`}>
+                          {ROL_LABELS[r]}
+                        </option>
+                      ))}
+                      {funcionesExtra
+                        .filter(f => !nombresBase.includes(f.toLowerCase()))
+                        .map(f => (
+                          <option key={f} value={`f:${f}`}>
+                            {f}
+                          </option>
+                        ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => setAgregandoFuncion(v => !v)}
+                      aria-label="Agregar otra función"
+                      title="Agregar otra función"
+                      className="shrink-0 w-12 rounded-lg border border-white/25 text-white text-2xl leading-none hover:bg-white/10"
+                    >
+                      {agregandoFuncion ? '×' : '+'}
+                    </button>
+                  </div>
+                  {agregandoFuncion && (
+                    <div className="flex gap-2 mt-2">
+                      <input
+                        autoFocus
+                        value={nuevaFuncion}
+                        onChange={e => setNuevaFuncion(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            confirmarNuevaFuncion()
+                          }
+                        }}
+                        maxLength={60}
+                        placeholder="Ej: Operador de grúa"
+                        className={`${inputClass} min-w-0 flex-1`}
+                      />
+                      <button
+                        type="button"
+                        onClick={confirmarNuevaFuncion}
+                        disabled={normalizarFuncion(nuevaFuncion).length < 2}
+                        className="shrink-0 px-4 rounded-lg bg-primary text-white font-semibold disabled:opacity-50"
+                      >
+                        Agregar
+                      </button>
+                    </div>
+                  )}
                 </Campo>
 
                 <Campo id="clave-registro" label="Clave" ayuda="Mínimo 6 caracteres. Pueden ser solo números.">
