@@ -193,7 +193,7 @@ export async function procesarRegistroPendiente(): Promise<boolean> {
       guardarError(
         resultado.ok
           ? 'Tu cuenta se creó, pero no se pudo iniciar sesión. Ingresa con tu RUT y clave.'
-          : 'Ese RUT ya tenía una cuenta y la clave no coincide. Ingresa con tu clave; si no la recuerdas, pídele a tu jefe una nueva. Lo que registraste sigue guardado en el celular.',
+          : 'Ese RUT ya tenía una cuenta y la clave no coincide. Ingresa con tu clave; en caso de pérdida de clave, consulta a Control de Gestión. Lo que registraste sigue guardado en el celular.',
       )
       return false
     }

@@ -213,7 +213,7 @@ export function Login() {
           ? 'No hay conexión con el servidor. Intenta donde tengas señal.'
           : modo === 'usuario'
             ? 'Usuario o contraseña incorrectos.'
-            : 'RUT o clave incorrectos. Si no recuerdas tu clave, pídele a tu jefe que te asigne una nueva.',
+            : 'RUT o clave incorrectos. Consulta a Control de Gestión en caso de pérdida de clave.',
       )
       return false
     }
@@ -365,11 +365,11 @@ export function Login() {
                 Crear cuenta nueva
               </button>
               <p className="text-xs text-gray-500 mt-4 text-center">
-                ¿Olvidaste tu clave? Pídele a tu jefe que te asigne una nueva.
+                Consultar a Control de Gestión en caso de pérdida de clave.
               </p>
               <div className="text-center mt-3">
                 <button type="button" onClick={() => cambiarModo('usuario')} className={enlace}>
-                  Jefaturas: ingresar con usuario
+                  Ingresar con usuario
                 </button>
               </div>
             </>
@@ -390,6 +390,13 @@ export function Login() {
                   {submitting ? 'Ingresando...' : 'Ingresar'}
                 </button>
               </form>
+              <button
+                type="button"
+                onClick={() => cambiarModo('registro')}
+                className="w-full mt-4 border border-white/25 text-white font-semibold py-3 rounded-lg hover:bg-white/5 transition-colors"
+              >
+                Crear cuenta nueva
+              </button>
               <div className="flex items-center justify-between mt-4">
                 <button type="button" onClick={() => cambiarModo('rut')} className={enlace}>
                   Ingresar con RUT
@@ -412,7 +419,7 @@ export function Login() {
               ) : (
                 <>
                   <p className="text-gray-400 text-sm mb-6">
-                    Para cuentas con usuario y correo. Si ingresas con RUT, pídele a tu jefe una clave nueva.
+                    Para cuentas con usuario y correo. Si ingresas con RUT, consulta a Control de Gestión en caso de pérdida de clave.
                   </p>
                   <form onSubmit={e => void handleRecuperar(e)} className="space-y-4">
                     <Campo id="email-recuperar" label="Usuario">
