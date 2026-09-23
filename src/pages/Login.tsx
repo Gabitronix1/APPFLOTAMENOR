@@ -1,7 +1,9 @@
 import { useState, FormEvent, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { isAuthRetryableFetchError } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { logEvent } from '../lib/deviceEvents'
 import { getDefaultRoute, ROLES_AUTOSERVICIO, ROL_LABELS } from '../lib/roles'
 import type { Rol } from '../types'
 
@@ -82,11 +84,24 @@ export function Login() {
     e.preventDefault()
     setError(null)
     setSubmitting(true)
+    if (!navigator.onLine) {
+      setSubmitting(false)
+      setError(
+        'Sin señal. El primer ingreso en este celular necesita internet; una vez dentro, la app funciona sin señal y no vuelve a pedir la contraseña.',
+      )
+      return
+    }
     const { error: authError } = await supabase.auth.signInWithPassword({ email: emailCompleto(usuario), password })
     setSubmitting(false)
     if (authError) {
-      setError('Credenciales incorrectas. Verifica tu usuario y contraseña.')
+      setError(
+        isAuthRetryableFetchError(authError)
+          ? 'No hay conexión con el servidor. El primer ingreso necesita señal; intenta donde tengas internet.'
+          : 'Credenciales incorrectas. Verifica tu usuario y contraseña.',
+      )
+      return
     }
+    void logEvent('login', { con_senal: true })
   }
 
   async function handleRecuperar(e: FormEvent) {
@@ -109,6 +124,12 @@ export function Login() {
     e.preventDefault()
     setError(null)
     setSubmitting(true)
+
+    if (!navigator.onLine) {
+      setSubmitting(false)
+      setError('Sin señal. Crear la cuenta necesita internet: hazlo antes de subir a faena.')
+      return
+    }
 
     const email = emailCompleto(usuario)
     const { data, error: fnError } = await supabase.functions.invoke('solicitar-acceso', {

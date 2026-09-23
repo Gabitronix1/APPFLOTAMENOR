@@ -1,6 +1,8 @@
 export interface ChecklistPayload {
   type: 'checklist'
   inspeccion: {
+    /** Id generado en el celular antes del primer intento: hace idempotente el reintento. */
+    id?: string
     operador_id: string
     patente_id: string
     kilometraje: number
@@ -11,6 +13,7 @@ export interface ChecklistPayload {
     linea: string | null
   }
   respuestas: {
+    id?: string
     pregunta_id: number
     valor: boolean
     observacion: string | null
@@ -31,6 +34,7 @@ export interface FotoLocal {
 export interface IntervencionPayload {
   type: 'intervencion_preventiva' | 'intervencion_correctiva'
   intervencion: {
+    id?: string
     operador_id: string
     patente_id: string
     linea: string
@@ -41,6 +45,7 @@ export interface IntervencionPayload {
     uuid_local: string
   }
   preventiva?: {
+    id?: string
     tipo_preventiva_id: string
     descripcion: string
     imagen_path: string | null
@@ -49,6 +54,7 @@ export interface IntervencionPayload {
     costo: number | null
   }
   correctiva?: {
+    id?: string
     descripcion_falla: string
     fecha_inicio: string
     hora_inicio: string
@@ -58,7 +64,7 @@ export interface IntervencionPayload {
     diagnostico: string
     costo: number | null
   }
-  fallas?: { tipo_falla: string }[]
+  fallas?: { id?: string; tipo_falla: string }[]
   /** Foto de la preventiva, guardada localmente y subida durante la sincronización. */
   fotoPreventiva?: FotoLocal
 }
@@ -66,6 +72,7 @@ export interface IntervencionPayload {
 export interface IntervencionMaquinariaPayload {
   type: 'intervencion_maquinaria_preventiva' | 'intervencion_maquinaria_correctiva' | 'intervencion_maquinaria_otra'
   intervencion: {
+    id?: string
     responsable_id: string
     maquinaria_id: string
     linea_id: string
@@ -80,6 +87,7 @@ export interface IntervencionMaquinariaPayload {
     uuid_local: string
   }
   preventiva?: {
+    id?: string
     tipo_preventiva_id: string | null
     descripcion: string
     imagen_path: string | null
@@ -88,8 +96,9 @@ export interface IntervencionMaquinariaPayload {
     condicion_equipo_id: string | null
     costo: number | null
   }
-  desviaciones?: { descripcion: string }[]
+  desviaciones?: { id?: string; descripcion: string }[]
   correctiva?: {
+    id?: string
     hora_aviso_falla: string
     descripcion_falla: string
     imagen_falla_path: string | null
@@ -103,6 +112,7 @@ export interface IntervencionMaquinariaPayload {
     costo: number | null
   }
   otra?: {
+    id?: string
     tarea_id: string | null
     descripcion: string
     fecha_termino: string
@@ -110,7 +120,7 @@ export interface IntervencionMaquinariaPayload {
     condicion_equipo_id: string | null
     costo: number | null
   }
-  insumos?: { producto_id: string; barcode: string | null; cantidad: number }[]
+  insumos?: { id?: string; producto_id: string; barcode: string | null; cantidad: number }[]
   /** Foto de cabecera (equipo), guardada localmente y subida durante la sincronización. */
   fotoCabecera?: FotoLocal
   /** Foto de detalle (preventiva o falla correctiva), guardada localmente y subida durante la sincronización. */
@@ -120,6 +130,7 @@ export interface IntervencionMaquinariaPayload {
 export interface AnomaliaMaquinariaPayload {
   type: 'anomalia_maquinaria'
   anomalia: {
+    id?: string
     maquinaria_id: string
     linea_id: string | null
     fecha: string
@@ -159,13 +170,14 @@ export interface CrearFundoPayload {
 export interface GuiaDespachoCrearPayload {
   type: 'guia_despacho_crear'
   guia: {
+    id?: string
     fundo_id: string
     contrato: string | null
     patente_id: string | null
     conductor_id: string | null
     comentarios: string | null
   }
-  items: { producto_id: string; equipo_id: string | null; cantidad_planificada: number }[]
+  items: { id?: string; producto_id: string; equipo_id: string | null; cantidad_planificada: number }[]
 }
 
 export interface GuiaDespachoDespacharPayload {

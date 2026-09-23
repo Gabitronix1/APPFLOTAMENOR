@@ -92,6 +92,8 @@ const ALL_CATALOGS: CatalogSpec[] = [
   { name: 'responsables_maquinaria', fetch: () => fetchResponsablesMaquinaria() },
 ]
 
+export const CATALOG_NAMES = ALL_CATALOGS.map(c => c.name)
+
 // Guarda de inmediato en IndexedDB una fila creada offline (conductor o vehículo nuevo)
 // para que aparezca en los selects de inmediato y sobreviva un reinicio de la app antes
 // de que la sincronización real la reemplace por la copia del servidor.

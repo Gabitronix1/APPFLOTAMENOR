@@ -7,6 +7,8 @@ export interface QueueItem {
   data: QueueData
   attempts: number
   lastError?: string
+  /** Usuario que registró el ítem: solo se sube con la sesión de esa misma persona. */
+  userId?: string
 }
 
 export interface CatalogCacheRow {
@@ -21,6 +23,16 @@ export interface PerfilCacheRow {
   operadorId: string | null
 }
 
+export interface EventLogRow {
+  id: string
+  userId: string | null
+  operadorId: string | null
+  deviceId: string
+  tipo: string
+  ocurridoEn: string
+  detalle: Record<string, unknown>
+}
+
 export interface SubmittedLogRow {
   id: string
   timestamp: number
@@ -32,6 +44,7 @@ class FlotaDB extends Dexie {
   catalogCache!: Table<CatalogCacheRow, string>
   perfilCache!: Table<PerfilCacheRow, string>
   submittedLog!: Table<SubmittedLogRow, string>
+  eventLog!: Table<EventLogRow, string>
 
   constructor() {
     super('flota_offline_db')
@@ -40,6 +53,9 @@ class FlotaDB extends Dexie {
       catalogCache: 'name',
       perfilCache: 'userId',
       submittedLog: 'id, timestamp',
+    })
+    this.version(2).stores({
+      eventLog: 'id, ocurridoEn',
     })
   }
 }

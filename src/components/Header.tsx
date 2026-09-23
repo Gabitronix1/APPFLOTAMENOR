@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { getOfflineQueueCount, QUEUE_CHANGED_EVENT } from '../hooks/useOfflineQueue'
 import { listQueue, syncAll } from '../lib/offlineQueue'
+import { useOnline } from '../hooks/useOnline'
 import {
   ROL_LABELS,
   ROLES_ADMINISTRATIVOS,
@@ -71,6 +72,7 @@ export function Header() {
   const [pending, setPending] = useState(getOfflineQueueCount)
   const [syncing, setSyncing] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const online = useOnline()
 
   useEffect(() => {
     const handle = () => setPending(getOfflineQueueCount())
@@ -89,6 +91,28 @@ export function Header() {
     } else if (queue.length > 0) {
       alert(`Sigue sin conexión — ${queue.length} pendiente${queue.length !== 1 ? 's' : ''}. Se reintentará solo.`)
     }
+  }
+
+  async function handleSalir() {
+    const pendientes = (await listQueue()).length
+    if (
+      pendientes > 0 &&
+      !confirm(
+        `Tienes ${pendientes} registro${pendientes !== 1 ? 's' : ''} sin subir.\n\n` +
+          'No se pierden: se subirán cuando vuelvas a entrar con tu cuenta en este celular y haya señal.\n\n' +
+          '¿Cerrar sesión igual?',
+      )
+    ) {
+      return
+    }
+    if (
+      !navigator.onLine &&
+      !confirm('Estás sin señal. Si cierras sesión vas a necesitar internet para volver a entrar.\n\n¿Cerrar sesión igual?')
+    ) {
+      return
+    }
+    setMobileOpen(false)
+    await signOut()
   }
 
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
@@ -187,9 +211,22 @@ export function Header() {
               Maestros
             </NavLink>
           )}
+          {puedeAdmin && (
+            <NavLink to="/uso-sin-senal" className={navLinkClass}>
+              Uso sin señal
+            </NavLink>
+          )}
         </nav>
 
         <div className="flex items-center gap-3">
+          <NavLink
+            to="/listo-faena"
+            className={`${online ? 'badge-ok' : 'badge-warn'} whitespace-nowrap gap-1.5`}
+            title="Estado para trabajar sin señal"
+          >
+            <span className={`w-1.5 h-1.5 rounded-full ${online ? 'bg-lime' : 'bg-warn'}`} />
+            {online ? 'En línea' : 'Sin señal'}
+          </NavLink>
           {pending > 0 && (
             <button
               type="button"
@@ -207,7 +244,7 @@ export function Header() {
             </span>
           )}
           <button
-            onClick={() => void signOut()}
+            onClick={() => void handleSalir()}
             className="hidden md:inline-block text-sm text-gray-300 hover:text-white border border-white/20 hover:border-white/40 rounded-lg px-3.5 py-2 transition-colors"
           >
             Salir
@@ -232,6 +269,9 @@ export function Header() {
         <nav className="md:hidden border-t border-white/10 bg-dark px-4 py-3 max-h-[calc(100vh-80px)] overflow-y-auto">
           <NavLink to="/checklist" className={mobileLinkClass} onClick={() => setMobileOpen(false)}>
             Checklist
+          </NavLink>
+          <NavLink to="/listo-faena" className={mobileLinkClass} onClick={() => setMobileOpen(false)}>
+            Listo para faena
           </NavLink>
 
           {mostrarFlotaMenor && (
@@ -279,13 +319,16 @@ export function Header() {
               {puedeJefe && (
                 <NavLink to="/maestros" className={mobileLinkClass} onClick={() => setMobileOpen(false)}>Maestros</NavLink>
               )}
+              {puedeAdmin && (
+                <NavLink to="/uso-sin-senal" className={mobileLinkClass} onClick={() => setMobileOpen(false)}>Uso sin señal</NavLink>
+              )}
             </MobileNavGroup>
           )}
 
           <div className="border-t border-white/10 mt-2 pt-3 flex items-center justify-between">
             {perfil && <span className="text-xs text-gray-400 px-4">{ROL_LABELS[perfil.rol]}</span>}
             <button
-              onClick={() => void signOut()}
+              onClick={() => void handleSalir()}
               className="text-sm text-gray-300 hover:text-white border border-white/20 hover:border-white/40 rounded-lg px-4 py-2 mx-4 transition-colors"
             >
               Salir

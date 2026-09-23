@@ -19,6 +19,8 @@ import { MaquinariaDetalle } from './pages/MaquinariaDetalle'
 import { GuiasDespacho } from './pages/GuiasDespacho'
 import { GuiaDespachoDetalle } from './pages/GuiaDespachoDetalle'
 import { DashboardGuiasDespacho } from './pages/DashboardGuiasDespacho'
+import { ListoFaena } from './pages/ListoFaena'
+import { UsoSinSenal } from './pages/UsoSinSenal'
 import {
   ROLES_ADMINISTRATIVOS,
   ROLES_DASHBOARD_FLOTA_MENOR,
@@ -44,6 +46,7 @@ function AppLayout() {
         <Routes>
           <Route index element={<IndexRedirect />} />
           <Route path="checklist" element={<Checklist />} />
+          <Route path="listo-faena" element={<ListoFaena />} />
           <Route element={<RequireRol roles={ROLES_INTERVENCION} />}>
             <Route path="intervencion" element={<Intervencion />} />
           </Route>
@@ -70,6 +73,7 @@ function AppLayout() {
             <Route path="vencimientos" element={<Vencimientos />} />
             <Route path="maquinarias" element={<Maquinarias />} />
             <Route path="maquinarias/:id" element={<MaquinariaDetalle />} />
+            <Route path="uso-sin-senal" element={<UsoSinSenal />} />
           </Route>
           <Route element={<RequireRol roles={ROLES_MAESTROS} />}>
             <Route path="maestros" element={<Maestros />} />
