@@ -114,6 +114,8 @@ export async function prefetchAllCatalogs(): Promise<void> {
       ALL_CATALOGS.map(async catalog => {
         try {
           const data = await catalog.fetch()
+          // Una respuesta vacía (error de red o permisos) no borra la copia offline.
+          if (data.length === 0 && ((await db.catalogCache.get(catalog.name))?.data.length ?? 0) > 0) return
           await db.catalogCache.put({ name: catalog.name, data, updatedAt: Date.now() })
         } catch {
           // Best-effort: si falla uno, se deja el cache previo (si existe) sin tocar.

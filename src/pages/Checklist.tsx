@@ -97,7 +97,7 @@ function getSugerencia(operativo: boolean, fallas: { key: PKey; label: string }[
 
 export function Checklist() {
   const navigate = useNavigate()
-  const { perfil } = useAuth()
+  const { perfil, provisional } = useAuth()
   const puedeCrearMaestros = esRolAdministrativo(perfil?.rol)
   const { operadores, patentes, categoriasVehiculo, lineasOperacion, loading } = useFormData()
   const { enqueue } = useOfflineQueue()
@@ -154,6 +154,14 @@ export function Checklist() {
   )
 
   const allOperadores = [...operadores, ...conductoresLocales]
+
+  // La persona que usa el celular aparece como conductor por defecto (su operador vinculado,
+  // o el creado al registrarse sin señal). Se puede cambiar si maneja otra persona.
+  const miOperadorId = provisional?.operadorId ?? perfil?.operador_id ?? null
+  useEffect(() => {
+    if (!operadorId && miOperadorId && allOperadores.some(o => o.id === miOperadorId)) setOperadorId(miOperadorId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [miOperadorId, operadores, conductoresLocales])
   const allPatentes = [...patentes, ...vehiculosLocales]
   const allLineas = [...lineasOperacion, ...lineasLocales]
 

@@ -22,6 +22,9 @@ export function useCatalog<T>(name: string, fetcher: () => Promise<T[]>): { data
       if (navigator.onLine) {
         try {
           const fresh = await fetcher()
+          // Los fetchers devuelven [] también ante un error o sin permisos (p. ej. registro
+          // sin cuenta aún): una lista vacía nunca pisa una copia guardada con datos.
+          if (fresh.length === 0 && cached && cached.data.length > 0) return
           if (!cancelled) {
             setData(fresh)
             setLoading(false)

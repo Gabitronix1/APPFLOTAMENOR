@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import { RequireAuth } from './components/RequireAuth'
 import { RequireRol } from './components/RequireRol'
 import { Header } from './components/Header'
+import { ProvisionalBanner } from './components/ProvisionalBanner'
 import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
 import { OrdenesTrabajo } from './pages/OrdenesTrabajo'
@@ -42,6 +43,7 @@ function AppLayout() {
   return (
     <div className="min-h-screen bg-gray-100">
       <Header />
+      <ProvisionalBanner />
       <main>
         <Routes>
           <Route index element={<IndexRedirect />} />

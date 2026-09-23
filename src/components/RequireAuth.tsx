@@ -2,9 +2,9 @@ import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 export function RequireAuth() {
-  const { session, loading } = useAuth()
+  const { session, provisional, loading } = useAuth()
 
-  if (loading) {
+  if (loading && !provisional) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-dark">
         <div className="bg-white rounded-xl px-5 py-3">
@@ -15,7 +15,7 @@ export function RequireAuth() {
     )
   }
 
-  if (!session) {
+  if (!session && !provisional) {
     return <Navigate to="/login" replace />
   }
 

@@ -4,6 +4,13 @@ import { supabase, readStoredSession, clearStoredSession } from '../lib/supabase
 import { db } from '../lib/db'
 import { prefetchAllCatalogs } from '../lib/masterDataCache'
 import { flushEvents, logEvent, setEventContext } from '../lib/deviceEvents'
+import {
+  REGISTRO_CAMBIO_EVENT,
+  cancelarRegistroPendiente,
+  leerRegistroPendiente,
+  procesarRegistroPendiente,
+  type RegistroPendiente,
+} from '../lib/registroOffline'
 import type { Perfil } from '../types'
 
 interface AuthContextValue {
@@ -13,6 +20,8 @@ interface AuthContextValue {
   loading: boolean
   /** true mientras se trabaja con la sesión guardada en el celular sin haberla validado aún con el servidor. */
   sesionSinValidar: boolean
+  /** Registro hecho sin señal: la cuenta se crea al volver la señal; mientras, solo Checklist. */
+  provisional: RegistroPendiente | null
   signOut: () => Promise<void>
 }
 
@@ -47,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [perfil, setPerfil] = useState<Perfil | null>(null)
   const [loading, setLoading] = useState(true)
   const [sesionSinValidar, setSesionSinValidar] = useState(false)
+  const [provisional, setProvisional] = useState<RegistroPendiente | null>(() => leerRegistroPendiente())
   const perfilUserId = useRef<string | null>(null)
 
   // Perfil: primero la copia local (instantáneo, funciona sin señal) y después el servidor
@@ -157,11 +167,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  // Registro sin señal: apenas hay señal se crea la cuenta y se inicia sesión (el
+  // onAuthStateChange de arriba toma la sesión nueva). Se reintenta al volver la señal y
+  // cada 30 s por si el evento 'online' no llega.
+  useEffect(() => {
+    const sync = () => setProvisional(leerRegistroPendiente())
+    const intentar = () => {
+      if (leerRegistroPendiente() && navigator.onLine) void procesarRegistroPendiente().then(sync)
+    }
+    intentar()
+    window.addEventListener(REGISTRO_CAMBIO_EVENT, sync)
+    window.addEventListener('online', intentar)
+    const intervalo = setInterval(intentar, 30000)
+    return () => {
+      window.removeEventListener(REGISTRO_CAMBIO_EVENT, sync)
+      window.removeEventListener('online', intentar)
+      clearInterval(intervalo)
+    }
+  }, [])
+
   useEffect(() => {
     setEventContext(session?.user.id ?? null, perfil?.operador_id ?? null)
   }, [session, perfil])
 
   async function signOut() {
+    if (!session && leerRegistroPendiente()) {
+      // Salir del modo provisional cancela el registro; lo ya registrado queda en la cola y
+      // se sube con la próxima cuenta que entre en este celular.
+      cancelarRegistroPendiente()
+      window.location.replace('/login')
+      return
+    }
     const pendientes = await db.syncQueue.count().catch(() => 0)
     await logEvent('logout', { con_senal: navigator.onLine, pendientes })
 
@@ -189,7 +225,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ session, user: session?.user ?? null, perfil, loading, sesionSinValidar, signOut }}
+      value={{
+        session,
+        user: session?.user ?? null,
+        perfil,
+        loading,
+        sesionSinValidar,
+        provisional: session ? null : provisional,
+        signOut,
+      }}
     >
       {children}
     </AuthContext.Provider>

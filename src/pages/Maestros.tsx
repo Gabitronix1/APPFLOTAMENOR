@@ -2,6 +2,8 @@ import { useEffect, useState, FormEvent, ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
 import { SearchSelect } from '../components/SearchSelect'
 import { ROL_LABELS } from '../lib/roles'
+import { invocarFuncion } from '../lib/funciones'
+import { DOMINIO_RUT, formatearRut, rutCanonico, rutValido } from '../lib/rut'
 import type {
   Operador,
   Patente,
@@ -78,7 +80,9 @@ function OperadoresTab() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setSaving(true)
-    const payload = { nombre: form.nombre, apellido: form.apellido, rut: form.rut || null, email: form.email || null }
+    // RUT en formato canónico ("12345678-9"): es con lo que se vincula el ingreso con RUT.
+    const rut = form.rut.trim() ? (rutValido(form.rut) ? rutCanonico(form.rut) : form.rut.trim()) : null
+    const payload = { nombre: form.nombre, apellido: form.apellido, rut, email: form.email || null }
     const { error: err } = editingId
       ? await supabase.from('operadores').update(payload).eq('id', editingId)
       : await supabase.from('operadores').insert({ ...payload, activo: true })
@@ -711,7 +715,9 @@ function NuevoUsuarioModal({ onClose, onCreated }: { onClose: () => void; onCrea
   const [apellido, setApellido] = useState('')
   const [rut, setRut] = useState('')
   const [email, setEmail] = useState('')
-  const [rol, setRol] = useState<Rol>('mecanico_maquinaria')
+  const [metodo, setMetodo] = useState<'rut' | 'correo'>('rut')
+  const [clave, setClave] = useState('')
+  const [rol, setRol] = useState<Rol>('conductor_logistico')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -725,7 +731,9 @@ function NuevoUsuarioModal({ onClose, onCreated }: { onClose: () => void; onCrea
   }, [])
 
   const usaOperadorExistente = operadorId !== ''
-  const canSave = !!email.trim() && (usaOperadorExistente || (!!nombre.trim() && !!apellido.trim()))
+  const tienePersona = usaOperadorExistente || (!!nombre.trim() && !!apellido.trim())
+  const canSave =
+    tienePersona && (metodo === 'rut' ? rutValido(rut) && clave.length >= 6 : !!email.trim())
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -733,16 +741,19 @@ function NuevoUsuarioModal({ onClose, onCreated }: { onClose: () => void; onCrea
     setSaving(true)
     setError(null)
 
-    const { data, error: fnError } = await supabase.functions.invoke('gestionar-usuario', {
-      body: usaOperadorExistente
-        ? { action: 'crear', email: email.trim(), rol, operador_id: operadorId }
-        : { action: 'crear', email: email.trim(), rol, nombre: nombre.trim(), apellido: apellido.trim(), rut: rut.trim() },
-    })
+        const persona = usaOperadorExistente
+      ? { operador_id: operadorId }
+      : { nombre: nombre.trim(), apellido: apellido.trim() }
+    const { error: fnError } = await invocarFuncion(
+      'gestionar-usuario',
+      metodo === 'rut'
+        ? { action: 'crear', rol, rut: rutCanonico(rut), password: clave, ...persona }
+        : { action: 'crear', rol, email: email.trim(), rut: rut.trim() || undefined, ...persona },
+    )
 
     setSaving(false)
-    const apiError = (data as { error?: string } | null)?.error
-    if (fnError || apiError) {
-      setError(apiError || fnError?.message || 'No se pudo crear el usuario.')
+    if (fnError) {
+      setError(fnError)
       return
     }
     onCreated()
@@ -753,7 +764,9 @@ function NuevoUsuarioModal({ onClose, onCreated }: { onClose: () => void; onCrea
       <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
         <h2 className="text-lg font-bold text-dark mb-1">Nuevo usuario</h2>
         <p className="text-xs text-gray-400 mb-4">
-          Se le envía un correo de invitación para que defina su propia contraseña.
+          {metodo === 'rut'
+            ? 'Entrará con su RUT y la clave que le asignes (no necesita correo).'
+            : 'Se le envía un correo de invitación para que defina su propia contraseña.'}
         </p>
         <form onSubmit={e => void handleSubmit(e)} className="space-y-4">
           <div>
@@ -776,24 +789,64 @@ function NuevoUsuarioModal({ onClose, onCreated }: { onClose: () => void; onCrea
                 <label className="label">Apellido</label>
                 <input className="input" value={apellido} onChange={e => setApellido(e.target.value)} required={!usaOperadorExistente} />
               </div>
-              <div>
-                <label className="label">RUT (opcional)</label>
-                <input className="input" value={rut} onChange={e => setRut(e.target.value)} placeholder="12.345.678-9" />
-              </div>
             </>
           )}
 
           <div>
-            <label className="label">Email</label>
-            <input
-              type="email"
-              className="input"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="nombre@empresa.cl"
-              required
-            />
+            <label className="label">Ingresa con</label>
+            <div className="grid grid-cols-2 gap-2">
+              {(['rut', 'correo'] as const).map(m => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setMetodo(m)}
+                  className={`rounded-lg border px-3 py-2 text-sm font-medium ${
+                    metodo === m ? 'border-primary bg-primary/10 text-primary' : 'border-gray-300 text-gray-600'
+                  }`}
+                >
+                  {m === 'rut' ? 'RUT y clave' : 'Correo (jefaturas)'}
+                </button>
+              ))}
+            </div>
           </div>
+
+          <div>
+            <label className="label">RUT{metodo === 'correo' ? ' (opcional)' : ''}</label>
+            <input
+              className="input font-mono"
+              value={rut}
+              onChange={e => setRut(formatearRut(e.target.value))}
+              placeholder="12.345.678-9"
+            />
+            {metodo === 'rut' && rut && !rutValido(rut) && (
+              <p className="text-xs text-fault mt-1">RUT no válido (revisa el dígito verificador).</p>
+            )}
+          </div>
+
+          {metodo === 'rut' ? (
+            <div>
+              <label className="label">Clave inicial</label>
+              <input
+                className="input"
+                value={clave}
+                onChange={e => setClave(e.target.value)}
+                placeholder="Mínimo 6 caracteres, pueden ser números"
+              />
+              <p className="text-xs text-gray-400 mt-1">Entrégasela a la persona; si la olvida, le asignas otra desde aquí.</p>
+            </div>
+          ) : (
+            <div>
+              <label className="label">Email</label>
+              <input
+                type="email"
+                className="input"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="nombre@empresa.cl"
+                required
+              />
+            </div>
+          )}
 
           <div>
             <label className="label">Rol</label>
@@ -811,7 +864,7 @@ function NuevoUsuarioModal({ onClose, onCreated }: { onClose: () => void; onCrea
               Cancelar
             </button>
             <button type="submit" disabled={saving || !canSave} className="btn-primary btn-sm">
-              {saving ? 'Enviando invitación...' : 'Crear e invitar'}
+              {saving ? 'Creando...' : metodo === 'rut' ? 'Crear usuario' : 'Crear e invitar'}
             </button>
           </div>
         </form>
@@ -823,6 +876,7 @@ function NuevoUsuarioModal({ onClose, onCreated }: { onClose: () => void; onCrea
 interface SolicitudConOperador {
   id: string
   email: string
+  vinculo_existente: boolean
   rol_solicitado: Rol | null
   created_at: string
   operadores: { nombre: string; apellido: string; rut: string | null } | null
@@ -839,7 +893,7 @@ function SolicitudesPendientesPanel({ onResuelta }: { onResuelta: () => void }) 
     setLoading(true)
     const { data, error: err } = await supabase
       .from('solicitudes_acceso')
-      .select('id, email, rol_solicitado, created_at, operadores(nombre, apellido, rut)')
+      .select('id, email, vinculo_existente, rol_solicitado, created_at, operadores(nombre, apellido, rut)')
       .eq('estado', 'pendiente')
       .order('created_at')
     if (err) setError(err.message)
@@ -862,13 +916,14 @@ function SolicitudesPendientesPanel({ onResuelta }: { onResuelta: () => void }) 
   async function aprobar(id: string) {
     setResolviendoId(id)
     setError(null)
-    const { data, error: fnError } = await supabase.functions.invoke('gestionar-usuario', {
-      body: { action: 'aprobar_solicitud', solicitud_id: id, rol: rolPorSolicitud[id] },
+    const { error: fnError } = await invocarFuncion('gestionar-usuario', {
+      action: 'aprobar_solicitud',
+      solicitud_id: id,
+      rol: rolPorSolicitud[id],
     })
     setResolviendoId(null)
-    const apiError = (data as { error?: string } | null)?.error
-    if (fnError || apiError) {
-      setError(apiError || fnError?.message || 'No se pudo aprobar la solicitud.')
+    if (fnError) {
+      setError(fnError)
       return
     }
     void load()
@@ -879,13 +934,10 @@ function SolicitudesPendientesPanel({ onResuelta }: { onResuelta: () => void }) 
     if (!window.confirm('¿Rechazar esta solicitud? La cuenta creada quedará eliminada.')) return
     setResolviendoId(id)
     setError(null)
-    const { data, error: fnError } = await supabase.functions.invoke('gestionar-usuario', {
-      body: { action: 'rechazar_solicitud', solicitud_id: id },
-    })
+    const { error: fnError } = await invocarFuncion('gestionar-usuario', { action: 'rechazar_solicitud', solicitud_id: id })
     setResolviendoId(null)
-    const apiError = (data as { error?: string } | null)?.error
-    if (fnError || apiError) {
-      setError(apiError || fnError?.message || 'No se pudo rechazar la solicitud.')
+    if (fnError) {
+      setError(fnError)
       return
     }
     void load()
@@ -909,7 +961,7 @@ function SolicitudesPendientesPanel({ onResuelta }: { onResuelta: () => void }) 
             <tr>
               <th className="table-th">Nombre</th>
               <th className="table-th">RUT</th>
-              <th className="table-th">Email</th>
+              <th className="table-th">Ingreso</th>
               <th className="table-th">Rol a asignar</th>
               <th className="table-th"></th>
             </tr>
@@ -919,9 +971,14 @@ function SolicitudesPendientesPanel({ onResuelta }: { onResuelta: () => void }) 
               <tr key={row.id} className="hover:bg-gray-50">
                 <td className="table-td">
                   {row.operadores ? `${row.operadores.apellido}, ${row.operadores.nombre}` : '—'}
+                  {row.vinculo_existente && (
+                    <span className="block text-[11px] text-warn mt-0.5">
+                      Vinculado a un operador que ya existía (mismo RUT o nombre): verifica que sea la misma persona.
+                    </span>
+                  )}
                 </td>
                 <td className="table-td font-mono text-xs">{row.operadores?.rut ?? '—'}</td>
-                <td className="table-td text-xs">{row.email}</td>
+                <td className="table-td text-xs">{row.email.endsWith(`@${DOMINIO_RUT}`) ? 'RUT y clave' : row.email}</td>
                 <td className="table-td">
                   <select
                     className="input"
@@ -958,6 +1015,83 @@ function SolicitudesPendientesPanel({ onResuelta }: { onResuelta: () => void }) 
   )
 }
 
+function AccesoModal({ usuario, onClose, onSaved }: { usuario: PerfilConOperador; onClose: () => void; onSaved: () => void }) {
+  const [rut, setRut] = useState(usuario.operadores?.rut ? formatearRut(usuario.operadores.rut) : '')
+  const [clave, setClave] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const rutOk = !rut || rutValido(rut)
+  const canSave = rutOk && clave.length >= 6 && (!!usuario.operador_id || !rut)
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    if (!canSave) return
+    setSaving(true)
+    setError(null)
+    const { error: fnError } = await invocarFuncion('gestionar-usuario', {
+      action: 'asignar_acceso',
+      perfil_id: usuario.id,
+      password: clave,
+      rut: rut ? rutCanonico(rut) : undefined,
+    })
+    setSaving(false)
+    if (fnError) {
+      setError(fnError)
+      return
+    }
+    onSaved()
+  }
+
+  const nombre = usuario.operadores ? `${usuario.operadores.nombre} ${usuario.operadores.apellido}` : 'este usuario'
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+        <h2 className="text-lg font-bold text-dark mb-1">Acceso de {nombre}</h2>
+        <p className="text-xs text-gray-400 mb-4">
+          Con RUT: la persona entra con su RUT y esta clave (deja de usar usuario/correo). Sin RUT: solo se cambia la
+          clave.
+        </p>
+        <form onSubmit={e => void handleSubmit(e)} className="space-y-4">
+          <div>
+            <label className="label">RUT</label>
+            <input
+              className="input font-mono"
+              value={rut}
+              onChange={e => setRut(formatearRut(e.target.value))}
+              placeholder="12.345.678-9"
+            />
+            {!rutOk && <p className="text-xs text-fault mt-1">RUT no válido (revisa el dígito verificador).</p>}
+            {rut && !usuario.operador_id && (
+              <p className="text-xs text-fault mt-1">Este usuario no tiene nombre (operador) vinculado.</p>
+            )}
+          </div>
+          <div>
+            <label className="label">Clave nueva</label>
+            <input
+              className="input"
+              value={clave}
+              onChange={e => setClave(e.target.value)}
+              placeholder="Mínimo 6 caracteres, pueden ser números"
+            />
+            <p className="text-xs text-gray-400 mt-1">Entrégasela a la persona. Reemplaza la clave anterior.</p>
+          </div>
+          {error && <p className="text-fault text-xs">{error}</p>}
+          <div className="flex gap-2 justify-end pt-2">
+            <button type="button" onClick={onClose} className="btn-secondary btn-sm">
+              Cancelar
+            </button>
+            <button type="submit" disabled={saving || !canSave} className="btn-primary btn-sm">
+              {saving ? 'Guardando...' : 'Guardar acceso'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 function UsuariosTab() {
   const [rows, setRows] = useState<PerfilConOperador[]>([])
   const [loading, setLoading] = useState(true)
@@ -966,6 +1100,8 @@ function UsuariosTab() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editRol, setEditRol] = useState<Rol>('conductor_logistico')
   const [saving, setSaving] = useState(false)
+  const [accesoDe, setAccesoDe] = useState<PerfilConOperador | null>(null)
+  const [mensaje, setMensaje] = useState<string | null>(null)
 
   async function load() {
     setLoading(true)
@@ -988,13 +1124,14 @@ function UsuariosTab() {
   async function guardarRol(perfilId: string) {
     setSaving(true)
     setError(null)
-    const { data, error: fnError } = await supabase.functions.invoke('gestionar-usuario', {
-      body: { action: 'actualizar_rol', perfil_id: perfilId, rol: editRol },
+    const { error: fnError } = await invocarFuncion('gestionar-usuario', {
+      action: 'actualizar_rol',
+      perfil_id: perfilId,
+      rol: editRol,
     })
     setSaving(false)
-    const apiError = (data as { error?: string } | null)?.error
-    if (fnError || apiError) {
-      setError(apiError || fnError?.message || 'No se pudo actualizar el rol.')
+    if (fnError) {
+      setError(fnError)
       return
     }
     setEditingId(null)
@@ -1006,6 +1143,7 @@ function UsuariosTab() {
       <SolicitudesPendientesPanel onResuelta={() => void load()} />
 
       {error && <div className="text-fault text-sm">{error}</div>}
+      {mensaje && <div className="text-primary text-sm">{mensaje}</div>}
       <div className="flex justify-end">
         <button className="btn-primary btn-sm" onClick={() => setShowModal(true)}>
           + Nuevo usuario
@@ -1061,9 +1199,14 @@ function UsuariosTab() {
                         </button>
                       </>
                     ) : (
-                      <button onClick={() => abrirEditar(row)} className="text-xs font-medium underline text-gray-600">
-                        Cambiar rol
-                      </button>
+                      <>
+                        <button onClick={() => setAccesoDe(row)} className="text-xs font-medium underline text-gray-600">
+                          RUT y clave
+                        </button>
+                        <button onClick={() => abrirEditar(row)} className="text-xs font-medium underline text-gray-600">
+                          Cambiar rol
+                        </button>
+                      </>
                     )}
                   </td>
                 </tr>
@@ -1072,6 +1215,18 @@ function UsuariosTab() {
           </table>
         )}
       </div>
+
+      {accesoDe && (
+        <AccesoModal
+          usuario={accesoDe}
+          onClose={() => setAccesoDe(null)}
+          onSaved={() => {
+            setMensaje('Acceso actualizado. Entrégale a la persona su clave nueva.')
+            setAccesoDe(null)
+            void load()
+          }}
+        />
+      )}
 
       {showModal && (
         <NuevoUsuarioModal

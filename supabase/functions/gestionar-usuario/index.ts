@@ -20,6 +20,34 @@ const ROLES_VALIDOS = [
   'encargado_flota_menor',
 ]
 
+const DOMINIO_RUT = 'rut.isidorachile.cl'
+
+function limpiarRut(valor: string): string {
+  return valor.replace(/[^0-9kK]/g, '').toUpperCase()
+}
+
+function rutValido(limpio: string): boolean {
+  if (limpio.length < 8 || limpio.length > 9) return false
+  const cuerpo = limpio.slice(0, -1)
+  if (!/^\d+$/.test(cuerpo)) return false
+  let suma = 0
+  let multiplo = 2
+  for (let i = cuerpo.length - 1; i >= 0; i--) {
+    suma += Number(cuerpo[i]) * multiplo
+    multiplo = multiplo === 7 ? 2 : multiplo + 1
+  }
+  const resto = 11 - (suma % 11)
+  const dv = resto === 11 ? '0' : resto === 10 ? 'K' : String(resto)
+  return dv === limpio.slice(-1)
+}
+
+/** Valida el RUT y devuelve { rut canónico "12345678-K", correo técnico de la cuenta }. */
+function datosRut(valor: string): { rut: string; email: string } {
+  const limpio = limpiarRut(valor)
+  if (!rutValido(limpio)) throw new Error('El RUT no es válido. Revisa el número y el dígito verificador.')
+  return { rut: `${limpio.slice(0, -1)}-${limpio.slice(-1)}`, email: `${limpio.toLowerCase()}@${DOMINIO_RUT}` }
+}
+
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -66,6 +94,95 @@ Deno.serve(async (req) => {
       if (error) throw error
 
       return jsonResponse({ ok: true })
+    }
+
+    // Da (o cambia) el ingreso con RUT y clave de una cuenta existente, o solo resetea su clave.
+    // Es la forma de recuperar la clave de quien no tiene correo, y de habilitar con RUT a
+    // las cuentas creadas antes con usuario/correo.
+    if (body.action === 'asignar_acceso') {
+      const { perfil_id, password } = body
+      if (!perfil_id) throw new Error('Datos inválidos.')
+      if (!password || String(password).length < 6) throw new Error('La clave debe tener al menos 6 caracteres.')
+
+      const cambios: { password: string; email?: string; email_confirm?: boolean } = { password }
+      if (body.rut) {
+        const { rut, email } = datosRut(String(body.rut))
+        const { data: perfil, error: perfilError } = await admin
+          .from('perfiles')
+          .select('operador_id')
+          .eq('id', perfil_id)
+          .single()
+        if (perfilError || !perfil) throw perfilError ?? new Error('Usuario no encontrado.')
+        if (!perfil.operador_id) throw new Error('Este usuario no tiene un operador (nombre) vinculado.')
+
+        const { data: otro } = await admin.from('operadores').select('id').eq('rut', rut).neq('id', perfil.operador_id).limit(1)
+        if (otro?.length) throw new Error('Ese RUT ya está asignado a otra persona.')
+
+        const { error: rutError } = await admin.from('operadores').update({ rut }).eq('id', perfil.operador_id)
+        if (rutError) throw rutError
+        cambios.email = email
+        cambios.email_confirm = true
+      }
+
+      const { error: updError } = await admin.auth.admin.updateUserById(perfil_id, cambios)
+      if (updError) {
+        if (/already|registered|exists/i.test(updError.message)) {
+          throw new Error('Ese RUT ya tiene otra cuenta para ingresar. Revisa las solicitudes o usuarios duplicados.')
+        }
+        throw updError
+      }
+      return jsonResponse({ ok: true })
+    }
+
+    if (body.action === 'crear' && body.rut && body.password && !body.email) {
+      // Usuario de terreno que ingresa con RUT: sin correo ni invitación, el jefe le da una
+      // clave inicial.
+      const { rol, operador_id, nombre, apellido, password } = body
+      if (!ROLES_VALIDOS.includes(rol)) throw new Error('Datos inválidos.')
+      if (String(password).length < 6) throw new Error('La clave debe tener al menos 6 caracteres.')
+      const { rut, email } = datosRut(String(body.rut))
+
+      let operadorId: string | null = operador_id ?? null
+      if (operadorId) {
+        const { data: otro } = await admin.from('operadores').select('id').eq('rut', rut).neq('id', operadorId).limit(1)
+        if (otro?.length) throw new Error('Ese RUT ya está asignado a otra persona.')
+        const { error: rutError } = await admin.from('operadores').update({ rut }).eq('id', operadorId)
+        if (rutError) throw rutError
+      } else {
+        if (!nombre || !apellido) throw new Error('Falta nombre y apellido para crear el operador.')
+        const { data: existente } = await admin.from('operadores').select('id').eq('rut', rut).limit(1)
+        if (existente?.length) {
+          operadorId = existente[0].id
+        } else {
+          const { data: nuevoOperador, error: opError } = await admin
+            .from('operadores')
+            .insert({ nombre, apellido, rut, activo: true })
+            .select('id')
+            .single()
+          if (opError) throw opError
+          operadorId = nuevoOperador.id
+        }
+      }
+
+      const { data: created, error: createError } = await admin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+      })
+      if (createError) {
+        if (/already|registered|exists/i.test(createError.message)) throw new Error('Ese RUT ya tiene una cuenta.')
+        throw createError
+      }
+
+      const { error: perfilInsertError } = await admin
+        .from('perfiles')
+        .insert({ id: created.user.id, operador_id: operadorId, rol })
+      if (perfilInsertError) {
+        await admin.auth.admin.deleteUser(created.user.id)
+        throw perfilInsertError
+      }
+
+      return jsonResponse({ ok: true, id: created.user.id })
     }
 
     if (body.action === 'crear') {
