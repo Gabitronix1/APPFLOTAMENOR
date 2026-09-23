@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useFormData } from '../hooks/useFormData'
+import { useBorrador } from '../hooks/useBorrador'
+import { BorradorBanner } from '../components/BorradorBanner'
 import { useOfflineQueue } from '../hooks/useOfflineQueue'
 import { SearchSelect } from '../components/SearchSelect'
 import { CrearConductorModal, type NuevoConductorInput } from '../components/checklist/CrearConductorModal'
@@ -126,6 +128,30 @@ export function Checklist() {
   const [lineasLocales, setLineasLocales] = useState<LineaOperacion[]>([])
   const [crearConductorQuery, setCrearConductorQuery] = useState<string | null>(null)
   const [crearVehiculoQuery, setCrearVehiculoQuery] = useState<string | null>(null)
+
+  // Borrador automático: si el celular cierra la app a mitad del checklist, se retoma.
+  const borrador = useBorrador(
+    'checklist',
+    { operadorId, patenteId, odometro, obsGeneral, operativo, respuestas, nocturna, lluvia, testigoNaranjo, testigoRojo, testigoAbs, afectaVisual },
+    {
+      activo: !done,
+      vacio: b => !b.patenteId && !b.odometro && !b.obsGeneral && b.respuestas.every(r => !r.falla && !r.observacion),
+      restaurar: b => {
+        setOperadorId(b.operadorId)
+        setPatenteId(b.patenteId)
+        setOdometro(b.odometro)
+        setObsGeneral(b.obsGeneral)
+        setOperativo(b.operativo)
+        setRespuestas(b.respuestas)
+        setNocturna(b.nocturna)
+        setLluvia(b.lluvia)
+        setTestigoNaranjo(b.testigoNaranjo)
+        setTestigoRojo(b.testigoRojo)
+        setTestigoAbs(b.testigoAbs)
+        setAfectaVisual(b.afectaVisual)
+      },
+    },
+  )
 
   const allOperadores = [...operadores, ...conductoresLocales]
   const allPatentes = [...patentes, ...vehiculosLocales]
@@ -277,6 +303,7 @@ export function Checklist() {
         afecta_campo_visual: p.key === 'p9' ? afectaVisual : null,
       })),
     })
+    await borrador.limpiar()
     setDone(true)
   }
 
@@ -324,6 +351,12 @@ export function Checklist() {
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-gray-50 pb-10">
+      <BorradorBanner
+        pendiente={borrador.pendiente}
+        etiqueta="un checklist"
+        onContinuar={borrador.continuar}
+        onDescartar={borrador.descartar}
+      />
       {/* Top bar */}
       <div className="bg-white border-b border-gray-200 px-4 py-4 mb-6">
         <div className="max-w-lg mx-auto flex items-center justify-between">

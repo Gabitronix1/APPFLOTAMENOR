@@ -5,6 +5,8 @@ import { useOfflineQueue } from '../hooks/useOfflineQueue'
 import { TIPOS_INTERVENCION_MAQUINARIA } from '../lib/maquinaria'
 import { SearchSelect } from '../components/SearchSelect'
 import { CatalogSelect } from '../components/CatalogSelect'
+import { useBorrador } from '../hooks/useBorrador'
+import { BorradorBanner } from '../components/BorradorBanner'
 import type { TipoIntervencionMaquinaria } from '../types'
 
 type Paso = 'cabecera' | 'detalle' | 'insumos'
@@ -153,6 +155,70 @@ export function IntervencionMaquinaria() {
   const [nuevoProductoId, setNuevoProductoId] = useState('')
   const [nuevoCodigoBarras, setNuevoCodigoBarras] = useState('')
   const [nuevaCantidad, setNuevaCantidad] = useState(1)
+
+  // Borrador automático (incluidas las fotos): si el celular cierra la app a mitad, se retoma.
+  const borrador = useBorrador(
+    'intervencion_maquinaria',
+    {
+      paso, fechaInicio, horaInicio, responsableId, maquinariaId, lineaId, turnoId, actividadId, subEquipoId,
+      horometro, imagen, tipo,
+      prevTipoId, prevDescripcion, prevImagen, desviaciones, prevFechaTermino, prevHoraTermino, prevCondicionId, prevCosto,
+      horaAvisoFalla, descripcionFalla, imagenFalla, sistemaId, codigoFallaId, causaProbable, solucionPropuesta,
+      corrFechaTermino, corrHoraTermino, corrCondicionId, corrCosto,
+      tareaId, otraDescripcion, otraFechaTermino, otraHoraTermino, otraCondicionId, otraCosto,
+      insumos,
+    },
+    {
+      activo: !done,
+      vacio: b =>
+        !b.responsableId && !b.maquinariaId && !b.lineaId && !b.horometro && !b.imagen && !b.tipo &&
+        !b.prevDescripcion && !b.descripcionFalla && !b.otraDescripcion && b.insumos.length === 0,
+      restaurar: b => {
+        const preview = (f: File | null) => (f ? URL.createObjectURL(f) : null)
+        setPaso(b.paso)
+        setFechaInicio(b.fechaInicio)
+        setHoraInicio(b.horaInicio)
+        setResponsableId(b.responsableId)
+        setMaquinariaId(b.maquinariaId)
+        setLineaId(b.lineaId)
+        setTurnoId(b.turnoId)
+        setActividadId(b.actividadId)
+        setSubEquipoId(b.subEquipoId)
+        setHorometro(b.horometro)
+        setImagen(b.imagen)
+        setImagenPreview(preview(b.imagen))
+        setTipo(b.tipo)
+        setPrevTipoId(b.prevTipoId)
+        setPrevDescripcion(b.prevDescripcion)
+        setPrevImagen(b.prevImagen)
+        setPrevImagenPreview(preview(b.prevImagen))
+        setDesviaciones(b.desviaciones)
+        setPrevFechaTermino(b.prevFechaTermino)
+        setPrevHoraTermino(b.prevHoraTermino)
+        setPrevCondicionId(b.prevCondicionId)
+        setPrevCosto(b.prevCosto)
+        setHoraAvisoFalla(b.horaAvisoFalla)
+        setDescripcionFalla(b.descripcionFalla)
+        setImagenFalla(b.imagenFalla)
+        setImagenFallaPreview(preview(b.imagenFalla))
+        setSistemaId(b.sistemaId)
+        setCodigoFallaId(b.codigoFallaId)
+        setCausaProbable(b.causaProbable)
+        setSolucionPropuesta(b.solucionPropuesta)
+        setCorrFechaTermino(b.corrFechaTermino)
+        setCorrHoraTermino(b.corrHoraTermino)
+        setCorrCondicionId(b.corrCondicionId)
+        setCorrCosto(b.corrCosto)
+        setTareaId(b.tareaId)
+        setOtraDescripcion(b.otraDescripcion)
+        setOtraFechaTermino(b.otraFechaTermino)
+        setOtraHoraTermino(b.otraHoraTermino)
+        setOtraCondicionId(b.otraCondicionId)
+        setOtraCosto(b.otraCosto)
+        setInsumos(b.insumos)
+      },
+    },
+  )
 
   useEffect(() => {
     const up = () => setIsOffline(false)
@@ -304,6 +370,7 @@ export function IntervencionMaquinaria() {
       })
     }
 
+    await borrador.limpiar()
     setSubmitting(false)
     setDone(true)
   }
@@ -386,6 +453,12 @@ export function IntervencionMaquinaria() {
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-gray-50 pb-10">
+      <BorradorBanner
+        pendiente={borrador.pendiente}
+        etiqueta="una intervención de maquinaria"
+        onContinuar={borrador.continuar}
+        onDescartar={borrador.descartar}
+      />
       <div className="bg-white border-b border-gray-200 px-4 py-4 mb-6">
         <div className="max-w-lg mx-auto flex items-center justify-between">
           <div>

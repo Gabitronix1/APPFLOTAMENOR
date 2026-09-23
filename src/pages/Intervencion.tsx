@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useFormData } from '../hooks/useFormData'
 import { useOfflineQueue } from '../hooks/useOfflineQueue'
 import { SearchSelect } from '../components/SearchSelect'
+import { useBorrador } from '../hooks/useBorrador'
+import { BorradorBanner } from '../components/BorradorBanner'
 
 const TIPOS_VEHICULO = ['CAMIONETA', 'CAMIÓN', 'TRACTOR', 'EXCAVADORA', 'RETROEXCAVADORA', 'MOTONIVELADORA', 'MINIBÚS', 'OTRO']
 const LINEAS = ['LINEA A', 'LINEA B', 'LINEA C', 'LINEA D', 'ESPECIAL']
@@ -51,6 +53,47 @@ export function Intervencion() {
   const [corrCosto, setCorrCosto] = useState('')
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Borrador automático (incluida la foto): si el celular cierra la app a mitad, se retoma.
+  const borrador = useBorrador(
+    'intervencion',
+    {
+      screen, operadorId, patenteId, tipoVehiculo, linea, odometro, tipo,
+      tipoPrevId, prevDesc, prevImagen, prevFechaTermino, prevHoraTermino, prevCosto,
+      descFalla, fechaInicio, horaInicio, fechaTermino, horaTermino, causaProbable, diagnostico, fallas, corrCosto,
+    },
+    {
+      activo: !done,
+      vacio: b =>
+        !b.operadorId && !b.patenteId && !b.odometro && !b.prevDesc && !b.prevImagen && !b.descFalla &&
+        !b.causaProbable && !b.diagnostico && b.fallas.every(f => !f.trim()),
+      restaurar: b => {
+        setScreen(b.screen)
+        setOperadorId(b.operadorId)
+        setPatenteId(b.patenteId)
+        setTipoVehiculo(b.tipoVehiculo)
+        setLinea(b.linea)
+        setOdometro(b.odometro)
+        setTipo(b.tipo)
+        setTipoPrevId(b.tipoPrevId)
+        setPrevDesc(b.prevDesc)
+        setPrevImagen(b.prevImagen)
+        setPrevPreview(b.prevImagen ? URL.createObjectURL(b.prevImagen) : null)
+        setPrevFechaTermino(b.prevFechaTermino)
+        setPrevHoraTermino(b.prevHoraTermino)
+        setPrevCosto(b.prevCosto)
+        setDescFalla(b.descFalla)
+        setFechaInicio(b.fechaInicio)
+        setHoraInicio(b.horaInicio)
+        setFechaTermino(b.fechaTermino)
+        setHoraTermino(b.horaTermino)
+        setCausaProbable(b.causaProbable)
+        setDiagnostico(b.diagnostico)
+        setFallas(b.fallas)
+        setCorrCosto(b.corrCosto)
+      },
+    },
+  )
 
   useEffect(() => {
     const up = () => setIsOffline(false)
@@ -132,6 +175,7 @@ export function Intervencion() {
       })
     }
 
+    await borrador.limpiar()
     setSubmitting(false)
     setDone(true)
   }
@@ -198,6 +242,12 @@ export function Intervencion() {
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-gray-50 pb-10">
+      <BorradorBanner
+        pendiente={borrador.pendiente}
+        etiqueta="una intervención"
+        onContinuar={borrador.continuar}
+        onDescartar={borrador.descartar}
+      />
       {/* Top bar */}
       <div className="bg-white border-b border-gray-200 px-4 py-4 mb-6">
         <div className="max-w-lg mx-auto">

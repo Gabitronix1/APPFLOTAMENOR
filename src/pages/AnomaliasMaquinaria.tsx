@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useCatalog } from '../hooks/useCatalog'
 import { fetchTable, fetchCatalog, fetchResponsablesMaquinaria } from '../lib/masterDataCache'
+import { useBorrador } from '../hooks/useBorrador'
+import { BorradorBanner } from '../components/BorradorBanner'
 import { useOfflineQueue } from '../hooks/useOfflineQueue'
 import { useAnomaliasMaquinaria, type AnomaliaMaquinariaRow } from '../hooks/useAnomaliasMaquinaria'
 import { supabase } from '../lib/supabase'
@@ -206,6 +208,25 @@ export function AnomaliasMaquinaria() {
     return () => { window.removeEventListener('online', up); window.removeEventListener('offline', dn) }
   }, [])
 
+  // Borrador automático: si el celular cierra la app a mitad del registro, se retoma.
+  const borrador = useBorrador(
+    'anomalia_maquinaria',
+    { maquinariaId, lineaId, fecha, descripcion, criticidad, plazoReparacion, responsableId },
+    {
+      vacio: b => !b.descripcion.trim() && !b.plazoReparacion && !b.responsableId,
+      restaurar: b => {
+        setVista('registrar')
+        setMaquinariaId(b.maquinariaId)
+        setLineaId(b.lineaId)
+        setFecha(b.fecha)
+        setDescripcion(b.descripcion)
+        setCriticidad(b.criticidad)
+        setPlazoReparacion(b.plazoReparacion)
+        setResponsableId(b.responsableId)
+      },
+    },
+  )
+
   const maquinariaSeleccionada = maquinarias.data.find(m => m.id === maquinariaId)
   const canSubmit = !!maquinariaId && !!lineaId && !!descripcion.trim()
 
@@ -240,6 +261,7 @@ export function AnomaliasMaquinaria() {
         responsable_id: responsableId || null,
       },
     })
+    await borrador.limpiar()
     setRegistradas(prev => [{ id: crypto.randomUUID(), descripcion: descripcion.trim(), criticidad }, ...prev])
     setSaving(false)
     resetDetalle()
@@ -251,6 +273,12 @@ export function AnomaliasMaquinaria() {
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-gray-50 pb-10">
+      <BorradorBanner
+        pendiente={borrador.pendiente}
+        etiqueta="una anomalía"
+        onContinuar={borrador.continuar}
+        onDescartar={borrador.descartar}
+      />
       <div className="bg-white border-b border-gray-200 px-4 py-4 mb-6">
         <div className="max-w-lg mx-auto flex items-center justify-between">
           <div>

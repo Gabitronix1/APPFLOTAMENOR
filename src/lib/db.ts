@@ -33,6 +33,13 @@ export interface EventLogRow {
   detalle: Record<string, unknown>
 }
 
+export interface DraftRow {
+  /** `${userId}:${formulario}` — cada persona tiene sus propios borradores. */
+  key: string
+  data: unknown
+  updatedAt: number
+}
+
 export interface SubmittedLogRow {
   id: string
   timestamp: number
@@ -45,6 +52,7 @@ class FlotaDB extends Dexie {
   perfilCache!: Table<PerfilCacheRow, string>
   submittedLog!: Table<SubmittedLogRow, string>
   eventLog!: Table<EventLogRow, string>
+  drafts!: Table<DraftRow, string>
 
   constructor() {
     super('flota_offline_db')
@@ -56,6 +64,9 @@ class FlotaDB extends Dexie {
     })
     this.version(2).stores({
       eventLog: 'id, ocurridoEn',
+    })
+    this.version(3).stores({
+      drafts: 'key',
     })
   }
 }
