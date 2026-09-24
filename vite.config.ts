@@ -13,8 +13,8 @@ export default defineConfig({
         name: 'Doña Isidora — Flota',
         short_name: 'Flota DI',
         description: 'Checklist e intervenciones de flota y maquinaria — Doña Isidora',
-        theme_color: '#18885F',
-        background_color: '#0A2826',
+        theme_color: '#062D2C',
+        background_color: '#062D2C',
         display: 'standalone',
         start_url: '/',
         icons: [

@@ -5,7 +5,8 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
 // Autoservicio de cuentas para personal de terreno nuevo (conductores/mecánicos): no requiere
-// sesión (verify_jwt = false). Queda sin rol hasta que un jefe la aprueba en Maestros > Usuarios.
+// sesión (verify_jwt = false). La cuenta queda activa de inmediato con el rol de la función
+// elegida (solo roles de terreno); un jefe puede cambiarlo después en Maestros > Usuarios.
 //
 // La cuenta se identifica por RUT: el correo es técnico (`<rut>@rut.isidorachile.cl`) y la
 // persona nunca lo ve. También lo llama la app al recuperar la señal para crear las cuentas
@@ -133,28 +134,46 @@ Deno.serve(async (req) => {
       operadorId = operador.id
     }
 
+    // Rol inmediato: el de la función base elegida, o el configurado para la función agregada
+    // (por defecto Conductor Logístico). Una función nueva queda disponible para todos.
+    let rol: string = rolSolicitado ?? 'conductor_logistico'
+    if (!rolSolicitado && funcion) {
+      const { data: existentes } = await admin.from('funciones_personal').select('nombre, rol')
+      const existente = (existentes ?? []).find(
+        (f: { nombre: string; rol: string }) => f.nombre.trim().toLowerCase() === funcion.toLowerCase(),
+      )
+      if (existente) {
+        rol = ROLES_SOLICITABLES.includes(existente.rol) ? existente.rol : 'conductor_logistico'
+      } else {
+        const { error: funcionError } = await admin.from('funciones_personal').insert({ nombre: funcion })
+        if (funcionError && funcionError.code !== '23505') console.error('funciones_personal', funcionError)
+      }
+    }
+
+    const { error: perfilError } = await admin.from('perfiles').insert({ id: created.user.id, operador_id: operadorId, rol })
+    if (perfilError) throw perfilError
+
+    // La solicitud queda como registro (auditoría) ya aprobada automáticamente.
     const { error: solicitudError } = await admin.from('solicitudes_acceso').insert({
       user_id: created.user.id,
       operador_id: operadorId,
       email,
-      rol_solicitado: rolSolicitado,
+      rol_solicitado: rolSolicitado ?? rol,
       funcion: funcion || null,
       vinculo_existente: vinculoExistente,
+      estado: 'aprobada',
+      resuelta_en: new Date().toISOString(),
     })
     if (solicitudError) throw solicitudError
 
-    // Una función nueva queda disponible para todos en el registro (si ya existía, el índice
-    // único por nombre la ignora).
-    if (!rolSolicitado && funcion) {
-      const { error: funcionError } = await admin.from('funciones_personal').insert({ nombre: funcion })
-      if (funcionError && funcionError.code !== '23505') console.error('funciones_personal', funcionError)
-    }
-
-    return jsonResponse({ ok: true, operador_id: operadorId, email })
+    return jsonResponse({ ok: true, operador_id: operadorId, email, rol })
   } catch (err) {
     // Si algo falló después de crear la cuenta, se elimina para que la persona pueda
     // reintentar (si no, quedaría "ya registrado" sin solicitud ni operador).
-    if (userIdCreado) await admin.auth.admin.deleteUser(userIdCreado).catch(() => undefined)
+    if (userIdCreado) {
+      await admin.from('perfiles').delete().eq('id', userIdCreado)
+      await admin.auth.admin.deleteUser(userIdCreado).catch(() => undefined)
+    }
     const message = err instanceof Error ? err.message : 'Error desconocido.'
     const code = err instanceof ErrorConCodigo ? err.code : undefined
     return jsonResponse({ error: message, code }, 400)

@@ -315,7 +315,10 @@ export function Intervencion() {
               <label className="label">Odómetro (km)</label>
               <div className="flex items-center gap-2">
                 <button type="button" onClick={() => setOdometro(v => Math.max(0, v - 10))} className="w-12 h-12 rounded-xl border border-gray-300 text-xl font-bold text-gray-600 hover:bg-gray-50 flex-shrink-0 flex items-center justify-center">−</button>
-                <input type="number" min={0} value={odometro} onChange={e => setOdometro(Math.max(0, Number(e.target.value)))} className="flex-1 h-12 text-center border border-gray-300 rounded-xl text-lg font-mono focus:outline-none focus:ring-2 focus:ring-primary" />
+                <input type="number" min={0} value={odometro === 0 ? '' : odometro}
+                    placeholder="0"
+                    inputMode="numeric"
+                    onFocus={e => e.target.select()} onChange={e => setOdometro(Math.max(0, Number(e.target.value) || 0))} className="min-w-0 flex-1 h-12 text-center border border-gray-300 rounded-xl text-lg font-mono [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:outline-none focus:ring-2 focus:ring-primary" />
                 <button type="button" onClick={() => setOdometro(v => v + 10)} className="w-12 h-12 rounded-xl border border-gray-300 text-xl font-bold text-gray-600 hover:bg-gray-50 flex-shrink-0 flex items-center justify-center">+</button>
               </div>
             </div>

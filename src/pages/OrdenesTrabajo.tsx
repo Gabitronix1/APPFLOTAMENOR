@@ -11,6 +11,7 @@ import { CerrarDirectoModal } from '../components/resoluciones/CerrarDirectoModa
 import { NotasOperadorModal } from '../components/resoluciones/NotasOperadorModal'
 import { KpiCard } from '../components/vehiculos/KpiCard'
 import type { OrdenTrabajo, PrioridadOT } from '../types'
+import { Logo } from '../components/Logo'
 
 type ModalState =
   | { tipo: 'asignar'; ot: OrdenTrabajo }
@@ -209,7 +210,7 @@ export function OrdenesTrabajo() {
 
       {/* Vista de impresión */}
       <div className="hidden print:block">
-        <img src="/DI1color.png" alt="Doña Isidora" className="h-8 w-auto mb-3" />
+        <Logo className="h-10 mb-3" />
         <h1 className="text-xl font-bold text-gray-900 mb-1">Órdenes de trabajo</h1>
         <p className="text-xs text-gray-500 mb-4">Generado {fmtDate(new Date().toISOString())}</p>
         <div className="space-y-4">

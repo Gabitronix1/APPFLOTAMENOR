@@ -15,6 +15,7 @@ import {
   ROLES_JEFES,
   ROLES_ORDENES_TRABAJO,
 } from '../lib/roles'
+import { Logo } from './Logo'
 
 function NavDropdown({ label, children }: { label: string; children: ReactNode }) {
   const [open, setOpen] = useState(false)
@@ -146,10 +147,8 @@ export function Header() {
     <header className="bg-dark border-b border-white/10 sticky top-0 z-50 print:hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-20">
         <div className="flex items-center gap-3">
-          <div className="bg-white rounded-lg px-2.5 py-1.5 shrink-0">
-            <img src="/DI1color.png" alt="Doña Isidora" className="h-6 sm:h-7 w-auto block" />
-          </div>
-          <span className="hidden sm:block text-xs font-medium text-gray-400 leading-tight">
+          <Logo variante="negativo" className="h-9 sm:h-10 shrink-0 block" />
+          <span className="hidden sm:block text-xs font-medium text-lime/90 leading-tight border-l border-white/15 pl-3">
             Flota Menor
           </span>
         </div>

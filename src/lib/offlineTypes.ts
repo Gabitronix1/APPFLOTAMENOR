@@ -154,6 +154,15 @@ export interface CrearVehiculoPayload {
     categoria_id: number | null
     linea: string | null
     descripcion: string | null
+    marca?: string | null
+    modelo?: string | null
+    anno?: number | null
+    vin?: string | null
+    motor?: string | null
+    condicion?: 'INTERNO' | 'ARRIENDO' | null
+    area?: string | null
+    responsable_nombre?: string | null
+    responsable_cargo?: string | null
   }
 }
 

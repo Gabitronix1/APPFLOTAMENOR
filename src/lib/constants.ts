@@ -80,12 +80,12 @@ export const ESTADO_LABELS_OVERRIDE: Partial<Record<PKey, { ok: string; falla: s
 }
 
 export const BRAND = {
-  dark: '#0A2826',
-  primary: '#18885F',
-  lime: '#70B838',
+  dark: '#062D2C',
+  primary: '#1D8961',
+  lime: '#6FB83A',
   fault: '#C0402A',
   warn: '#C98300',
-  surface: '#F4FAF7',
+  surface: '#F4F7F5',
   muted: '#667A74',
 } as const
 

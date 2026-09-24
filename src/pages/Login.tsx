@@ -15,6 +15,7 @@ import {
 import { useOnline } from '../hooks/useOnline'
 import { agregarFuncionLocal, descargarFunciones, funcionesGuardadas, normalizarFuncion } from '../lib/funcionesPersonal'
 import type { Rol } from '../types'
+import { Logo } from '../components/Logo'
 
 // Ingreso principal: RUT + clave (personal de terreno, sin correo). Las jefaturas pueden
 // seguir entrando con su usuario @isidorachile.cl.
@@ -327,10 +328,8 @@ export function Login() {
     <div className="min-h-screen bg-dark flex flex-col items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
-          <div className="bg-white rounded-2xl px-6 py-4 shadow-lg">
-            <img src="/DI1color.png" alt="Doña Isidora" className="h-12 w-auto" />
-          </div>
-          <p className="text-gray-400 text-sm mt-4">Sistema de Flota Menor</p>
+          <Logo variante="negativo" className="h-16 sm:h-20" />
+          <p className="text-lime text-sm font-medium tracking-wide mt-4">Sistema de Flota Menor</p>
           {!online && (
             <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-warn/20 px-3 py-1 text-xs font-medium text-warn">
               <span className="w-1.5 h-1.5 rounded-full bg-warn" />
@@ -473,7 +472,7 @@ export function Login() {
                   <RutInput id="rut-registro" value={rut} onChange={setRut} />
                 </Campo>
 
-                <Campo id="rol" label="Tu función" ayuda="¿No está la tuya? Toca + para agregarla. Un jefe confirma tu función al aprobar la cuenta.">
+                <Campo id="rol" label="Tu función" ayuda="¿No está la tuya? Toca + para agregarla. Tu cuenta queda activa al tiro con los permisos de tu función.">
                   <div className="flex gap-2">
                     <select
                       id="rol"

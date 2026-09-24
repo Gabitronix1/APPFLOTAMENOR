@@ -1,7 +1,7 @@
 import { useEffect, useState, FormEvent, ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
 import { SearchSelect } from '../components/SearchSelect'
-import { ROL_LABELS } from '../lib/roles'
+import { ROL_LABELS, ROLES_AUTOSERVICIO } from '../lib/roles'
 import { invocarFuncion } from '../lib/funciones'
 import { DOMINIO_RUT, formatearRut, rutCanonico, rutValido } from '../lib/rut'
 import type {
@@ -1099,14 +1099,23 @@ function AccesoModal({ usuario, onClose, onSaved }: { usuario: PerfilConOperador
 }
 
 function FuncionesPersonalPanel() {
-  const [rows, setRows] = useState<{ id: string; nombre: string }[]>([])
+  const [rows, setRows] = useState<{ id: string; nombre: string; rol: Rol }[]>([])
   const [error, setError] = useState<string | null>(null)
   const [abierto, setAbierto] = useState(false)
 
   async function load() {
-    const { data, error: err } = await supabase.from('funciones_personal').select('id, nombre').order('nombre')
+    const { data, error: err } = await supabase.from('funciones_personal').select('id, nombre, rol').order('nombre')
     if (err) setError(err.message)
-    else setRows((data ?? []) as { id: string; nombre: string }[])
+    else setRows((data ?? []) as { id: string; nombre: string; rol: Rol }[])
+  }
+
+  async function cambiarRol(id: string, rol: Rol) {
+    setRows(prev => prev.map(r => (r.id === id ? { ...r, rol } : r)))
+    const { error: err } = await supabase.from('funciones_personal').update({ rol }).eq('id', id)
+    if (err) {
+      setError(err.message)
+      void load()
+    }
   }
 
   useEffect(() => { void load() }, [])
@@ -1133,8 +1142,9 @@ function FuncionesPersonalPanel() {
       {abierto && (
         <div className="px-4 pb-4">
           <p className="text-xs text-gray-400 mb-3">
-            Cargos que el personal agregó con "+" al crear su cuenta. Les aparecen a todos como opción; quita los mal
-            escritos o repetidos. Los permisos los sigue definiendo el rol que asignas al aprobar.
+            Cargos que el personal agregó con "+" al crear su cuenta. Les aparecen a todos como opción. Quien se
+            registra con una de ellas queda de inmediato con los permisos indicados aquí; quita las mal escritas o
+            repetidas.
           </p>
           {error && <p className="text-fault text-xs mb-2">{error}</p>}
           {rows.length === 0 ? (
@@ -1142,11 +1152,25 @@ function FuncionesPersonalPanel() {
           ) : (
             <ul className="divide-y divide-gray-100">
               {rows.map(row => (
-                <li key={row.id} className="flex items-center justify-between py-2 text-sm">
-                  <span>{row.nombre}</span>
-                  <button onClick={() => void eliminar(row)} className="text-xs font-medium underline text-fault">
-                    Quitar
-                  </button>
+                <li key={row.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+                  <span className="font-medium">{row.nombre}</span>
+                  <span className="flex items-center gap-3">
+                    <select
+                      className="input w-auto py-1.5 text-xs"
+                      value={row.rol}
+                      onChange={e => void cambiarRol(row.id, e.target.value as Rol)}
+                      title="Permisos con que queda quien se registra con esta función"
+                    >
+                      {ROLES_AUTOSERVICIO.map(r => (
+                        <option key={r} value={r}>
+                          Permisos: {ROL_LABELS[r]}
+                        </option>
+                      ))}
+                    </select>
+                    <button onClick={() => void eliminar(row)} className="text-xs font-medium underline text-fault">
+                      Quitar
+                    </button>
+                  </span>
                 </li>
               ))}
             </ul>

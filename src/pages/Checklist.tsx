@@ -12,6 +12,7 @@ import { appendToCatalogCache } from '../lib/masterDataCache'
 import { PREGUNTAS, CRITICIDAD_ITEM, ESTADO_LABELS_OVERRIDE, type PKey } from '../lib/constants'
 import { esRolAdministrativo } from '../lib/roles'
 import type { Operador, Patente, LineaOperacion } from '../types'
+import { Logo } from '../components/Logo'
 
 interface Respuesta {
   falla: boolean
@@ -158,10 +159,18 @@ export function Checklist() {
   // La persona que usa el celular aparece como conductor por defecto (su operador vinculado,
   // o el creado al registrarse sin señal). Se puede cambiar si maneja otra persona.
   const miOperadorId = provisional?.operadorId ?? perfil?.operador_id ?? null
+  // El conductor del checklist es siempre la persona con la sesión iniciada (evita que
+  // alguien registre un checklist a nombre de otro). Solo las cuentas sin nombre vinculado
+  // (p. ej. algunas jefaturas) eligen el conductor de la lista.
   useEffect(() => {
-    if (!operadorId && miOperadorId && allOperadores.some(o => o.id === miOperadorId)) setOperadorId(miOperadorId)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [miOperadorId, operadores, conductoresLocales])
+    if (miOperadorId && operadorId !== miOperadorId) setOperadorId(miOperadorId)
+  }, [miOperadorId, operadorId])
+  const miOperador = allOperadores.find(o => o.id === miOperadorId)
+  const miNombre = miOperador
+    ? `${miOperador.apellido}, ${miOperador.nombre}`
+    : provisional
+      ? `${provisional.apellido}, ${provisional.nombre}`
+      : 'Tu usuario'
   const allPatentes = [...patentes, ...vehiculosLocales]
   const allLineas = [...lineasOperacion, ...lineasLocales]
 
@@ -235,16 +244,16 @@ export function Checklist() {
       activo: true,
       estado_actual: 'operativo',
       categoria_id: input.categoriaId || null,
-      marca: null,
-      modelo: null,
-      anno: null,
-      vin: null,
-      motor: null,
-      condicion: null,
-      area: null,
+      marca: input.marca || null,
+      modelo: input.modelo || null,
+      anno: input.anno,
+      vin: input.vin || null,
+      motor: input.motor || null,
+      condicion: input.condicion || null,
+      area: input.area || null,
       linea: input.linea || null,
-      responsable_nombre: null,
-      responsable_cargo: null,
+      responsable_nombre: input.responsableNombre || null,
+      responsable_cargo: input.responsableCargo || null,
       afecta_indicadores: true,
     }
     setVehiculosLocales(prev => [...prev, vehiculo])
@@ -257,6 +266,15 @@ export function Checklist() {
         categoria_id: input.categoriaId ? Number(input.categoriaId) : null,
         linea: input.linea || null,
         descripcion: input.descripcion || null,
+        marca: input.marca || null,
+        modelo: input.modelo || null,
+        anno: input.anno,
+        vin: input.vin || null,
+        motor: input.motor || null,
+        condicion: input.condicion || null,
+        area: input.area || null,
+        responsable_nombre: input.responsableNombre || null,
+        responsable_cargo: input.responsableCargo || null,
       },
     })
     setPatenteId(id)
@@ -367,12 +385,15 @@ export function Checklist() {
       />
       {/* Top bar */}
       <div className="bg-white border-b border-gray-200 px-4 py-4 mb-6">
-        <div className="max-w-lg mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-bold text-dark">Checklist Diario</h1>
-            <p className="text-xs text-gray-400">{today}</p>
+        <div className="max-w-lg mx-auto flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <Logo variante="isotipo" className="h-10 shrink-0" />
+            <div className="min-w-0">
+              <h1 className="text-lg font-bold text-dark leading-tight">Checklist Diario</h1>
+              <p className="text-xs text-gray-400">{today}</p>
+            </div>
           </div>
-          {isOffline && <span className="badge-fault">Sin conexión</span>}
+          {isOffline && <span className="badge-fault shrink-0">Sin conexión</span>}
         </div>
       </div>
 
@@ -386,25 +407,50 @@ export function Checklist() {
               <h2 className="font-semibold text-dark text-sm">Datos generales</h2>
               <div>
                 <label className="label">Conductor</label>
-                <SearchSelect
-                  options={opOptions}
-                  value={operadorId}
-                  onChange={setOperadorId}
-                  placeholder="Seleccionar conductor..."
-                  onCreate={puedeCrearMaestros ? q => setCrearConductorQuery(q) : undefined}
-                  createLabel={q => `Crear conductor "${q}"`}
-                />
+                {miOperadorId ? (
+                  <div className="min-h-[48px] border border-primary/30 rounded-xl px-4 py-2.5 bg-primary/5 flex items-center justify-between gap-2 text-sm">
+                    <span className="font-medium text-dark">{miNombre}</span>
+                    <span className="text-xs text-primary">Sesión iniciada</span>
+                  </div>
+                ) : (
+                  <>
+                    <SearchSelect
+                      options={opOptions}
+                      value={operadorId}
+                      onChange={setOperadorId}
+                      placeholder="Seleccionar conductor..."
+                      onCreate={puedeCrearMaestros ? q => setCrearConductorQuery(q) : undefined}
+                      createLabel={q => `Crear conductor "${q}"`}
+                    />
+                    <p className="text-xs text-gray-400 mt-1">
+                      Tu cuenta no tiene un nombre vinculado. Consulta a Control de Gestión para que quede asignado.
+                    </p>
+                  </>
+                )}
               </div>
               <div>
                 <label className="label">Patente / Vehículo</label>
-                <SearchSelect
-                  options={patOptions}
-                  value={patenteId}
-                  onChange={setPatenteId}
-                  placeholder="Seleccionar patente..."
-                  onCreate={puedeCrearMaestros ? q => setCrearVehiculoQuery(q) : undefined}
-                  createLabel={q => `Crear vehículo "${q}"`}
-                />
+                <div className="flex gap-2">
+                  <div className="min-w-0 flex-1">
+                    <SearchSelect
+                      options={patOptions}
+                      value={patenteId}
+                      onChange={setPatenteId}
+                      placeholder="Seleccionar patente..."
+                      onCreate={q => setCrearVehiculoQuery(q)}
+                      createLabel={q => `Agregar vehículo "${q}"`}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCrearVehiculoQuery('')}
+                    aria-label="Agregar vehículo"
+                    title="Agregar vehículo"
+                    className="shrink-0 w-12 rounded-xl border border-primary/40 text-primary text-2xl leading-none hover:bg-primary/5"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
               <div>
                 <label className="label">Tipo de vehículo</label>
@@ -445,9 +491,12 @@ export function Checklist() {
                   <input
                     type="number"
                     min={0}
-                    value={odometro}
-                    onChange={e => setOdometro(Math.max(0, Number(e.target.value)))}
-                    className="flex-1 h-12 text-center border border-gray-300 rounded-xl text-lg font-mono focus:outline-none focus:ring-2 focus:ring-primary"
+                    value={odometro === 0 ? '' : odometro}
+                    placeholder="0"
+                    inputMode="numeric"
+                    onFocus={e => e.target.select()}
+                    onChange={e => setOdometro(Math.max(0, Number(e.target.value) || 0))}
+                    className="min-w-0 flex-1 h-12 text-center border border-gray-300 rounded-xl text-lg font-mono [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                   <button
                     type="button"
@@ -660,6 +709,7 @@ export function Checklist() {
           query={crearVehiculoQuery}
           categorias={categoriasVehiculo}
           lineas={allLineas}
+          patentesExistentes={allPatentes.map(p => p.patente)}
           onClose={() => setCrearVehiculoQuery(null)}
           onCreated={vehiculo => void handleCrearVehiculo(vehiculo)}
           onCrearLinea={handleCrearLinea}

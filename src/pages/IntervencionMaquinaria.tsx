@@ -540,9 +540,12 @@ export function IntervencionMaquinaria() {
                 <input
                   type="number"
                   min={0}
-                  value={horometro}
-                  onChange={e => setHorometro(Math.max(0, Number(e.target.value)))}
-                  className="flex-1 h-12 text-center border border-gray-300 rounded-xl text-lg font-mono focus:outline-none focus:ring-2 focus:ring-primary"
+                  value={horometro === 0 ? '' : horometro}
+                    placeholder="0"
+                    inputMode="decimal"
+                    onFocus={e => e.target.select()}
+                  onChange={e => setHorometro(Math.max(0, Number(e.target.value) || 0))}
+                  className="min-w-0 flex-1 h-12 text-center border border-gray-300 rounded-xl text-lg font-mono [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:outline-none focus:ring-2 focus:ring-primary"
                 />
                 <button
                   type="button"
@@ -860,7 +863,7 @@ export function IntervencionMaquinaria() {
                     min={1}
                     value={nuevaCantidad}
                     onChange={e => setNuevaCantidad(Math.max(1, Number(e.target.value)))}
-                    className="flex-1 h-12 text-center border border-gray-300 rounded-xl text-lg font-mono focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="min-w-0 flex-1 h-12 text-center border border-gray-300 rounded-xl text-lg font-mono [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                   <button
                     type="button"

@@ -7,6 +7,7 @@ import { fmtDate, EMPRESA } from '../lib/constants'
 import { DespacharGuiaModal } from '../components/guiasDespacho/DespacharGuiaModal'
 import { RecibirGuiaModal } from '../components/guiasDespacho/RecibirGuiaModal'
 import { CerrarGuiaModal } from '../components/guiasDespacho/CerrarGuiaModal'
+import { Logo } from '../components/Logo'
 
 type ModalAbierto = 'despachar' | 'recibir' | 'cerrar' | null
 
@@ -55,6 +56,7 @@ export function GuiaDespachoDetalle() {
 
       <div className="card space-y-6">
         <div className="text-center border-b border-gray-100 pb-4">
+          <Logo className="h-12 mx-auto mb-3" />
           <p className="font-bold text-dark">{EMPRESA.nombre}</p>
           <p className="text-xs text-gray-500">RUT {EMPRESA.rut} · {EMPRESA.direccion} · {EMPRESA.giro}</p>
           <p className="text-lg font-bold text-dark mt-2">TRASLADO DE MERCANCÍAS</p>
