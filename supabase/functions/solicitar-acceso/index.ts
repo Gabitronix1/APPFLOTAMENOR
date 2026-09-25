@@ -8,15 +8,20 @@ const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 // sesión (verify_jwt = false). La cuenta queda activa de inmediato con el rol de la función
 // elegida (solo roles de terreno); un jefe puede cambiarlo después en Maestros > Usuarios.
 //
-// La cuenta se identifica por RUT: el correo es técnico (`<rut>@rut.isidorachile.cl`) y la
-// persona nunca lo ve. También lo llama la app al recuperar la señal para crear las cuentas
-// que se registraron sin conexión (con el id del operador que el celular ya usó en sus
-// registros, para no tener que corregirlos).
+// Dos formas de cuenta:
+// - Por RUT: el correo es técnico (`<rut>@rut.isidorachile.cl`) y la persona nunca lo ve.
+// - Por correo @isidorachile.cl (formulario "Crear cuenta con correo"): el RUT es opcional y la
+//   persona entra con su usuario/correo, como las jefaturas. Requiere señal.
+//
+// También lo llama la app al recuperar la señal para crear las cuentas por RUT que se
+// registraron sin conexión (con el id del operador que el celular ya usó en sus registros,
+// para no tener que corregirlos).
 
 // Únicos roles que una persona puede "solicitar" al autoregistrarse — nunca roles de
 // jefatura/administrativos, esos solo los asigna un jefe desde Maestros > Usuarios.
-const ROLES_SOLICITABLES = ['conductor_logistico', 'mecanico_flota_menor', 'mecanico_maquinaria']
+const ROLES_SOLICITABLES = ['conductor_logistico', 'conductor', 'jefe_faena', 'mecanico_flota_menor', 'mecanico_maquinaria']
 const DOMINIO_RUT = 'rut.isidorachile.cl'
+const EMAIL_EMPRESA_RE = /^[a-z0-9._%+-]+@isidorachile\.cl$/
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const CORS_HEADERS = {
@@ -72,10 +77,15 @@ Deno.serve(async (req) => {
     const nombre = String(body.nombre ?? '').trim()
     const apellido = String(body.apellido ?? '').trim()
     const rutLimpio = limpiarRut(String(body.rut ?? ''))
+    const emailEmpresa = String(body.email ?? '').trim().toLowerCase()
 
     if (!nombre || !apellido) throw new Error('Falta nombre y apellido.')
-    if (!rutLimpio) throw new Error('Falta el RUT.')
-    if (!rutValido(rutLimpio)) throw new ErrorConCodigo('El RUT no es válido. Revisa el número y el dígito verificador.', 'rut_invalido')
+    if (emailEmpresa && !EMAIL_EMPRESA_RE.test(emailEmpresa)) {
+      throw new ErrorConCodigo('El correo debe ser de la empresa (@isidorachile.cl).', 'email_invalido')
+    }
+    // Con correo de la empresa el RUT es opcional; sin correo, la cuenta es por RUT.
+    if (!emailEmpresa && !rutLimpio) throw new Error('Falta el RUT.')
+    if (rutLimpio && !rutValido(rutLimpio)) throw new ErrorConCodigo('El RUT no es válido. Revisa el número y el dígito verificador.', 'rut_invalido')
     if (!password || String(password).length < 6) throw new Error('La clave debe tener al menos 6 caracteres.')
     // Función (cargo) elegida o agregada con "+" en el registro. Si es una de las funciones
     // base, llega como rol; si es otra, llega como texto y el jefe asigna el rol al aprobar.
@@ -83,9 +93,8 @@ Deno.serve(async (req) => {
     const rolSolicitado = ROLES_SOLICITABLES.includes(rol_solicitado) ? rol_solicitado : null
     if (!rolSolicitado && funcion.length < 2) throw new Error('Indica tu función.')
 
-    const rut = `${rutLimpio.slice(0, -1)}-${rutLimpio.slice(-1)}`
-    // Compatibilidad con la versión anterior de la app, que enviaba un correo.
-    const email = String(body.email ?? '').trim().toLowerCase() || `${rutLimpio.toLowerCase()}@${DOMINIO_RUT}`
+    const rut = rutLimpio ? `${rutLimpio.slice(0, -1)}-${rutLimpio.slice(-1)}` : null
+    const email = emailEmpresa || `${rutLimpio.toLowerCase()}@${DOMINIO_RUT}`
 
     const { data: created, error: createError } = await admin.auth.admin.createUser({
       email,
@@ -95,19 +104,33 @@ Deno.serve(async (req) => {
     if (createError) {
       const yaExiste =
         (createError as { code?: string }).code === 'email_exists' || /already|registered|exists/i.test(createError.message)
-      if (yaExiste) throw new ErrorConCodigo('Ese RUT ya tiene una cuenta. Ingresa con tu RUT y tu clave.', 'ya_registrado')
+      if (yaExiste) {
+        throw new ErrorConCodigo(
+          emailEmpresa
+            ? 'Ese correo ya tiene una cuenta. Ingresa con tu usuario y contraseña.'
+            : 'Ese RUT ya tiene una cuenta. Ingresa con tu RUT y tu clave.',
+          'ya_registrado',
+        )
+      }
       throw createError
     }
     userIdCreado = created.user.id
 
-    // Vincular el RUT a una persona: 1) operador con ese RUT; 2) único operador activo con el
-    // mismo nombre y sin RUT (p. ej. conductores cargados antes sin RUT); 3) operador nuevo.
+    // Vincular la cuenta a una persona: 1) operador con ese correo o RUT; 2) único operador
+    // activo con el mismo nombre y sin RUT (p. ej. conductores cargados antes sin RUT);
+    // 3) operador nuevo.
     let operadorId: string | null = null
     let vinculoExistente = false
 
-    const { data: porRut } = await admin.from('operadores').select('id').eq('rut', rut).limit(1)
-    if (porRut?.length) {
-      operadorId = porRut[0].id
+    const { data: porEmail } = emailEmpresa
+      ? await admin.from('operadores').select('id').eq('email', emailEmpresa).limit(1)
+      : { data: null }
+    const { data: porRut } = !porEmail?.length && rut
+      ? await admin.from('operadores').select('id').eq('rut', rut).limit(1)
+      : { data: null }
+    const encontrado = porEmail?.[0] ?? porRut?.[0]
+    if (encontrado) {
+      operadorId = encontrado.id
       vinculoExistente = true
     } else {
       const { data: porNombre } = await admin
@@ -121,13 +144,21 @@ Deno.serve(async (req) => {
       if (porNombre?.length === 1) {
         operadorId = porNombre[0].id
         vinculoExistente = true
-        const { error: rutError } = await admin.from('operadores').update({ rut }).eq('id', operadorId)
-        if (rutError) throw rutError
+        if (rut) {
+          const { error: rutError } = await admin.from('operadores').update({ rut }).eq('id', operadorId)
+          if (rutError) throw rutError
+        }
       }
+    }
+
+    // Se deja el correo de la empresa en la ficha de la persona si aún no tenía uno.
+    if (operadorId && vinculoExistente && emailEmpresa) {
+      await admin.from('operadores').update({ email: emailEmpresa }).eq('id', operadorId).is('email', null)
     }
 
     if (!operadorId) {
       const nuevo: Record<string, unknown> = { nombre, apellido, rut, activo: true }
+      if (emailEmpresa) nuevo.email = emailEmpresa
       if (typeof operador_id === 'string' && UUID_RE.test(operador_id)) nuevo.id = operador_id
       const { data: operador, error: opError } = await admin.from('operadores').insert(nuevo).select('id').single()
       if (opError) throw opError

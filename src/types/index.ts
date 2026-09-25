@@ -1,5 +1,7 @@
 export type Rol =
   | 'conductor_logistico'
+  | 'conductor'
+  | 'jefe_faena'
   | 'mecanico_flota_menor'
   | 'mecanico_maquinaria'
   | 'jefe_maquinarias'

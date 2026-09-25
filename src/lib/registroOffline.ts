@@ -103,10 +103,13 @@ export async function crearCuenta(datos: {
   funcion?: string
   password: string
   operadorId?: string
+  /** Correo @isidorachile.cl: con correo el RUT es opcional (puede venir vacío). */
+  email?: string
 }): Promise<ResultadoRegistro> {
   const { error } = await supabase.functions.invoke('solicitar-acceso', {
     body: {
-      rut: rutCanonico(datos.rut),
+      rut: datos.rut ? rutCanonico(datos.rut) : undefined,
+      email: datos.email,
       nombre: datos.nombre,
       apellido: datos.apellido,
       rol_solicitado: datos.rolSolicitado,

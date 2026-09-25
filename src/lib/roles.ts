@@ -2,6 +2,8 @@ import type { Rol } from '../types'
 
 export const ROL_LABELS: Record<Rol, string> = {
   conductor_logistico: 'Conductor Logístico',
+  conductor: 'Conductor',
+  jefe_faena: 'Jefe de Faena',
   mecanico_flota_menor: 'Mecánico Flota Menor',
   mecanico_maquinaria: 'Mecánico de Maquinaria',
   jefe_maquinarias: 'Jefe de Maquinarias',
@@ -41,7 +43,15 @@ export const ROLES_GUIAS_DESPACHO: Rol[] = ['conductor_logistico', ...ROLES_GUIA
 // Roles que una persona puede "solicitar" al autoregistrarse desde el Login (ver
 // Edge Function solicitar-acceso): solo roles de terreno, nunca jefaturas/administrativos.
 // Un jefe confirma (o cambia) el rol final al aprobar la solicitud en Maestros > Usuarios.
-export const ROLES_AUTOSERVICIO: Rol[] = ['conductor_logistico', 'mecanico_flota_menor', 'mecanico_maquinaria']
+// Conductor (a diferencia de Conductor Logístico) y Jefe de Faena por ahora solo acceden al
+// Checklist y a Listo para faena.
+export const ROLES_AUTOSERVICIO: Rol[] = [
+  'conductor',
+  'conductor_logistico',
+  'jefe_faena',
+  'mecanico_flota_menor',
+  'mecanico_maquinaria',
+]
 
 export function puedeGestionarGuia(rol: Rol | undefined): boolean {
   return !!rol && ROLES_GUIAS_DESPACHO_GESTION.includes(rol)

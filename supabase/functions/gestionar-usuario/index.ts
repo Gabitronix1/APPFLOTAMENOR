@@ -10,6 +10,8 @@ const ROLES_JEFES = ['jefe_maquinarias', 'jefe_cdg']
 
 const ROLES_VALIDOS = [
   'conductor_logistico',
+  'conductor',
+  'jefe_faena',
   'mecanico_flota_menor',
   'mecanico_maquinaria',
   'jefe_maquinarias',

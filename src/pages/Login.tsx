@@ -18,8 +18,9 @@ import type { Rol } from '../types'
 import { Logo } from '../components/Logo'
 
 // Ingreso principal: RUT + clave (personal de terreno, sin correo). Las jefaturas pueden
-// seguir entrando con su usuario @isidorachile.cl.
-type Modo = 'rut' | 'usuario' | 'recuperar' | 'registro'
+// seguir entrando con su usuario @isidorachile.cl, y quien tenga correo de la empresa puede
+// crear su cuenta con él (formulario aparte, RUT opcional).
+type Modo = 'rut' | 'usuario' | 'recuperar' | 'registro' | 'registro-correo'
 
 const DOMINIO = '@isidorachile.cl'
 
@@ -43,14 +44,26 @@ function Campo({ id, label, ayuda, children }: { id: string; label: string; ayud
   )
 }
 
-function RutInput({ id, value, onChange, autoFocus }: { id: string; value: string; onChange: (v: string) => void; autoFocus?: boolean }) {
+function RutInput({
+  id,
+  value,
+  onChange,
+  autoFocus,
+  opcional,
+}: {
+  id: string
+  value: string
+  onChange: (v: string) => void
+  autoFocus?: boolean
+  opcional?: boolean
+}) {
   return (
     <input
       id={id}
       type="text"
-      required
+      required={!opcional}
       autoFocus={autoFocus}
-      autoComplete="username"
+      autoComplete={opcional ? 'off' : 'username'}
       autoCapitalize="characters"
       autoCorrect="off"
       spellCheck={false}
@@ -139,6 +152,8 @@ function Aviso({ tipo, children }: { tipo: 'error' | 'info'; children: ReactNode
 const botonPrincipal =
   'w-full bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-lg transition-colors text-base mt-2'
 const enlace = 'text-sm text-gray-400 hover:text-white underline'
+const botonSecundario =
+  'w-full mt-4 border border-white/25 text-white font-semibold py-3 rounded-lg hover:bg-white/5 transition-colors'
 
 export function Login() {
   const { session, perfil, loading, provisional } = useAuth()
@@ -206,19 +221,19 @@ export function Login() {
     setPassword2('')
   }
 
-  async function entrar(email: string, clave: string): Promise<boolean> {
+  async function entrar(email: string, clave: string, metodo: 'rut' | 'usuario'): Promise<boolean> {
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password: clave })
     if (authError) {
       setError(
         isAuthRetryableFetchError(authError)
           ? 'No hay conexión con el servidor. Intenta donde tengas señal.'
-          : modo === 'usuario'
+          : metodo === 'usuario'
             ? 'Usuario o contraseña incorrectos.'
             : 'RUT o clave incorrectos. Consulta a Control de Gestión en caso de pérdida de clave.',
       )
       return false
     }
-    void logEvent('login', { con_senal: true, metodo: modo === 'usuario' ? 'usuario' : 'rut' })
+    void logEvent('login', { con_senal: true, metodo })
     return true
   }
 
@@ -236,7 +251,7 @@ export function Login() {
       return
     }
     setSubmitting(true)
-    await entrar(emailDeRut(rut), password)
+    await entrar(emailDeRut(rut), password, 'rut')
     setSubmitting(false)
   }
 
@@ -248,7 +263,7 @@ export function Login() {
       return
     }
     setSubmitting(true)
-    await entrar(emailCompleto(usuario), password)
+    await entrar(emailCompleto(usuario), password, 'usuario')
     setSubmitting(false)
   }
 
@@ -300,7 +315,7 @@ export function Login() {
     if (navigator.onLine) {
       const resultado = await crearCuenta(datos)
       if (resultado.ok) {
-        const ok = await entrar(emailDeRut(rut), password)
+        const ok = await entrar(emailDeRut(rut), password, 'rut')
         setSubmitting(false)
         if (!ok) cambiarModo('rut')
         return
@@ -323,6 +338,146 @@ export function Login() {
     setSubmitting(false)
     // El AuthContext detecta el registro pendiente y el efecto de arriba lleva al Checklist.
   }
+
+  // Cuenta con correo de la empresa: requiere señal (el registro sin señal es solo por RUT).
+  async function handleRegistroCorreo(e: FormEvent) {
+    e.preventDefault()
+    setError(null)
+    if (!nombre.trim() || !apellido.trim()) {
+      setError('Escribe tu nombre y apellido.')
+      return
+    }
+    const email = emailCompleto(usuario)
+    if (!email.endsWith(DOMINIO)) {
+      setError(`El correo debe ser de la empresa (${DOMINIO}).`)
+      return
+    }
+    if (rut && !rutValido(rut)) {
+      setError('El RUT no es válido. Revisa el número y el dígito verificador, o déjalo en blanco.')
+      return
+    }
+    if (password.length < 6) {
+      setError('La contraseña debe tener al menos 6 caracteres.')
+      return
+    }
+    if (password !== password2) {
+      setError('Las dos contraseñas no coinciden.')
+      return
+    }
+    if (!navigator.onLine) {
+      setError('Sin señal. Para crear la cuenta con correo necesitas señal. Sin señal puedes crearla con tu RUT.')
+      return
+    }
+    setSubmitting(true)
+    const resultado = await crearCuenta({
+      email,
+      rut,
+      nombre: nombre.trim(),
+      apellido: apellido.trim(),
+      rolSolicitado: funcionSel.startsWith('rol:') ? (funcionSel.slice(4) as Rol) : null,
+      funcion: funcionSel.startsWith('f:') ? funcionSel.slice(2) : undefined,
+      password,
+    })
+    if (resultado.ok) {
+      const ok = await entrar(email, password, 'usuario')
+      setSubmitting(false)
+      if (!ok) cambiarModo('usuario')
+      return
+    }
+    setSubmitting(false)
+    if (resultado.code === 'ya_registrado') {
+      cambiarModo('usuario')
+      setInfo('Ese correo ya tiene una cuenta. Ingresa con tu usuario y contraseña.')
+      return
+    }
+    setError(resultado.sinConexion ? 'No hay conexión con el servidor. Intenta donde tengas señal.' : resultado.error)
+  }
+
+  const camposNombre = (
+    <div className="grid grid-cols-2 gap-3">
+      <Campo id="nombre" label="Nombre">
+        <input
+          id="nombre"
+          required
+          autoComplete="given-name"
+          value={nombre}
+          onChange={e => setNombre(e.target.value)}
+          className={inputClass}
+        />
+      </Campo>
+      <Campo id="apellido" label="Apellido">
+        <input
+          id="apellido"
+          required
+          autoComplete="family-name"
+          value={apellido}
+          onChange={e => setApellido(e.target.value)}
+          className={inputClass}
+        />
+      </Campo>
+    </div>
+  )
+
+  const campoFuncion = (
+    <Campo id="rol" label="Tu función" ayuda="¿No está la tuya? Toca + para agregarla. Tu cuenta queda activa al tiro con los permisos de tu función.">
+      <div className="flex gap-2">
+        <select
+          id="rol"
+          value={funcionSel}
+          onChange={e => setFuncionSel(e.target.value)}
+          className={`${inputClass} min-w-0 flex-1 [&>option]:text-dark`}
+        >
+          {ROLES_AUTOSERVICIO.map(r => (
+            <option key={r} value={`rol:${r}`}>
+              {ROL_LABELS[r]}
+            </option>
+          ))}
+          {funcionesExtra
+            .filter(f => !nombresBase.includes(f.toLowerCase()))
+            .map(f => (
+              <option key={f} value={`f:${f}`}>
+                {f}
+              </option>
+            ))}
+        </select>
+        <button
+          type="button"
+          onClick={() => setAgregandoFuncion(v => !v)}
+          aria-label="Agregar otra función"
+          title="Agregar otra función"
+          className="shrink-0 w-12 rounded-lg border border-white/25 text-white text-2xl leading-none hover:bg-white/10"
+        >
+          {agregandoFuncion ? '×' : '+'}
+        </button>
+      </div>
+      {agregandoFuncion && (
+        <div className="flex gap-2 mt-2">
+          <input
+            autoFocus
+            value={nuevaFuncion}
+            onChange={e => setNuevaFuncion(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                confirmarNuevaFuncion()
+              }
+            }}
+            maxLength={60}
+            placeholder="Ej: Operador de grúa"
+            className={`${inputClass} min-w-0 flex-1`}
+          />
+          <button
+            type="button"
+            onClick={confirmarNuevaFuncion}
+            disabled={normalizarFuncion(nuevaFuncion).length < 2}
+            className="shrink-0 px-4 rounded-lg bg-primary text-white font-semibold disabled:opacity-50"
+          >
+            Agregar
+          </button>
+        </div>
+      )}
+    </Campo>
+  )
 
   return (
     <div className="min-h-screen bg-dark flex flex-col items-center justify-center px-4 py-10">
@@ -356,13 +511,14 @@ export function Login() {
                 </button>
               </form>
 
-              <button
-                type="button"
-                onClick={() => cambiarModo('registro')}
-                className="w-full mt-4 border border-white/25 text-white font-semibold py-3 rounded-lg hover:bg-white/5 transition-colors"
-              >
+              <button type="button" onClick={() => cambiarModo('registro')} className={botonSecundario}>
                 Crear cuenta nueva
               </button>
+              <div className="text-center mt-3">
+                <button type="button" onClick={() => cambiarModo('registro-correo')} className={enlace}>
+                  Crear cuenta con correo {DOMINIO}
+                </button>
+              </div>
               <p className="text-xs text-gray-500 mt-4 text-center">
                 Consultar a Control de Gestión en caso de pérdida de clave.
               </p>
@@ -384,18 +540,20 @@ export function Login() {
                 <Campo id="password" label="Contraseña">
                   <ClaveInput id="password" value={password} onChange={setPassword} />
                 </Campo>
+                {info && <Aviso tipo="info">{info}</Aviso>}
                 {error && <Aviso tipo="error">{error}</Aviso>}
                 <button type="submit" disabled={submitting} className={botonPrincipal}>
                   {submitting ? 'Ingresando...' : 'Ingresar'}
                 </button>
               </form>
-              <button
-                type="button"
-                onClick={() => cambiarModo('registro')}
-                className="w-full mt-4 border border-white/25 text-white font-semibold py-3 rounded-lg hover:bg-white/5 transition-colors"
-              >
-                Crear cuenta nueva
+              <button type="button" onClick={() => cambiarModo('registro-correo')} className={botonSecundario}>
+                Crear cuenta con correo
               </button>
+              <div className="text-center mt-3">
+                <button type="button" onClick={() => cambiarModo('registro')} className={enlace}>
+                  Crear cuenta con RUT (sin correo)
+                </button>
+              </div>
               <div className="flex items-center justify-between mt-4">
                 <button type="button" onClick={() => cambiarModo('rut')} className={enlace}>
                   Ingresar con RUT
@@ -445,91 +603,13 @@ export function Login() {
                 {!online && ' Sin señal también se puede: tu cuenta se crea sola cuando vuelva la señal.'}
               </p>
               <form onSubmit={e => void handleRegistro(e)} className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <Campo id="nombre" label="Nombre">
-                    <input
-                      id="nombre"
-                      required
-                      autoComplete="given-name"
-                      value={nombre}
-                      onChange={e => setNombre(e.target.value)}
-                      className={inputClass}
-                    />
-                  </Campo>
-                  <Campo id="apellido" label="Apellido">
-                    <input
-                      id="apellido"
-                      required
-                      autoComplete="family-name"
-                      value={apellido}
-                      onChange={e => setApellido(e.target.value)}
-                      className={inputClass}
-                    />
-                  </Campo>
-                </div>
+                {camposNombre}
 
                 <Campo id="rut-registro" label="RUT">
                   <RutInput id="rut-registro" value={rut} onChange={setRut} />
                 </Campo>
 
-                <Campo id="rol" label="Tu función" ayuda="¿No está la tuya? Toca + para agregarla. Tu cuenta queda activa al tiro con los permisos de tu función.">
-                  <div className="flex gap-2">
-                    <select
-                      id="rol"
-                      value={funcionSel}
-                      onChange={e => setFuncionSel(e.target.value)}
-                      className={`${inputClass} min-w-0 flex-1 [&>option]:text-dark`}
-                    >
-                      {ROLES_AUTOSERVICIO.map(r => (
-                        <option key={r} value={`rol:${r}`}>
-                          {ROL_LABELS[r]}
-                        </option>
-                      ))}
-                      {funcionesExtra
-                        .filter(f => !nombresBase.includes(f.toLowerCase()))
-                        .map(f => (
-                          <option key={f} value={`f:${f}`}>
-                            {f}
-                          </option>
-                        ))}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => setAgregandoFuncion(v => !v)}
-                      aria-label="Agregar otra función"
-                      title="Agregar otra función"
-                      className="shrink-0 w-12 rounded-lg border border-white/25 text-white text-2xl leading-none hover:bg-white/10"
-                    >
-                      {agregandoFuncion ? '×' : '+'}
-                    </button>
-                  </div>
-                  {agregandoFuncion && (
-                    <div className="flex gap-2 mt-2">
-                      <input
-                        autoFocus
-                        value={nuevaFuncion}
-                        onChange={e => setNuevaFuncion(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault()
-                            confirmarNuevaFuncion()
-                          }
-                        }}
-                        maxLength={60}
-                        placeholder="Ej: Operador de grúa"
-                        className={`${inputClass} min-w-0 flex-1`}
-                      />
-                      <button
-                        type="button"
-                        onClick={confirmarNuevaFuncion}
-                        disabled={normalizarFuncion(nuevaFuncion).length < 2}
-                        className="shrink-0 px-4 rounded-lg bg-primary text-white font-semibold disabled:opacity-50"
-                      >
-                        Agregar
-                      </button>
-                    </div>
-                  )}
-                </Campo>
+                {campoFuncion}
 
                 <Campo id="clave-registro" label="Clave" ayuda="Mínimo 6 caracteres. Pueden ser solo números.">
                   <ClaveInput id="clave-registro" value={password} onChange={setPassword} nueva />
@@ -545,6 +625,45 @@ export function Login() {
                 </button>
               </form>
               <button type="button" onClick={() => cambiarModo('rut')} className={`${enlace} w-full mt-4`}>
+                Volver a ingresar
+              </button>
+            </>
+          )}
+
+          {modo === 'registro-correo' && (
+            <>
+              <h2 className="text-white font-semibold text-lg mb-1">Crear cuenta con correo</h2>
+              <p className="text-gray-400 text-sm mb-6">
+                Para quienes tienen correo de la empresa ({DOMINIO}). Después ingresas con tu usuario y contraseña.
+                El RUT es opcional.
+              </p>
+              <form onSubmit={e => void handleRegistroCorreo(e)} className="space-y-4">
+                {camposNombre}
+
+                <Campo id="email-registro" label="Correo">
+                  <UsuarioInput id="email-registro" value={usuario} onChange={setUsuario} />
+                </Campo>
+
+                <Campo id="rut-registro-correo" label="RUT (opcional)" ayuda="Si lo agregas, tus registros quedan unidos a tu RUT.">
+                  <RutInput id="rut-registro-correo" value={rut} onChange={setRut} opcional />
+                </Campo>
+
+                {campoFuncion}
+
+                <Campo id="clave-registro-correo" label="Contraseña" ayuda="Mínimo 6 caracteres.">
+                  <ClaveInput id="clave-registro-correo" value={password} onChange={setPassword} nueva />
+                </Campo>
+                <Campo id="clave-registro-correo-2" label="Repite la contraseña">
+                  <ClaveInput id="clave-registro-correo-2" value={password2} onChange={setPassword2} nueva />
+                </Campo>
+
+                {error && <Aviso tipo="error">{error}</Aviso>}
+
+                <button type="submit" disabled={submitting || !online} className={botonPrincipal}>
+                  {submitting ? 'Creando cuenta...' : online ? 'Crear cuenta' : 'Sin señal'}
+                </button>
+              </form>
+              <button type="button" onClick={() => cambiarModo('usuario')} className={`${enlace} w-full mt-4`}>
                 Volver a ingresar
               </button>
             </>
