@@ -1,9 +1,14 @@
 import type { Rol } from '../types'
 
 export const ROL_LABELS: Record<Rol, string> = {
-  conductor_logistico: 'Conductor Logístico',
+  conductor_logistico: 'Asistente Logístico',
   conductor: 'Conductor',
   jefe_faena: 'Jefe de Faena',
+  supervisor_operaciones: 'Supervisor de Operaciones',
+  ingeniero_sstyma: 'Ingeniero de SSTyMA',
+  calibrador: 'Calibrador',
+  mecanico_terreno: 'Mecánico Terreno',
+  conductor_transporte_personas: 'Conductor de Transporte de Persona',
   mecanico_flota_menor: 'Mecánico Flota Menor',
   mecanico_maquinaria: 'Mecánico de Maquinaria',
   jefe_maquinarias: 'Jefe de Maquinarias',
@@ -11,7 +16,7 @@ export const ROL_LABELS: Record<Rol, string> = {
   ingeniero_confiabilidad: 'Ingeniero de Confiabilidad',
   jefe_cdg: 'Jefe de CDG',
   encargado_bodega: 'Encargado de Bodega',
-  encargado_flota_menor: 'Encargado de Flota Menor',
+  encargado_flota_menor: 'Coordinador de Flota Menor',
 }
 
 // Acceso a Dashboard, Vehículos y Vencimientos, y gestión de OT por igual.
@@ -49,6 +54,11 @@ export const ROLES_AUTOSERVICIO: Rol[] = [
   'conductor',
   'conductor_logistico',
   'jefe_faena',
+  'supervisor_operaciones',
+  'ingeniero_sstyma',
+  'calibrador',
+  'mecanico_terreno',
+  'conductor_transporte_personas',
   'mecanico_flota_menor',
   'mecanico_maquinaria',
 ]
