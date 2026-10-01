@@ -10,7 +10,7 @@ const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 //
 // Dos formas de cuenta:
 // - Por RUT: el correo es técnico (`<rut>@rut.isidorachile.cl`) y la persona nunca lo ve.
-// - Por correo @isidorachile.cl (formulario "Crear cuenta con correo"): el RUT es opcional y la
+// - Por correo @isidorachile.cl (formulario "Crear cuenta con correo"): el RUT también es obligatorio y la
 //   persona entra con su usuario/correo, como las jefaturas. Requiere señal.
 //
 // También lo llama la app al recuperar la señal para crear las cuentas por RUT que se
@@ -83,9 +83,10 @@ Deno.serve(async (req) => {
     if (emailEmpresa && !EMAIL_EMPRESA_RE.test(emailEmpresa)) {
       throw new ErrorConCodigo('El correo debe ser de la empresa (@isidorachile.cl).', 'email_invalido')
     }
-    // Con correo de la empresa el RUT es opcional; sin correo, la cuenta es por RUT.
-    if (!emailEmpresa && !rutLimpio) throw new Error('Falta el RUT.')
-    if (rutLimpio && !rutValido(rutLimpio)) throw new ErrorConCodigo('El RUT no es válido. Revisa el número y el dígito verificador.', 'rut_invalido')
+    // El RUT es obligatorio, con o sin correo de la empresa: vincula la cuenta a la ficha del
+    // operador y evita duplicados por diferencias de escritura en el nombre.
+    if (!rutLimpio) throw new Error('Falta el RUT.')
+    if (!rutValido(rutLimpio)) throw new ErrorConCodigo('El RUT no es válido. Revisa el número y el dígito verificador.', 'rut_invalido')
     if (!password || String(password).length < 6) throw new Error('La clave debe tener al menos 6 caracteres.')
     // Función (cargo) elegida o agregada con "+" en el registro. Si es una de las funciones
     // base, llega como rol; si es otra, llega como texto y el jefe asigna el rol al aprobar.

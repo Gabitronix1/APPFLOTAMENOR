@@ -19,7 +19,7 @@ import { Logo } from '../components/Logo'
 
 // Ingreso principal: RUT + clave (personal de terreno, sin correo). Las jefaturas pueden
 // seguir entrando con su usuario @isidorachile.cl, y quien tenga correo de la empresa puede
-// crear su cuenta con él (formulario aparte, RUT opcional).
+// crear su cuenta con él (formulario aparte, también con RUT).
 type Modo = 'rut' | 'usuario' | 'recuperar' | 'registro' | 'registro-correo'
 
 const DOMINIO = '@isidorachile.cl'
@@ -49,21 +49,19 @@ function RutInput({
   value,
   onChange,
   autoFocus,
-  opcional,
 }: {
   id: string
   value: string
   onChange: (v: string) => void
   autoFocus?: boolean
-  opcional?: boolean
 }) {
   return (
     <input
       id={id}
       type="text"
-      required={!opcional}
+      required
       autoFocus={autoFocus}
-      autoComplete={opcional ? 'off' : 'username'}
+      autoComplete="username"
       autoCapitalize="characters"
       autoCorrect="off"
       spellCheck={false}
@@ -352,8 +350,8 @@ export function Login() {
       setError(`El correo debe ser de la empresa (${DOMINIO}).`)
       return
     }
-    if (rut && !rutValido(rut)) {
-      setError('El RUT no es válido. Revisa el número y el dígito verificador, o déjalo en blanco.')
+    if (!rutValido(rut)) {
+      setError('El RUT no es válido. Revisa el número y el dígito verificador.')
       return
     }
     if (password.length < 6) {
@@ -635,7 +633,7 @@ export function Login() {
               <h2 className="text-white font-semibold text-lg mb-1">Crear cuenta con correo</h2>
               <p className="text-gray-400 text-sm mb-6">
                 Para quienes tienen correo de la empresa ({DOMINIO}). Después ingresas con tu usuario y contraseña.
-                El RUT es opcional.
+                Además necesitas tu RUT.
               </p>
               <form onSubmit={e => void handleRegistroCorreo(e)} className="space-y-4">
                 {camposNombre}
@@ -644,8 +642,8 @@ export function Login() {
                   <UsuarioInput id="email-registro" value={usuario} onChange={setUsuario} />
                 </Campo>
 
-                <Campo id="rut-registro-correo" label="RUT (opcional)" ayuda="Si lo agregas, tus registros quedan unidos a tu RUT.">
-                  <RutInput id="rut-registro-correo" value={rut} onChange={setRut} opcional />
+                <Campo id="rut-registro-correo" label="RUT" ayuda="Une tus registros a tu persona y evita cuentas duplicadas.">
+                  <RutInput id="rut-registro-correo" value={rut} onChange={setRut} />
                 </Campo>
 
                 {campoFuncion}
