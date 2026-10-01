@@ -6,7 +6,6 @@ export type Rol =
   | 'ingeniero_sstyma'
   | 'calibrador'
   | 'mecanico_terreno'
-  | 'conductor_transporte_personas'
   | 'mecanico_flota_menor'
   | 'mecanico_maquinaria'
   | 'jefe_maquinarias'

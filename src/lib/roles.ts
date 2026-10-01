@@ -2,13 +2,12 @@ import type { Rol } from '../types'
 
 export const ROL_LABELS: Record<Rol, string> = {
   conductor_logistico: 'Asistente Logístico',
-  conductor: 'Conductor',
+  conductor: 'Conductor de Transporte de Persona',
   jefe_faena: 'Jefe de Faena',
   supervisor_operaciones: 'Supervisor de Operaciones',
   ingeniero_sstyma: 'Ingeniero de SSTyMA',
   calibrador: 'Calibrador',
   mecanico_terreno: 'Mecánico Terreno',
-  conductor_transporte_personas: 'Conductor de Transporte de Persona',
   mecanico_flota_menor: 'Mecánico Flota Menor',
   mecanico_maquinaria: 'Mecánico de Maquinaria',
   jefe_maquinarias: 'Jefe de Maquinarias',
@@ -58,7 +57,6 @@ export const ROLES_AUTOSERVICIO: Rol[] = [
   'ingeniero_sstyma',
   'calibrador',
   'mecanico_terreno',
-  'conductor_transporte_personas',
   'mecanico_flota_menor',
   'mecanico_maquinaria',
 ]

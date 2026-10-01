@@ -19,7 +19,7 @@ const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
 // Únicos roles que una persona puede "solicitar" al autoregistrarse — nunca roles de
 // jefatura/administrativos, esos solo los asigna un jefe desde Maestros > Usuarios.
-const ROLES_SOLICITABLES = ['conductor_logistico', 'conductor', 'jefe_faena', 'supervisor_operaciones', 'ingeniero_sstyma', 'calibrador', 'mecanico_terreno', 'conductor_transporte_personas', 'mecanico_flota_menor', 'mecanico_maquinaria']
+const ROLES_SOLICITABLES = ['conductor_logistico', 'conductor', 'jefe_faena', 'supervisor_operaciones', 'ingeniero_sstyma', 'calibrador', 'mecanico_terreno', 'mecanico_flota_menor', 'mecanico_maquinaria']
 const DOMINIO_RUT = 'rut.isidorachile.cl'
 const EMAIL_EMPRESA_RE = /^[a-z0-9._%+-]+@isidorachile\.cl$/
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
