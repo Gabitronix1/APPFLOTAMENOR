@@ -37,7 +37,7 @@ export const PREGUNTAS = [
   },
   {
     key: 'p10' as const, obs: 'obs10' as const, label: 'Kit de Emergencia', short: 'Emergencia',
-    descripcion: 'Revise la presencia y vigencia del extintor, botiquín y triángulos.',
+    descripcion: 'Revise la presencia y buen estado del kit completo: extintor (con carga vigente), gata, botiquín, triángulo y chaleco reflectante.',
   },
   {
     key: 'p11' as const, obs: 'obs11' as const, label: 'Puertas y Portón', short: 'Puertas',
