@@ -4,6 +4,7 @@ import { RequireAuth } from './components/RequireAuth'
 import { RequireRol } from './components/RequireRol'
 import { Header } from './components/Header'
 import { ProvisionalBanner } from './components/ProvisionalBanner'
+import { ActualizacionBanner } from './components/ActualizacionBanner'
 import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
 import { OrdenesTrabajo } from './pages/OrdenesTrabajo'
@@ -96,6 +97,7 @@ export default function App() {
             <Route path="/*" element={<AppLayout />} />
           </Route>
         </Routes>
+        <ActualizacionBanner />
       </AuthProvider>
     </BrowserRouter>
   )
