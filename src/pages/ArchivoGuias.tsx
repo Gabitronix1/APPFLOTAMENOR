@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, FormEvent, ChangeEvent } from 'react'
+import JSZip from 'jszip'
 import { supabase } from '../lib/supabase'
 
 const BUCKET = 'archivo-guias'
@@ -28,20 +29,40 @@ function nombreMesActual(): string {
   return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')} ${MESES[hoy.getMonth()]}`
 }
 
-// Las fotos de celular pesan varios MB: se reducen a ~1800 px (JPEG) antes de subir.
+// Las fotos de celular pesan varios MB: se reducen a ~2600 px (JPEG 90%) antes de subir,
+// suficiente para leer letra manuscrita pequeña y tablas de una guía completa.
 async function comprimirImagen(file: File): Promise<Blob> {
   try {
     const bmp = await createImageBitmap(file)
-    const escala = Math.min(1, 1800 / Math.max(bmp.width, bmp.height))
+    const escala = Math.min(1, 2600 / Math.max(bmp.width, bmp.height))
     const canvas = document.createElement('canvas')
     canvas.width = Math.round(bmp.width * escala)
     canvas.height = Math.round(bmp.height * escala)
     canvas.getContext('2d')?.drawImage(bmp, 0, 0, canvas.width, canvas.height)
-    const blob = await new Promise<Blob | null>(res => canvas.toBlob(res, 'image/jpeg', 0.85))
+    const blob = await new Promise<Blob | null>(res => canvas.toBlob(res, 'image/jpeg', 0.9))
     return blob ?? file
   } catch {
     return file
   }
+}
+
+function limpiarNombre(n: string): string {
+  return n.replace(/[\\/:*?"<>|]+/g, '-').trim() || 'sin-nombre'
+}
+
+function extensionDe(path: string): string {
+  return path.split('.').pop() ?? 'jpg'
+}
+
+function guardarBlob(blob: Blob, nombre: string) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = nombre
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 10_000)
 }
 
 function sinExtension(nombre: string): string {
@@ -60,6 +81,7 @@ export function ArchivoGuias() {
   const [renombrando, setRenombrando] = useState<{ id: string; nombre: string } | null>(null)
   const [visor, setVisor] = useState<Archivo | null>(null)
   const [saving, setSaving] = useState(false)
+  const [descargando, setDescargando] = useState(false)
   const camaraRef = useRef<HTMLInputElement>(null)
   const galeriaRef = useRef<HTMLInputElement>(null)
 
@@ -195,6 +217,66 @@ export function ArchivoGuias() {
     void cargar()
   }
 
+  async function descargarArchivo(a: Archivo) {
+    setDescargando(true)
+    setError(null)
+    const { data, error: err } = await supabase.storage.from(BUCKET).download(a.storage_path)
+    setDescargando(false)
+    if (err || !data) {
+      setError(err?.message ?? 'No se pudo descargar la guía')
+      return
+    }
+    guardarBlob(data, `${limpiarNombre(a.nombre)}.${extensionDe(a.storage_path)}`)
+  }
+
+  // Descarga un ZIP con todas las guías de una carpeta (o del contrato completo si
+  // carpeta es null), respetando las subcarpetas.
+  async function descargarZip(carpeta: Carpeta | null) {
+    if (!contrato) return
+    setDescargando(true)
+    setError(null)
+    try {
+      const zip = new JSZip()
+      let total = 0
+      const recorrer = async (carpetaId: string | null, dir: JSZip) => {
+        let qa = supabase.from('archivo_guias_archivos').select('nombre,storage_path').eq('contrato', contrato)
+        qa = carpetaId ? qa.eq('carpeta_id', carpetaId) : qa.is('carpeta_id', null)
+        let qc = supabase.from('archivo_guias_carpetas').select('id,nombre').eq('contrato', contrato)
+        qc = carpetaId ? qc.eq('parent_id', carpetaId) : qc.is('parent_id', null)
+        const [fa, fc] = await Promise.all([qa, qc])
+        if (fa.error || fc.error) throw (fa.error ?? fc.error)
+        const usados = new Set<string>()
+        for (const f of fa.data ?? []) {
+          const { data, error: err } = await supabase.storage.from(BUCKET).download(f.storage_path as string)
+          if (err || !data) throw err ?? new Error('No se pudo descargar una guía')
+          const base = limpiarNombre(f.nombre as string)
+          const ext = extensionDe(f.storage_path as string)
+          let nombre = `${base}.${ext}`
+          for (let i = 2; usados.has(nombre); i++) nombre = `${base} (${i}).${ext}`
+          usados.add(nombre)
+          dir.file(nombre, data)
+          total++
+        }
+        for (const c of fc.data ?? []) {
+          await recorrer(c.id as string, dir.folder(limpiarNombre(c.nombre as string))!)
+        }
+      }
+      const raiz = carpeta ? carpeta.id : carpetaActual
+      const nombreRaiz = carpeta ? carpeta.nombre : ruta.length ? ruta[ruta.length - 1].nombre : contrato
+      await recorrer(raiz, zip)
+      if (total === 0) {
+        setError('No hay guías para descargar en esta carpeta.')
+        return
+      }
+      const blob = await zip.generateAsync({ type: 'blob', compression: 'STORE' })
+      guardarBlob(blob, `${limpiarNombre(`${contrato} - ${nombreRaiz}`)}.zip`)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo generar la descarga')
+    } finally {
+      setDescargando(false)
+    }
+  }
+
   async function eliminarArchivo(a: Archivo) {
     if (!window.confirm(`¿Eliminar "${a.nombre}"?`)) return
     const { error: err } = await supabase.from('archivo_guias_archivos').delete().eq('id', a.id)
@@ -285,6 +367,13 @@ export function ArchivoGuias() {
             >
               + Nueva carpeta
             </button>
+            <button
+              onClick={() => void descargarZip(null)}
+              disabled={descargando}
+              className="btn-secondary btn-sm disabled:opacity-60"
+            >
+              {descargando ? 'Preparando…' : `⬇️ Descargar ${ruta.length ? 'carpeta' : 'contrato'} (ZIP)`}
+            </button>
             <input ref={camaraRef} type="file" accept="image/*" capture="environment" onChange={onArchivo} className="hidden" />
             <input ref={galeriaRef} type="file" accept="image/*" onChange={onArchivo} className="hidden" />
           </div>
@@ -300,6 +389,14 @@ export function ArchivoGuias() {
                     className="flex-1 min-w-0 text-left font-semibold text-dark truncate"
                   >
                     📁 {c.nombre}
+                  </button>
+                  <button
+                    onClick={() => void descargarZip(c)}
+                    disabled={descargando}
+                    className="text-gray-400 hover:text-primary text-sm disabled:opacity-40"
+                    aria-label={`Descargar carpeta ${c.nombre}`}
+                  >
+                    ⬇️
                   </button>
                   <button
                     onClick={() => void eliminarCarpeta(c)}
@@ -322,6 +419,14 @@ export function ArchivoGuias() {
                   </button>
                   <div className="p-2 flex items-center gap-1">
                     <span className="flex-1 min-w-0 text-xs font-medium text-dark truncate">{a.nombre}</span>
+                    <button
+                      onClick={() => void descargarArchivo(a)}
+                      disabled={descargando}
+                      className="text-gray-400 hover:text-primary text-sm disabled:opacity-40"
+                      aria-label="Descargar guía"
+                    >
+                      ⬇️
+                    </button>
                     <button
                       onClick={() => setRenombrando({ id: a.id, nombre: a.nombre })}
                       className="text-gray-400 hover:text-primary text-sm"
@@ -407,11 +512,13 @@ export function ArchivoGuias() {
               Eliminar
             </button>
             <div className="flex gap-2">
-              {visor.url && (
-                <a href={visor.url} target="_blank" rel="noreferrer" className="btn-secondary btn-sm">
-                  Abrir
-                </a>
-              )}
+              <button
+                onClick={() => void descargarArchivo(visor)}
+                disabled={descargando}
+                className="btn-secondary btn-sm disabled:opacity-60"
+              >
+                {descargando ? 'Descargando…' : '⬇️ Descargar'}
+              </button>
               <button
                 onClick={() => {
                   setRenombrando({ id: visor.id, nombre: visor.nombre })
