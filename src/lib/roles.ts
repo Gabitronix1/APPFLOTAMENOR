@@ -44,9 +44,9 @@ export const ROLES_GUIAS_DESPACHO_GESTION: Rol[] = ['encargado_bodega', ...ROLES
 // El conductor logístico asignado marca despacho/recepción de sus propias guías.
 export const ROLES_GUIAS_DESPACHO: Rol[] = ['conductor_logistico', ...ROLES_GUIAS_DESPACHO_GESTION]
 
-// Archivo de guías de despacho (fotos por contrato y carpetas): solo el Encargado de Bodega.
-// La BD lo refuerza con RLS (es_encargado_bodega).
-export const ROLES_ARCHIVO_GUIAS: Rol[] = ['encargado_bodega']
+// Archivo de guías de despacho (fotos por contrato y carpetas): Encargado de Bodega y Jefe de CDG.
+// La BD lo refuerza con RLS (puede_archivo_guias).
+export const ROLES_ARCHIVO_GUIAS: Rol[] = ['encargado_bodega', 'jefe_cdg']
 
 // Roles que una persona puede "solicitar" al autoregistrarse desde el Login (ver
 // Edge Function solicitar-acceso): solo roles de terreno, nunca jefaturas/administrativos.
