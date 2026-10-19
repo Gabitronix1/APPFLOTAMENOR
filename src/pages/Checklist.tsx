@@ -9,7 +9,7 @@ import { SearchSelect } from '../components/SearchSelect'
 import { CrearConductorModal, type NuevoConductorInput } from '../components/checklist/CrearConductorModal'
 import { CrearVehiculoModal, type NuevoVehiculoInput } from '../components/checklist/CrearVehiculoModal'
 import { appendToCatalogCache } from '../lib/masterDataCache'
-import { PREGUNTAS, CRITICIDAD_ITEM, ESTADO_LABELS_OVERRIDE, type PKey } from '../lib/constants'
+import { PREGUNTAS, PREGUNTAS_CRITICAS, CRITICIDAD_ITEM, ESTADO_LABELS_OVERRIDE, type PKey } from '../lib/constants'
 import { esRolAdministrativo } from '../lib/roles'
 import type { Operador, Patente, LineaOperacion } from '../types'
 import { Logo } from '../components/Logo'
@@ -119,6 +119,7 @@ export function Checklist() {
   const [testigoRojo, setTestigoRojo] = useState(false)
   const [testigoAbs, setTestigoAbs] = useState(false)
   const [afectaVisual, setAfectaVisual] = useState(false)
+  const [modo, setModo] = useState<'completo' | 'critico'>('completo')
   const [done, setDone] = useState(false)
   const [isOffline, setIsOffline] = useState(!navigator.onLine)
 
@@ -319,7 +320,11 @@ export function Checklist() {
         operativo,
         linea: linea || null,
       },
-      respuestas: PREGUNTAS.map((p, idx) => ({
+      // En el checklist crítico solo se envían las preguntas que se mostraron:
+      // las demás no se revisaron y no deben quedar registradas como "buen estado".
+      respuestas: PREGUNTAS.map((p, idx) => ({ p, idx }))
+        .filter(({ p }) => modo === 'completo' || PREGUNTAS_CRITICAS.includes(p.key))
+        .map(({ p, idx }) => ({
         pregunta_id: idx + 1,
         valor: respuestas[idx].falla,
         observacion: respuestas[idx].observacion || null,
@@ -365,7 +370,10 @@ export function Checklist() {
   }))
   const canSubmit = !!operadorId && !!patenteId
 
-  const fallasActivas = PREGUNTAS.filter((_, idx) => respuestas[idx]?.falla)
+  const preguntasVisibles = PREGUNTAS
+    .map((p, idx) => ({ p, idx }))
+    .filter(({ p }) => modo === 'completo' || PREGUNTAS_CRITICAS.includes(p.key))
+  const fallasActivas = preguntasVisibles.filter(({ idx }) => respuestas[idx]?.falla).map(({ p }) => p)
   const camionCombustible = tipoVehiculo.trim().toUpperCase().includes('COMBUSTIBLE')
   const sugerencia = getSugerencia(
     operativo,
@@ -394,6 +402,29 @@ export function Checklist() {
             </div>
           </div>
           {isOffline && <span className="badge-fault shrink-0">Sin conexión</span>}
+        </div>
+      </div>
+
+      <div className="max-w-lg mx-auto px-4 mb-4">
+        <div role="tablist" className="grid grid-cols-2 gap-1 p-1 bg-gray-200/70 rounded-xl">
+          {([
+            { id: 'completo', label: 'Completo', sub: `${PREGUNTAS.length} preguntas` },
+            { id: 'critico', label: 'Crítico', sub: `${PREGUNTAS_CRITICAS.length} preguntas` },
+          ] as const).map(t => (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={modo === t.id}
+              onClick={() => setModo(t.id)}
+              className={`py-2 rounded-lg text-sm font-bold leading-tight transition-colors ${
+                modo === t.id ? 'bg-white text-dark shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {t.label}
+              <span className="block text-[11px] font-normal text-gray-400">{t.sub}</span>
+            </button>
+          ))}
         </div>
       </div>
 
@@ -511,9 +542,15 @@ export function Checklist() {
 
             {/* Preguntas de estado */}
             <div className="space-y-3">
-              <h2 className="font-semibold text-dark text-sm px-1">Revisión de sistemas</h2>
-              <p className="text-xs text-gray-400 px-1">Marca el estado de cada sistema del vehículo</p>
-              {PREGUNTAS.map((p, idx) => {
+              <h2 className="font-semibold text-dark text-sm px-1">
+                {modo === 'critico' ? 'Revisión crítica' : 'Revisión de sistemas'}
+              </h2>
+              <p className="text-xs text-gray-400 px-1">
+                {modo === 'critico'
+                  ? 'Solo los sistemas que, si fallan, pueden obligar a detener el vehículo'
+                  : 'Marca el estado de cada sistema del vehículo'}
+              </p>
+              {preguntasVisibles.map(({ p, idx }, pos) => {
                 const r = respuestas[idx]
                 const estadoLabels = ESTADO_LABELS_OVERRIDE[p.key]
                 return (
@@ -521,7 +558,7 @@ export function Checklist() {
                     key={p.key}
                     className={`bg-white rounded-xl border-2 p-4 transition-colors ${r.falla ? 'border-fault/50 bg-fault/[0.03]' : 'border-gray-200'}`}
                   >
-                    <p className="font-medium text-dark text-sm mb-1">{idx + 1}. {p.label}</p>
+                    <p className="font-medium text-dark text-sm mb-1">{pos + 1}. {p.label}</p>
                     <p className="text-xs text-gray-500 mb-3">{p.descripcion}</p>
                     <div>
                       <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-1.5">Estado</p>
@@ -625,7 +662,7 @@ export function Checklist() {
                 >
                   Circulación nocturna
                 </button>
-                <button
+                {modo === 'completo' && <button
                   type="button"
                   onClick={() => setLluvia(v => !v)}
                   className={`h-12 rounded-xl text-sm font-bold transition-all border ${
@@ -633,7 +670,7 @@ export function Checklist() {
                   }`}
                 >
                   Con lluvia
-                </button>
+                </button>}
               </div>
               {camionCombustible && (
                 <p className="text-xs text-gray-400">Vehículo tipo camión combustible: el kit de emergencia es crítico.</p>

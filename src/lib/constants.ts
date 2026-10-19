@@ -67,6 +67,12 @@ export const CRITICIDAD_ITEM: Record<PKey, { base: 'P' | 'D'; agravante?: { tipo
   p11: { base: 'D' }, // Puertas y Portón
 }
 
+// Checklist "crítico" (diario): las preguntas que la matriz marca como detención
+// inmediata (D) de base —frenos y dirección, asientos y cinturones, puertas y portón—,
+// más Tablero (testigo rojo/ABS) y Luces (circulación nocturna), que escalan a D
+// con su agravante y son las que más pesan en la operación diaria.
+export const PREGUNTAS_CRITICAS: readonly PKey[] = ['p4', 'p5', 'p3', 'p7', 'p11']
+
 // Textos alternativos para los botones "Buen estado"/"Mal estado" en ítems donde
 // esa redacción genérica no calza bien (ej: el tablero no tiene "buen/mal estado", tiene testigos).
 export const ESTADO_LABELS_OVERRIDE: Partial<Record<PKey, { ok: string; falla: string }>> = {
