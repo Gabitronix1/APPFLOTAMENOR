@@ -11,6 +11,8 @@ export interface ChecklistPayload {
     obs_general: string | null
     operativo: boolean
     linea: string | null
+    /** 'critico' = solo las preguntas críticas. Ausente en ítems encolados antes de existir el campo (la BD usa 'completo'). */
+    tipo?: 'completo' | 'critico'
   }
   respuestas: {
     id?: string

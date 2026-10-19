@@ -319,6 +319,7 @@ export function Checklist() {
         obs_general: obsGeneral || null,
         operativo,
         linea: linea || null,
+        tipo: modo,
       },
       // En el checklist crítico solo se envían las preguntas que se mostraron:
       // las demás no se revisaron y no deben quedar registradas como "buen estado".
