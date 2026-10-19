@@ -7,6 +7,7 @@ import { useOnline } from '../hooks/useOnline'
 import {
   ROL_LABELS,
   ROLES_ADMINISTRATIVOS,
+  ROLES_ARCHIVO_GUIAS,
   ROLES_DASHBOARD_FLOTA_MENOR,
   ROLES_GUIAS_DESPACHO,
   ROLES_GUIAS_DESPACHO_GESTION,
@@ -138,6 +139,7 @@ export function Header() {
   const puedeJefe = !!perfil && ROLES_JEFES.includes(perfil.rol)
   const puedeGuias = !!perfil && ROLES_GUIAS_DESPACHO.includes(perfil.rol)
   const puedeGuiasGestion = !!perfil && ROLES_GUIAS_DESPACHO_GESTION.includes(perfil.rol)
+  const puedeArchivoGuias = !!perfil && ROLES_ARCHIVO_GUIAS.includes(perfil.rol)
   const puedeDashboard = !!perfil && ROLES_DASHBOARD_FLOTA_MENOR.includes(perfil.rol)
 
   const mostrarFlotaMenor = puedeIntervencion || puedeOT || puedeAdmin
@@ -203,6 +205,11 @@ export function Header() {
           {puedeGuiasGestion && (
             <NavLink to="/guias-despacho/dashboard" className={navLinkClass}>
               Tablero Guías
+            </NavLink>
+          )}
+          {puedeArchivoGuias && (
+            <NavLink to="/archivo-guias" className={navLinkClass}>
+              Archivo Guías
             </NavLink>
           )}
           {puedeJefe && (
@@ -304,7 +311,7 @@ export function Header() {
             </MobileNavGroup>
           )}
 
-          {(puedeAdmin || puedeGuias || puedeJefe || puedeDashboard) && (
+          {(puedeAdmin || puedeGuias || puedeJefe || puedeDashboard || puedeArchivoGuias) && (
             <MobileNavGroup label="Administración">
               {puedeDashboard && (
                 <NavLink to="/dashboard" className={mobileLinkClass} onClick={() => setMobileOpen(false)}>Dashboard</NavLink>
@@ -314,6 +321,9 @@ export function Header() {
               )}
               {puedeGuiasGestion && (
                 <NavLink to="/guias-despacho/dashboard" className={mobileLinkClass} onClick={() => setMobileOpen(false)}>Tablero Guías</NavLink>
+              )}
+              {puedeArchivoGuias && (
+                <NavLink to="/archivo-guias" className={mobileLinkClass} onClick={() => setMobileOpen(false)}>Archivo Guías</NavLink>
               )}
               {puedeJefe && (
                 <NavLink to="/maestros" className={mobileLinkClass} onClick={() => setMobileOpen(false)}>Maestros</NavLink>

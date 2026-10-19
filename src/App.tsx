@@ -21,10 +21,12 @@ import { MaquinariaDetalle } from './pages/MaquinariaDetalle'
 import { GuiasDespacho } from './pages/GuiasDespacho'
 import { GuiaDespachoDetalle } from './pages/GuiaDespachoDetalle'
 import { DashboardGuiasDespacho } from './pages/DashboardGuiasDespacho'
+import { ArchivoGuias } from './pages/ArchivoGuias'
 import { ListoFaena } from './pages/ListoFaena'
 import { UsoSinSenal } from './pages/UsoSinSenal'
 import {
   ROLES_ADMINISTRATIVOS,
+  ROLES_ARCHIVO_GUIAS,
   ROLES_DASHBOARD_FLOTA_MENOR,
   ROLES_GUIAS_DESPACHO,
   ROLES_GUIAS_DESPACHO_GESTION,
@@ -66,6 +68,9 @@ function AppLayout() {
           <Route element={<RequireRol roles={ROLES_GUIAS_DESPACHO} />}>
             <Route path="guias-despacho" element={<GuiasDespacho />} />
             <Route path="guias-despacho/:id" element={<GuiaDespachoDetalle />} />
+          </Route>
+          <Route element={<RequireRol roles={ROLES_ARCHIVO_GUIAS} />}>
+            <Route path="archivo-guias" element={<ArchivoGuias />} />
           </Route>
           <Route element={<RequireRol roles={ROLES_DASHBOARD_FLOTA_MENOR} />}>
             <Route path="dashboard" element={<Dashboard />} />
