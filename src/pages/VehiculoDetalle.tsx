@@ -55,6 +55,8 @@ function InspeccionDetalle({ insp }: { insp: VInspeccion }) {
       {PREGUNTAS.map(p => {
         const falla = insp[p.key]
         const obs = insp[p.obs]
+        // En el checklist crítico solo se responden algunas preguntas; el resto llega como null.
+        const noRevisada = (falla as boolean | null) == null
         return (
           <div
             key={p.key}
@@ -63,7 +65,9 @@ function InspeccionDetalle({ insp }: { insp: VInspeccion }) {
             }`}
           >
             <p className="font-semibold">{p.label}</p>
-            <p className="mt-0.5">{falla ? obs || 'Falla detectada, sin observación.' : 'Sin falla'}</p>
+            <p className="mt-0.5">
+              {noRevisada ? 'No revisada (checklist crítico)' : falla ? obs || 'Falla detectada, sin observación.' : 'Sin falla'}
+            </p>
           </div>
         )
       })}
