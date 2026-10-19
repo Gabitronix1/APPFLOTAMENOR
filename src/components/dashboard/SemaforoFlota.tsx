@@ -1,4 +1,4 @@
-import { ESTADOS_VEHICULO, ESTADO_VEHICULO_INFO } from '../../lib/vehiculos'
+import { ESTADOS_VEHICULO, infoEstado } from '../../lib/vehiculos'
 import type { EstadoVehiculo } from '../../types'
 
 interface Props {
@@ -6,13 +6,14 @@ interface Props {
   loading: boolean
   selected: EstadoVehiculo | null
   onSelect: (estado: EstadoVehiculo | null) => void
+  estados?: EstadoVehiculo[]
 }
 
-export function SemaforoFlota({ counts, loading, selected, onSelect }: Props) {
+export function SemaforoFlota({ counts, loading, selected, onSelect, estados = ESTADOS_VEHICULO }: Props) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-      {ESTADOS_VEHICULO.map(estado => {
-        const info = ESTADO_VEHICULO_INFO[estado]
+      {estados.map(estado => {
+        const info = infoEstado(estado)
         const isSelected = selected === estado
         return (
           <button

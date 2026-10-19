@@ -8,6 +8,8 @@ export const ESTADOS_VEHICULO: EstadoVehiculo[] = [
   'dado_de_baja',
 ]
 
+export const ESTADOS_MAQUINARIA: EstadoVehiculo[] = [...ESTADOS_VEHICULO, 'r2', 'r6', 'r77']
+
 export const ESTADO_VEHICULO_INFO: Record<
   EstadoVehiculo,
   { label: string; badgeClass: string; dotClass: string }
@@ -17,6 +19,21 @@ export const ESTADO_VEHICULO_INFO: Record<
   en_mantencion: { label: 'En mantención', badgeClass: 'bg-fault/20 text-fault', dotClass: 'bg-fault' },
   taller_externo: { label: 'Taller externo', badgeClass: 'bg-purple-100 text-purple-700', dotClass: 'bg-purple-500' },
   dado_de_baja: { label: 'Dado de baja', badgeClass: 'bg-gray-700 text-white', dotClass: 'bg-gray-300' },
+  r2: { label: 'R2', badgeClass: 'bg-sky-100 text-sky-700', dotClass: 'bg-sky-500' },
+  r6: { label: 'R6', badgeClass: 'bg-amber-100 text-amber-700', dotClass: 'bg-amber-400' },
+  r77: { label: 'R77', badgeClass: 'bg-orange-100 text-orange-700', dotClass: 'bg-orange-500' },
+}
+
+// Un estado que la app no conoce (agregado directo en la BD) se muestra en gris en vez de
+// romper la pantalla.
+export function infoEstado(estado: string) {
+  return (
+    ESTADO_VEHICULO_INFO[estado as EstadoVehiculo] ?? {
+      label: estado,
+      badgeClass: 'bg-gray-200 text-gray-600',
+      dotClass: 'bg-gray-400',
+    }
+  )
 }
 
 export const CONDICION_VEHICULO_INFO: Record<CondicionVehiculo, { label: string; badgeClass: string }> = {

@@ -7,7 +7,7 @@ import { useDocumentosVehiculo } from '../hooks/useDocumentosVehiculo'
 import { useDisponibilidad } from '../hooks/useDisponibilidad'
 import {
   CONDICION_VEHICULO_INFO,
-  ESTADO_VEHICULO_INFO,
+  infoEstado,
   TIPOS_EVENTO_TIMELINE,
   TIPO_EVENTO_INFO,
   sumaFallasActivas,
@@ -325,7 +325,7 @@ export function VehiculoDetalle() {
         <div className="bg-warn/10 border border-warn/30 rounded-xl p-4 mb-6 flex items-center justify-between gap-4 flex-wrap">
           <p className="text-sm text-gray-700">
             Este vehículo no tiene fallas activas pendientes pero sigue marcado como{' '}
-            <span className="font-semibold">{ESTADO_VEHICULO_INFO[patente.estado_actual].label}</span>.
+            <span className="font-semibold">{infoEstado(patente.estado_actual).label}</span>.
             ¿Actualizar a Operativo?
           </p>
           <button onClick={() => abrirModalEstado('operativo')} className="btn-primary btn-sm shrink-0">

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { ESTADOS_VEHICULO } from '../lib/vehiculos'
+import { ESTADOS_MAQUINARIA } from '../lib/vehiculos'
 import type { EstadoMaquinaria } from '../types'
 
 export interface MaquinariaEstado {
@@ -16,7 +16,7 @@ interface HistorialRow {
   maquinaria_id: string
   estado: EstadoMaquinaria
   motivo: string | null
-  created_at: string
+  fecha: string
 }
 
 interface State {
@@ -27,7 +27,7 @@ interface State {
 }
 
 function countsVacios(): Record<EstadoMaquinaria, number> {
-  return ESTADOS_VEHICULO.reduce((acc, e) => ({ ...acc, [e]: 0 }), {} as Record<EstadoMaquinaria, number>)
+  return ESTADOS_MAQUINARIA.reduce((acc, e) => ({ ...acc, [e]: 0 }), {} as Record<EstadoMaquinaria, number>)
 }
 
 export function useEstadoFlotaMaquinaria(enabled: boolean): State {
@@ -63,9 +63,9 @@ export function useEstadoFlotaMaquinaria(enabled: boolean): State {
         const histRes = maquinariaIds.length
           ? await supabase
               .from('estado_maquinaria_historial')
-              .select('maquinaria_id, estado, motivo, created_at')
+              .select('maquinaria_id, estado, motivo, fecha')
               .in('maquinaria_id', maquinariaIds)
-              .order('created_at', { ascending: false })
+              .order('fecha', { ascending: false })
           : { data: [] as HistorialRow[], error: null }
         if (histRes.error) throw histRes.error
 
@@ -84,7 +84,7 @@ export function useEstadoFlotaMaquinaria(enabled: boolean): State {
             nombre: m.nombre,
             estado: m.estado_actual,
             motivo: ultimo?.motivo ?? null,
-            fecha: ultimo?.created_at ?? null,
+            fecha: ultimo?.fecha ?? null,
           }
         })
 

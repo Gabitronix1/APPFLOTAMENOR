@@ -1,7 +1,7 @@
 import { useState, FormEvent } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
-import { ESTADOS_VEHICULO, ESTADO_VEHICULO_INFO } from '../../lib/vehiculos'
+import { ESTADOS_MAQUINARIA, ESTADO_VEHICULO_INFO } from '../../lib/vehiculos'
 import type { EstadoMaquinaria } from '../../types'
 
 interface Props {
@@ -52,7 +52,7 @@ export function CambiarEstadoMaquinariaModal({ maquinariaId, estadoActual, onClo
               className="input"
               required
             >
-              {ESTADOS_VEHICULO.map(e => (
+              {ESTADOS_MAQUINARIA.map(e => (
                 <option key={e} value={e}>{ESTADO_VEHICULO_INFO[e].label}</option>
               ))}
             </select>

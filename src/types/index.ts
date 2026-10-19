@@ -113,6 +113,11 @@ export type EstadoVehiculo =
   | 'en_mantencion'
   | 'taller_externo'
   | 'dado_de_baja'
+  // Códigos de detención operacional de maquinaria (ej. R6: sin operador o sin actividad).
+  // La BD los admite también en vehículos, pero en la app solo se ofrecen para maquinaria.
+  | 'r2'
+  | 'r6'
+  | 'r77'
 
 export type CondicionVehiculo = 'INTERNO' | 'ARRIENDO'
 

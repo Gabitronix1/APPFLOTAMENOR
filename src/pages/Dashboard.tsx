@@ -22,6 +22,7 @@ import { SecPrioridades } from '../components/dashboard/SecPrioridades'
 import { SecTrazabilidadOperadores } from '../components/dashboard/SecTrazabilidadOperadores'
 import { SecCobertura } from '../components/dashboard/SecCobertura'
 import { fmtDate } from '../lib/constants'
+import { ESTADOS_MAQUINARIA } from '../lib/vehiculos'
 import { esRolAdministrativo, puedeVerDashboardFlotaMenor } from '../lib/roles'
 import type { EstadoMaquinaria, EstadoVehiculo, VInspeccion } from '../types'
 
@@ -199,6 +200,7 @@ function DashboardContent() {
               loading={estadoFlotaMaquinaria.loading}
               selected={estadoMaquinariaSeleccionado}
               onSelect={setEstadoMaquinariaSeleccionado}
+              estados={ESTADOS_MAQUINARIA}
             />
           </PanelSection>
 
