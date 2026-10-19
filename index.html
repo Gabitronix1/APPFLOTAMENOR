@@ -14,14 +14,30 @@
       // Autorecuperación: una app instalada con caché de una versión anterior puede pedir archivos que
       // el deploy ya reemplazó y quedar en blanco. Si la app no se monta, se limpia el service worker
       // y el caché de archivos (no IndexedDB: los checklists pendientes y borradores se conservan)
-      // y se recarga una sola vez.
+      // y se recarga una sola vez. Si tras eso sigue sin montarse, se muestra el motivo en pantalla.
+      var erroresInicio = []
+      window.addEventListener('error', function (e) {
+        var t = e.target && (e.target.src || e.target.href)
+        erroresInicio.push((e.message || 'Error al cargar') + ' (' + String(t || e.filename || '').split('/').pop() + ')')
+      }, true)
+      window.addEventListener('unhandledrejection', function (e) {
+        erroresInicio.push(String((e.reason && e.reason.message) || e.reason))
+      })
       setTimeout(function () {
         var root = document.getElementById('root')
         if (!root || root.childElementCount > 0) return
+        var yaIntentado = false
         try {
-          if (sessionStorage.getItem('di-recuperacion')) return
+          yaIntentado = !!sessionStorage.getItem('di-recuperacion')
           sessionStorage.setItem('di-recuperacion', '1')
-        } catch (e) { return }
+        } catch (e) { yaIntentado = true }
+        if (yaIntentado) {
+          var pre = document.createElement('pre')
+          pre.style.cssText = 'padding:16px;font:12px monospace;white-space:pre-wrap;word-break:break-word;color:#C0402A'
+          pre.textContent = 'No se pudo iniciar la app.\n\n' + (erroresInicio.join('\n') || 'Sin detalle del error.')
+          root.appendChild(pre)
+          return
+        }
         var limpiar = []
         if ('serviceWorker' in navigator) {
           limpiar.push(navigator.serviceWorker.getRegistrations().then(function (rs) {
