@@ -398,7 +398,7 @@ export function Checklist() {
           <div className="flex items-center gap-3 min-w-0">
             <Logo variante="isotipo" className="h-10 shrink-0" />
             <div className="min-w-0">
-              <h1 className="text-lg font-bold text-dark leading-tight">Checklist Diario</h1>
+              <h1 className="text-lg font-bold text-dark leading-tight">Checklist</h1>
               <p className="text-xs text-gray-400">{today}</p>
             </div>
           </div>
@@ -663,7 +663,7 @@ export function Checklist() {
                 >
                   Circulación nocturna
                 </button>
-                {modo === 'completo' && <button
+                <button
                   type="button"
                   onClick={() => setLluvia(v => !v)}
                   className={`h-12 rounded-xl text-sm font-bold transition-all border ${
@@ -671,7 +671,7 @@ export function Checklist() {
                   }`}
                 >
                   Con lluvia
-                </button>}
+                </button>
               </div>
               {camionCombustible && (
                 <p className="text-xs text-gray-400">Vehículo tipo camión combustible: el kit de emergencia es crítico.</p>
