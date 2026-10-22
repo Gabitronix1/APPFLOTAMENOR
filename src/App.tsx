@@ -7,6 +7,7 @@ import { ProvisionalBanner } from './components/ProvisionalBanner'
 import { ActualizacionBanner } from './components/ActualizacionBanner'
 import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
+import { TableroChecklist } from './pages/TableroChecklist'
 import { OrdenesTrabajo } from './pages/OrdenesTrabajo'
 import { Maestros } from './pages/Maestros'
 import { Checklist } from './pages/Checklist'
@@ -74,6 +75,7 @@ function AppLayout() {
           </Route>
           <Route element={<RequireRol roles={ROLES_DASHBOARD_FLOTA_MENOR} />}>
             <Route path="dashboard" element={<Dashboard />} />
+            <Route path="tablero-checklist" element={<TableroChecklist />} />
           </Route>
           <Route element={<RequireRol roles={ROLES_ADMINISTRATIVOS} />}>
             <Route path="vehiculos" element={<Vehiculos />} />

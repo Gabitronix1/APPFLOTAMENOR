@@ -1,3 +1,4 @@
+import type { VInspeccion } from '../types'
 import { createContext, useContext, useReducer, ReactNode, createElement } from 'react'
 
 export interface Filters {
@@ -55,4 +56,17 @@ export function useFilters() {
   const ctx = useContext(FiltersContext)
   if (!ctx) throw new Error('useFilters debe usarse dentro de FiltersProvider')
   return ctx
+}
+
+export function applyFilters(data: VInspeccion[], f: Filters): VInspeccion[] {
+  return data.filter(r => {
+    if (f.fundo && r.fundo !== f.fundo) return false
+    if (f.contrato && r.contrato !== f.contrato) return false
+    if (f.conductor && r.conductor !== f.conductor) return false
+    if (f.patente && r.patente !== f.patente) return false
+    if (f.desde && r.fecha.slice(0, 10) < f.desde) return false
+    if (f.hasta && r.fecha.slice(0, 10) > f.hasta) return false
+    if (f.soloConProblemas && r.n_fallas === 0) return false
+    return true
+  })
 }

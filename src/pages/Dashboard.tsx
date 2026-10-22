@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { FiltersProvider, useFilters } from '../hooks/useFilters'
-import type { Filters } from '../hooks/useFilters'
+import { FiltersProvider, useFilters, applyFilters } from '../hooks/useFilters'
 import { useInspecciones } from '../hooks/useInspecciones'
 import { useEstadoFlota } from '../hooks/useEstadoFlota'
 import { useDisponibilidad } from '../hooks/useDisponibilidad'
@@ -24,20 +23,7 @@ import { SecCobertura } from '../components/dashboard/SecCobertura'
 import { fmtDate } from '../lib/constants'
 import { ESTADOS_MAQUINARIA } from '../lib/vehiculos'
 import { esRolAdministrativo, puedeVerDashboardFlotaMenor } from '../lib/roles'
-import type { EstadoMaquinaria, EstadoVehiculo, VInspeccion } from '../types'
-
-function applyFilters(data: VInspeccion[], f: Filters): VInspeccion[] {
-  return data.filter(r => {
-    if (f.fundo && r.fundo !== f.fundo) return false
-    if (f.contrato && r.contrato !== f.contrato) return false
-    if (f.conductor && r.conductor !== f.conductor) return false
-    if (f.patente && r.patente !== f.patente) return false
-    if (f.desde && r.fecha.slice(0, 10) < f.desde) return false
-    if (f.hasta && r.fecha.slice(0, 10) > f.hasta) return false
-    if (f.soloConProblemas && r.n_fallas === 0) return false
-    return true
-  })
-}
+import type { EstadoMaquinaria, EstadoVehiculo } from '../types'
 
 function DashboardContent() {
   const { filters } = useFilters()

@@ -197,6 +197,11 @@ export function Header() {
               Dashboard
             </NavLink>
           )}
+          {puedeDashboard && (
+            <NavLink to="/tablero-checklist" className={navLinkClass}>
+              Tablero Checklist
+            </NavLink>
+          )}
           {puedeGuias && (
             <NavLink to="/guias-despacho" className={navLinkClass}>
               Guías de Despacho
@@ -315,6 +320,9 @@ export function Header() {
             <MobileNavGroup label="Administración">
               {puedeDashboard && (
                 <NavLink to="/dashboard" className={mobileLinkClass} onClick={() => setMobileOpen(false)}>Dashboard</NavLink>
+              )}
+              {puedeDashboard && (
+                <NavLink to="/tablero-checklist" className={mobileLinkClass} onClick={() => setMobileOpen(false)}>Tablero Checklist</NavLink>
               )}
               {puedeGuias && (
                 <NavLink to="/guias-despacho" className={mobileLinkClass} onClick={() => setMobileOpen(false)}>Guías de Despacho</NavLink>
