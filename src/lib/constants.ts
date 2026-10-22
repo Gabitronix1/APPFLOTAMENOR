@@ -67,7 +67,7 @@ export const CRITICIDAD_ITEM: Record<PKey, { base: 'P' | 'D'; agravante?: { tipo
   p11: { base: 'D' }, // Puertas y Portón
 }
 
-// Checklist "crítico" (diario): las preguntas que la matriz marca como detención
+// Checklist "diario" (valor interno 'critico'): las preguntas que la matriz marca como detención
 // inmediata (D) de base —frenos y dirección, asientos y cinturones, puertas y portón—,
 // más Tablero (testigo rojo/ABS), Luces (circulación nocturna) y Parabrisas (lluvia),
 // que escalan a D con su agravante y son las que más pesan en la operación diaria.

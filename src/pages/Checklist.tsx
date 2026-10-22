@@ -410,7 +410,7 @@ export function Checklist() {
         <div role="tablist" className="grid grid-cols-2 gap-1 p-1 bg-gray-200/70 rounded-xl">
           {([
             { id: 'completo', label: 'Completo', sub: `${PREGUNTAS.length} preguntas` },
-            { id: 'critico', label: 'Crítico', sub: `${PREGUNTAS_CRITICAS.length} preguntas` },
+            { id: 'critico', label: 'Diario', sub: `${PREGUNTAS_CRITICAS.length} preguntas` },
           ] as const).map(t => (
             <button
               key={t.id}
@@ -544,7 +544,7 @@ export function Checklist() {
             {/* Preguntas de estado */}
             <div className="space-y-3">
               <h2 className="font-semibold text-dark text-sm px-1">
-                {modo === 'critico' ? 'Revisión crítica' : 'Revisión de sistemas'}
+                {modo === 'critico' ? 'Revisión diaria' : 'Revisión de sistemas'}
               </h2>
               <p className="text-xs text-gray-400 px-1">
                 {modo === 'critico'

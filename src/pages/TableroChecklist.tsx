@@ -150,7 +150,7 @@ function TableroContent() {
           <p className="text-sm text-gray-500">Checklist realizados y sus métricas.</p>
         </div>
         <div className="flex rounded-lg border border-gray-300 overflow-hidden text-sm bg-white">
-          {([['todos', 'Todos'], ['completo', 'Completos'], ['critico', 'Críticos']] as const).map(([v, l]) => (
+          {([['todos', 'Todos'], ['completo', 'Completos'], ['critico', 'Diarios']] as const).map(([v, l]) => (
             <button
               key={v}
               type="button"
@@ -174,7 +174,7 @@ function TableroContent() {
         <KpiCard label="No operativos" value={fmtNum(metricas.noOperativos)} accent={metricas.noOperativos > 0} />
         <KpiCard label="Fallas reportadas" value={fmtNum(metricas.fallas)} />
         <KpiCard label="Fallas resueltas" value={`${metricas.pctResueltas}% (${fmtNum(metricas.resueltas)})`} />
-        <KpiCard label="Checklist críticos" value={fmtNum(metricas.criticos)} />
+        <KpiCard label="Checklist diarios" value={fmtNum(metricas.criticos)} />
         <KpiCard label="Checklist completos" value={fmtNum(metricas.total - metricas.criticos)} />
       </div>
 
@@ -298,7 +298,7 @@ function TableroContent() {
                       <td className="table-td">{r.conductor}</td>
                       <td className="table-td">{r.fundo ?? '—'}</td>
                       <td className="table-td text-center">
-                        <span className={r.tipo === 'critico' ? 'badge-warn' : 'badge-ok'}>{r.tipo === 'critico' ? 'Crítico' : 'Completo'}</span>
+                        <span className={r.tipo === 'critico' ? 'badge-warn' : 'badge-ok'}>{r.tipo === 'critico' ? 'Diario' : 'Completo'}</span>
                       </td>
                       <td className="table-td text-center font-mono">{r.n_fallas}</td>
                       <td className="table-td text-center">
