@@ -119,7 +119,7 @@ export function Checklist() {
   const [testigoRojo, setTestigoRojo] = useState(false)
   const [testigoAbs, setTestigoAbs] = useState(false)
   const [afectaVisual, setAfectaVisual] = useState(false)
-  const [modo, setModo] = useState<'completo' | 'critico'>('completo')
+  const [modo, setModo] = useState<'completo' | 'diario'>('completo')
   const [done, setDone] = useState(false)
   const [isOffline, setIsOffline] = useState(!navigator.onLine)
 
@@ -410,7 +410,7 @@ export function Checklist() {
         <div role="tablist" className="grid grid-cols-2 gap-1 p-1 bg-gray-200/70 rounded-xl">
           {([
             { id: 'completo', label: 'Completo', sub: `${PREGUNTAS.length} preguntas` },
-            { id: 'critico', label: 'Diario', sub: `${PREGUNTAS_CRITICAS.length} preguntas` },
+            { id: 'diario', label: 'Diario', sub: `${PREGUNTAS_CRITICAS.length} preguntas` },
           ] as const).map(t => (
             <button
               key={t.id}
@@ -544,10 +544,10 @@ export function Checklist() {
             {/* Preguntas de estado */}
             <div className="space-y-3">
               <h2 className="font-semibold text-dark text-sm px-1">
-                {modo === 'critico' ? 'Revisión diaria' : 'Revisión de sistemas'}
+                {modo === 'diario' ? 'Revisión diaria' : 'Revisión de sistemas'}
               </h2>
               <p className="text-xs text-gray-400 px-1">
-                {modo === 'critico'
+                {modo === 'diario'
                   ? 'Solo los sistemas que, si fallan, pueden obligar a detener el vehículo'
                   : 'Marca el estado de cada sistema del vehículo'}
               </p>

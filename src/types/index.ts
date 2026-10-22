@@ -68,7 +68,7 @@ export interface VInspeccion {
   obs11: string | null
   n_fallas: number
   n_resueltas: number
-  tipo: 'completo' | 'critico'
+  tipo: 'completo' | 'diario'
 }
 
 export type EstadoOT = 'abierta' | 'asignada' | 'en_progreso' | 'cerrada' | 'cancelada'

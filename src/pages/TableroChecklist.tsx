@@ -11,7 +11,7 @@ import { downloadCsv, toCsv } from '../lib/csv'
 import { BRAND, PREGUNTAS, barColor, complianceColor, fmtDate, fmtNum } from '../lib/constants'
 import type { VInspeccion } from '../types'
 
-type TipoFiltro = 'todos' | 'completo' | 'critico'
+type TipoFiltro = 'todos' | 'completo' | 'diario'
 
 const PAGE_SIZE = 25
 
@@ -57,7 +57,7 @@ function TableroContent() {
       resueltas,
       pctResueltas: pct(resueltas, fallas),
       promedioDia: dias.size ? (total / dias.size).toFixed(1) : '0',
-      criticos: data.filter(r => r.tipo === 'critico').length,
+      diarios: data.filter(r => r.tipo === 'diario').length,
     }
   }, [data])
 
@@ -150,7 +150,7 @@ function TableroContent() {
           <p className="text-sm text-gray-500">Checklist realizados y sus métricas.</p>
         </div>
         <div className="flex rounded-lg border border-gray-300 overflow-hidden text-sm bg-white">
-          {([['todos', 'Todos'], ['completo', 'Completos'], ['critico', 'Diarios']] as const).map(([v, l]) => (
+          {([['todos', 'Todos'], ['completo', 'Completos'], ['diario', 'Diarios']] as const).map(([v, l]) => (
             <button
               key={v}
               type="button"
@@ -174,8 +174,8 @@ function TableroContent() {
         <KpiCard label="No operativos" value={fmtNum(metricas.noOperativos)} accent={metricas.noOperativos > 0} />
         <KpiCard label="Fallas reportadas" value={fmtNum(metricas.fallas)} />
         <KpiCard label="Fallas resueltas" value={`${metricas.pctResueltas}% (${fmtNum(metricas.resueltas)})`} />
-        <KpiCard label="Checklist diarios" value={fmtNum(metricas.criticos)} />
-        <KpiCard label="Checklist completos" value={fmtNum(metricas.total - metricas.criticos)} />
+        <KpiCard label="Checklist diarios" value={fmtNum(metricas.diarios)} />
+        <KpiCard label="Checklist completos" value={fmtNum(metricas.total - metricas.diarios)} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6">
@@ -298,7 +298,7 @@ function TableroContent() {
                       <td className="table-td">{r.conductor}</td>
                       <td className="table-td">{r.fundo ?? '—'}</td>
                       <td className="table-td text-center">
-                        <span className={r.tipo === 'critico' ? 'badge-warn' : 'badge-ok'}>{r.tipo === 'critico' ? 'Diario' : 'Completo'}</span>
+                        <span className={r.tipo === 'diario' ? 'badge-warn' : 'badge-ok'}>{r.tipo === 'diario' ? 'Diario' : 'Completo'}</span>
                       </td>
                       <td className="table-td text-center font-mono">{r.n_fallas}</td>
                       <td className="table-td text-center">
