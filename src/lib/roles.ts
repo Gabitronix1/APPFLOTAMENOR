@@ -94,6 +94,9 @@ export function puedeGestionarOT(rol: Rol | undefined): boolean {
   return esRolAdministrativo(rol) || rol === 'encargado_flota_menor'
 }
 
+// Tablero de checklist (métricas y listado de checklist realizados): por ahora solo Jefe de CDG.
+export const ROLES_TABLERO_CHECKLIST: Rol[] = ['jefe_cdg']
+
 export function getDefaultRoute(rol: Rol | undefined): string {
   if (esRolAdministrativo(rol)) return '/dashboard'
   if (rol === 'encargado_flota_menor') return '/dashboard'

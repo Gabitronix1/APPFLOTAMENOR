@@ -34,6 +34,7 @@ import {
   ROLES_INTERVENCION,
   ROLES_INTERVENCION_MAQUINARIA,
   ROLES_MAESTROS,
+  ROLES_TABLERO_CHECKLIST,
   ROLES_ORDENES_TRABAJO,
   getDefaultRoute,
 } from './lib/roles'
@@ -75,6 +76,8 @@ function AppLayout() {
           </Route>
           <Route element={<RequireRol roles={ROLES_DASHBOARD_FLOTA_MENOR} />}>
             <Route path="dashboard" element={<Dashboard />} />
+          </Route>
+          <Route element={<RequireRol roles={ROLES_TABLERO_CHECKLIST} />}>
             <Route path="tablero-checklist" element={<TableroChecklist />} />
           </Route>
           <Route element={<RequireRol roles={ROLES_ADMINISTRATIVOS} />}>

@@ -15,6 +15,7 @@ import {
   ROLES_INTERVENCION_MAQUINARIA,
   ROLES_JEFES,
   ROLES_ORDENES_TRABAJO,
+  ROLES_TABLERO_CHECKLIST,
 } from '../lib/roles'
 import { Logo } from './Logo'
 
@@ -140,6 +141,7 @@ export function Header() {
   const puedeGuias = !!perfil && ROLES_GUIAS_DESPACHO.includes(perfil.rol)
   const puedeGuiasGestion = !!perfil && ROLES_GUIAS_DESPACHO_GESTION.includes(perfil.rol)
   const puedeArchivoGuias = !!perfil && ROLES_ARCHIVO_GUIAS.includes(perfil.rol)
+  const puedeTableroChecklist = !!perfil && ROLES_TABLERO_CHECKLIST.includes(perfil.rol)
   const puedeDashboard = !!perfil && ROLES_DASHBOARD_FLOTA_MENOR.includes(perfil.rol)
 
   const mostrarFlotaMenor = puedeIntervencion || puedeOT || puedeAdmin
@@ -197,7 +199,7 @@ export function Header() {
               Dashboard
             </NavLink>
           )}
-          {puedeDashboard && (
+          {puedeTableroChecklist && (
             <NavLink to="/tablero-checklist" className={navLinkClass}>
               Tablero Checklist
             </NavLink>
@@ -316,12 +318,12 @@ export function Header() {
             </MobileNavGroup>
           )}
 
-          {(puedeAdmin || puedeGuias || puedeJefe || puedeDashboard || puedeArchivoGuias) && (
+          {(puedeAdmin || puedeGuias || puedeJefe || puedeDashboard || puedeArchivoGuias || puedeTableroChecklist) && (
             <MobileNavGroup label="Administración">
               {puedeDashboard && (
                 <NavLink to="/dashboard" className={mobileLinkClass} onClick={() => setMobileOpen(false)}>Dashboard</NavLink>
               )}
-              {puedeDashboard && (
+              {puedeTableroChecklist && (
                 <NavLink to="/tablero-checklist" className={mobileLinkClass} onClick={() => setMobileOpen(false)}>Tablero Checklist</NavLink>
               )}
               {puedeGuias && (
