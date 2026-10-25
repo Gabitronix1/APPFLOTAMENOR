@@ -193,8 +193,8 @@ function TableroContent() {
     downloadCsv(`checklist_${new Date().toISOString().slice(0, 10)}.csv`, csv)
   }
 
-  // Patentes con fallas (cada falla con su fecha de reporte y estado de la OT) y patentes sin fallas.
-  function detallePorPatente(): { conFallas: InformePatente[]; sinFallas: string[] } {
+  // Patentes con fallas, cada una con su fecha de reporte y el estado de su OT.
+  function detallePorPatente(): InformePatente[] {
     const m = new Map<string, InformePatente>()
     ;[...data].sort((a, b) => a.fecha.localeCompare(b.fecha)).forEach(r => {
       const g = m.get(r.patente) ?? { patente: r.patente, contrato: '', checklist: 0, conFalla: 0, fallas: [] }
@@ -210,13 +210,9 @@ function TableroContent() {
       g.fallas.push(...fallas)
       m.set(r.patente, g)
     })
-    const todas = [...m.values()]
-    return {
-      conFallas: todas
-        .filter(g => g.fallas.length)
-        .sort((a, b) => b.fallas.length - a.fallas.length || a.patente.localeCompare(b.patente)),
-      sinFallas: todas.filter(g => !g.fallas.length).map(g => g.patente),
-    }
+    return [...m.values()]
+      .filter(g => g.fallas.length)
+      .sort((a, b) => b.fallas.length - a.fallas.length || a.patente.localeCompare(b.patente))
   }
 
   async function generarInforme() {
@@ -256,8 +252,7 @@ function TableroContent() {
           porDia,
           porItem,
           porContrato,
-          porPatente: detalle.conFallas,
-          sinFallas: detalle.sinFallas,
+          porPatente: detalle,
         },
         `informe_checklist_${hoy.toISOString().slice(0, 10)}.png`,
       )

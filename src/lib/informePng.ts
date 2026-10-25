@@ -40,8 +40,6 @@ export interface InformeData {
   porContrato: InformeContrato[]
   /** Patentes con al menos una falla, con el detalle de cada una. */
   porPatente: InformePatente[]
-  /** Patentes que reportaron checklist sin ninguna falla. */
-  sinFallas: string[]
 }
 
 const W = 1600
@@ -81,23 +79,6 @@ function recorta(ctx: Ctx, s: string, maxAncho: number, size = 16, weight = 400)
   let t = s
   while (t.length > 1 && ctx.measureText(`${t}…`).width > maxAncho) t = t.slice(0, -1)
   return `${t}…`
-}
-
-function envuelve(ctx: Ctx, s: string, maxAncho: number, size: number): string[] {
-  ctx.font = `400 ${size}px ${FUENTE}`
-  const lineas: string[] = []
-  let actual = ''
-  s.split(' ').forEach(palabra => {
-    const prueba = actual ? `${actual} ${palabra}` : palabra
-    if (actual && ctx.measureText(prueba).width > maxAncho) {
-      lineas.push(actual)
-      actual = palabra
-    } else {
-      actual = prueba
-    }
-  })
-  if (actual) lineas.push(actual)
-  return lineas
 }
 
 function caja(ctx: Ctx, x: number, y: number, w: number, h: number, r: number, relleno: string, borde?: string) {
@@ -285,18 +266,15 @@ function recortaDetalle(porPatente: InformePatente[]): { grupos: GrupoVisible[];
   return { grupos, ocultas }
 }
 
-function alturaDetalle(grupos: GrupoVisible[], ocultas: number, lineasSinFallas: number): number {
+function alturaDetalle(grupos: GrupoVisible[], ocultas: number): number {
   const filas = grupos.reduce((s, g) => s + g.fallas.length, 0)
-  const sinFallas = lineasSinFallas ? 24 + lineasSinFallas * 22 + 12 : 0
-  return 64 + 30 + grupos.length * GRUPO_H + filas * FILA_FALLA_H + (ocultas ? 30 : 0) + (grupos.length ? 0 : 40) + sinFallas + 14
+  return 64 + 30 + grupos.length * GRUPO_H + filas * FILA_FALLA_H + (ocultas ? 30 : 0) + (grupos.length ? 0 : 40) + 14
 }
 
 function dibujaDetalle(
   ctx: Ctx,
   grupos: GrupoVisible[],
   ocultas: number,
-  lineasSinFallas: string[],
-  totalSinFallas: number,
   y: number,
   h: number,
 ): number {
@@ -344,27 +322,17 @@ function dibujaDetalle(
     yy += 30
   }
 
-  if (lineasSinFallas.length) {
-    yy += 8
-    texto(ctx, `Sin fallas en el periodo (${totalSinFallas} patente${totalSinFallas !== 1 ? 's' : ''}):`, x0, yy + 16, { size: 14, weight: 700, color: BRAND.primary })
-    lineasSinFallas.forEach((l, i) => texto(ctx, l, x0, yy + 38 + i * 22, { size: 14, color: '#4B5563' }))
-  }
   return y + h
 }
 
 export async function descargarInformePng(d: InformeData, nombreArchivo: string): Promise<void> {
-  const medida = document.createElement('canvas').getContext('2d')
-  if (!medida) throw new Error('No se pudo generar la imagen en este dispositivo.')
-
   const { grupos, ocultas } = recortaDetalle(d.porPatente)
-  const textoSinFallas = [...d.sinFallas].sort().join(' · ')
-  const lineasSinFallas = textoSinFallas ? envuelve(medida, textoSinFallas, W - PAD * 2 - 40, 14).slice(0, 4) : []
 
   const filasKpi = Math.ceil(d.kpis.length / KPI_COLS)
   const altoKpis = filasKpi * KPI_H + (filasKpi - 1) * KPI_GAP
   const altoGraficos = 400
   const altoContrato = 64 + FILA_CONTRATO_H * (Math.min(d.porContrato.length, MAX_CONTRATOS) + 1) + (d.porContrato.length > MAX_CONTRATOS ? 26 : 0)
-  const altoDetalle = alturaDetalle(grupos, ocultas, lineasSinFallas.length)
+  const altoDetalle = alturaDetalle(grupos, ocultas)
   const alto = 150 + 28 + altoKpis + 28 + altoGraficos + 28 + altoContrato + 28 + altoDetalle + 28 + 40
 
   const canvas = document.createElement('canvas')
@@ -395,7 +363,7 @@ export async function descargarInformePng(d: InformeData, nombreArchivo: string)
   y += altoGraficos + 28
 
   y = dibujaPorContrato(ctx, d.porContrato, y) + 28
-  y = dibujaDetalle(ctx, grupos, ocultas, lineasSinFallas, d.sinFallas.length, y, altoDetalle) + 28
+  y = dibujaDetalle(ctx, grupos, ocultas, y, altoDetalle) + 28
   texto(ctx, `Generado el ${d.generado}`, PAD, y + 8, { size: 14, color: BRAND.muted })
 
   const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'))
