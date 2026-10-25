@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import {
   Bar, BarChart, CartesianGrid, Cell, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts'
@@ -8,6 +8,8 @@ import { FilterBar } from '../components/dashboard/FilterBar'
 import { PanelSection } from '../components/dashboard/PanelSection'
 import { KpiCard } from '../components/vehiculos/KpiCard'
 import { downloadCsv, toCsv } from '../lib/csv'
+import { fetchAllPages } from '../lib/fetchAllPages'
+import { descargarInformePng } from '../lib/informePng'
 import { BRAND, PREGUNTAS, barColor, complianceColor, fmtDate, fmtNum } from '../lib/constants'
 import type { VInspeccion } from '../types'
 
@@ -17,6 +19,18 @@ const PAGE_SIZE = 25
 
 function pct(n: number, total: number): number {
   return total ? Math.round((n / total) * 100) : 0
+}
+
+// Las columnas n_fallas / n_resueltas de v_inspecciones se inflan (la vista cruza respuestas con
+// resoluciones), así que las fallas se cuentan desde las respuestas de cada checklist.
+function nFallas(r: VInspeccion): number {
+  return PREGUNTAS.filter(p => r[p.key] === true).length
+}
+
+interface ResolucionMin {
+  inspeccion_id: string
+  pregunta_id: number
+  estado: string
 }
 
 function hora(iso: string): string {
@@ -33,6 +47,30 @@ function TableroContent() {
   const [busqueda, setBusqueda] = useState('')
   const [pagina, setPagina] = useState(0)
   const [abierta, setAbierta] = useState<string | null>(null)
+  const [resoluciones, setResoluciones] = useState<ResolucionMin[] | null>(null)
+  const [generando, setGenerando] = useState(false)
+
+  useEffect(() => {
+    fetchAllPages<ResolucionMin>('resoluciones', 'inspeccion_id,pregunta_id,estado')
+      .then(setResoluciones)
+      .catch(() => setResoluciones(null))
+  }, [])
+
+  // Una falla está resuelta solo cuando su orden de trabajo está cerrada.
+  const resueltasPorInspeccion = useMemo(() => {
+    const m = new Map<string, Set<number>>()
+    resoluciones?.forEach(r => {
+      if (r.estado !== 'cerrada') return
+      const set = m.get(r.inspeccion_id) ?? new Set<number>()
+      set.add(r.pregunta_id)
+      m.set(r.inspeccion_id, set)
+    })
+    return m
+  }, [resoluciones])
+
+  function nResueltas(r: VInspeccion): number {
+    return Math.min(resueltasPorInspeccion.get(r.id)?.size ?? 0, nFallas(r))
+  }
 
   const data = useMemo(() => {
     const base = applyFilters(allInspecciones, filters)
@@ -41,10 +79,10 @@ function TableroContent() {
 
   const metricas = useMemo(() => {
     const total = data.length
-    const conFalla = data.filter(r => r.n_fallas > 0).length
+    const conFalla = data.filter(r => nFallas(r) > 0).length
     const noOperativos = data.filter(r => !r.operativo).length
-    const fallas = data.reduce((s, r) => s + r.n_fallas, 0)
-    const resueltas = data.reduce((s, r) => s + Math.min(r.n_resueltas, r.n_fallas), 0)
+    const fallas = data.reduce((s, r) => s + nFallas(r), 0)
+    const resueltas = data.reduce((s, r) => s + nResueltas(r), 0)
     const dias = new Set(data.map(r => r.fecha.slice(0, 10)))
     return {
       total,
@@ -55,18 +93,20 @@ function TableroContent() {
       noOperativos,
       fallas,
       resueltas,
+      pendientes: fallas - resueltas,
       pctResueltas: pct(resueltas, fallas),
       promedioDia: dias.size ? (total / dias.size).toFixed(1) : '0',
       diarios: data.filter(r => r.tipo === 'diario').length,
     }
-  }, [data])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, resueltasPorInspeccion])
 
   const porDia = useMemo(() => {
     const m: Record<string, { fecha: string; sinFalla: number; conFalla: number }> = {}
     data.forEach(r => {
       const d = r.fecha.slice(0, 10)
       m[d] ??= { fecha: d, sinFalla: 0, conFalla: 0 }
-      if (r.n_fallas > 0) m[d].conFalla++
+      if (nFallas(r) > 0) m[d].conFalla++
       else m[d].sinFalla++
     })
     return Object.values(m).sort((a, b) => a.fecha.localeCompare(b.fecha)).slice(-45)
@@ -87,7 +127,7 @@ function TableroContent() {
       const k = r.fundo || 'Sin fundo'
       m[k] ??= { fundo: k, total: 0, conFalla: 0 }
       m[k].total++
-      if (r.n_fallas > 0) m[k].conFalla++
+      if (nFallas(r) > 0) m[k].conFalla++
     })
     return Object.values(m).sort((a, b) => b.total - a.total)
   }, [data])
@@ -112,8 +152,8 @@ function TableroContent() {
       { header: 'Fundo', value: r => r.fundo },
       { header: 'Contrato', value: r => r.contrato },
       { header: 'Operativo', value: r => (r.operativo ? 'Sí' : 'No') },
-      { header: 'Fallas', value: r => r.n_fallas },
-      { header: 'Resueltas', value: r => r.n_resueltas },
+      { header: 'Fallas', value: r => nFallas(r) },
+      { header: 'Resueltas', value: r => (resoluciones ? nResueltas(r) : '') },
       ...PREGUNTAS.map(p => ({
         header: p.label,
         value: (r: VInspeccion) => (r[p.key] === null || r[p.key] === undefined ? '' : r[p.key] ? 'Falla' : 'OK'),
@@ -121,6 +161,50 @@ function TableroContent() {
       { header: 'Observación general', value: r => r.obs_general },
     ])
     downloadCsv(`checklist_${new Date().toISOString().slice(0, 10)}.csv`, csv)
+  }
+
+  async function generarInforme() {
+    setGenerando(true)
+    try {
+      const fechas = data.map(r => r.fecha.slice(0, 10)).sort()
+      const desde = filters.desde || fechas[0]
+      const hasta = filters.hasta || fechas[fechas.length - 1]
+      const partes = [desde && hasta ? `Periodo: ${fmtDate(desde)} al ${fmtDate(hasta)}` : 'Sin checklist en el periodo']
+      if (filters.fundo) partes.push(`Fundo: ${filters.fundo}`)
+      if (filters.contrato) partes.push(`Contrato: ${filters.contrato}`)
+      if (filters.conductor) partes.push(`Conductor: ${filters.conductor}`)
+      if (filters.patente) partes.push(`Patente: ${filters.patente}`)
+      if (filters.soloConProblemas) partes.push('Solo con problemas')
+      if (tipo !== 'todos') partes.push(`Tipo: ${tipo === 'diario' ? 'Diario' : 'Completo'}`)
+      const hoy = new Date()
+      await descargarInformePng(
+        {
+          titulo: 'Informe de checklist',
+          subtitulo: partes.join('  ·  '),
+          generado: `${hoy.toLocaleDateString('es-CL')} ${hoy.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`,
+          kpis: [
+            { label: 'Checklist realizados', value: fmtNum(metricas.total) },
+            { label: 'Vehículos', value: fmtNum(metricas.vehiculos) },
+            { label: 'Conductores', value: fmtNum(metricas.conductores) },
+            { label: 'Promedio por día', value: metricas.promedioDia },
+            { label: 'Con fallas', value: `${metricas.pctConFalla}% (${fmtNum(metricas.conFalla)})`, alerta: metricas.pctConFalla >= 30 },
+            { label: 'No operativos', value: fmtNum(metricas.noOperativos), alerta: metricas.noOperativos > 0 },
+            { label: 'Fallas reportadas', value: fmtNum(metricas.fallas) },
+            { label: 'Fallas resueltas', value: resoluciones ? `${metricas.pctResueltas}% (${fmtNum(metricas.resueltas)})` : '—' },
+            { label: 'Fallas pendientes', value: resoluciones ? fmtNum(metricas.pendientes) : '—', alerta: !!resoluciones && metricas.pendientes > 0 },
+            { label: 'Diarios / Completos', value: `${fmtNum(metricas.diarios)} / ${fmtNum(metricas.total - metricas.diarios)}` },
+          ],
+          porDia,
+          porItem,
+          porFundo,
+        },
+        `informe_checklist_${hoy.toISOString().slice(0, 10)}.png`,
+      )
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'No se pudo generar el informe.')
+    } finally {
+      setGenerando(false)
+    }
   }
 
   if (loading) {
@@ -149,6 +233,15 @@ function TableroContent() {
           <h1 className="text-2xl font-bold text-dark mb-1">Tablero de checklist</h1>
           <p className="text-sm text-gray-500">Checklist realizados y sus métricas.</p>
         </div>
+        <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => void generarInforme()}
+          disabled={generando || !data.length}
+          className="btn-primary btn-sm"
+        >
+          {generando ? 'Generando…' : 'Informe PNG'}
+        </button>
         <div className="flex rounded-lg border border-gray-300 overflow-hidden text-sm bg-white">
           {([['todos', 'Todos'], ['completo', 'Completos'], ['diario', 'Diarios']] as const).map(([v, l]) => (
             <button
@@ -160,6 +253,7 @@ function TableroContent() {
               {l}
             </button>
           ))}
+        </div>
         </div>
       </div>
 
@@ -173,7 +267,15 @@ function TableroContent() {
         <KpiCard label="Con fallas" value={`${metricas.pctConFalla}% (${fmtNum(metricas.conFalla)})`} accent={metricas.pctConFalla >= 30} />
         <KpiCard label="No operativos" value={fmtNum(metricas.noOperativos)} accent={metricas.noOperativos > 0} />
         <KpiCard label="Fallas reportadas" value={fmtNum(metricas.fallas)} />
-        <KpiCard label="Fallas resueltas" value={`${metricas.pctResueltas}% (${fmtNum(metricas.resueltas)})`} />
+        <KpiCard
+          label="Fallas resueltas"
+          value={resoluciones ? `${metricas.pctResueltas}% (${fmtNum(metricas.resueltas)})` : '—'}
+        />
+        <KpiCard
+          label="Fallas pendientes"
+          value={resoluciones ? fmtNum(metricas.pendientes) : '—'}
+          accent={!!resoluciones && metricas.pendientes > 0}
+        />
         <KpiCard label="Checklist diarios" value={fmtNum(metricas.diarios)} />
         <KpiCard label="Checklist completos" value={fmtNum(metricas.total - metricas.diarios)} />
       </div>
@@ -300,7 +402,7 @@ function TableroContent() {
                       <td className="table-td text-center">
                         <span className={r.tipo === 'diario' ? 'badge-warn' : 'badge-ok'}>{r.tipo === 'diario' ? 'Diario' : 'Completo'}</span>
                       </td>
-                      <td className="table-td text-center font-mono">{r.n_fallas}</td>
+                      <td className="table-td text-center font-mono">{nFallas(r)}</td>
                       <td className="table-td text-center">
                         {r.operativo ? <span className="badge-ok">Operativo</span> : <span className="badge-fault">No operativo</span>}
                       </td>
