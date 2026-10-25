@@ -10,6 +10,7 @@ import { KpiCard } from '../components/vehiculos/KpiCard'
 import { downloadCsv, toCsv } from '../lib/csv'
 import { fetchAllPages } from '../lib/fetchAllPages'
 import { descargarInformePng } from '../lib/informePng'
+import type { InformeFalla, InformePatente } from '../lib/informePng'
 import { BRAND, PREGUNTAS, barColor, complianceColor, fmtDate, fmtNum } from '../lib/constants'
 import type { VInspeccion } from '../types'
 
@@ -33,6 +34,14 @@ interface ResolucionMin {
   estado: string
 }
 
+const ESTADO_OT: Record<string, string> = {
+  cerrada: 'Resuelta',
+  abierta: 'Pendiente',
+  asignada: 'Asignada',
+  en_progreso: 'En progreso',
+  cancelada: 'Cancelada',
+}
+
 function hora(iso: string): string {
   const d = new Date(iso)
   return Number.isNaN(d.getTime())
@@ -50,26 +59,39 @@ function TableroContent() {
   const [resoluciones, setResoluciones] = useState<ResolucionMin[] | null>(null)
   const [generando, setGenerando] = useState(false)
 
+  const [lineas, setLineas] = useState<Map<string, string> | null>(null)
+
   useEffect(() => {
     fetchAllPages<ResolucionMin>('resoluciones', 'inspeccion_id,pregunta_id,estado')
       .then(setResoluciones)
       .catch(() => setResoluciones(null))
+    fetchAllPages<{ id: string; linea: string | null }>('inspecciones', 'id,linea')
+      .then(rows => setLineas(new Map(rows.map(r => [r.id, r.linea ?? '']))))
+      .catch(() => setLineas(null))
   }, [])
 
-  // Una falla está resuelta solo cuando su orden de trabajo está cerrada.
-  const resueltasPorInspeccion = useMemo(() => {
-    const m = new Map<string, Set<number>>()
-    resoluciones?.forEach(r => {
-      if (r.estado !== 'cerrada') return
-      const set = m.get(r.inspeccion_id) ?? new Set<number>()
-      set.add(r.pregunta_id)
-      m.set(r.inspeccion_id, set)
-    })
+  // Estado de la orden de trabajo de cada falla (inspección + pregunta).
+  const estadoPorFalla = useMemo(() => {
+    const m = new Map<string, string>()
+    resoluciones?.forEach(r => m.set(`${r.inspeccion_id}:${r.pregunta_id}`, r.estado))
     return m
   }, [resoluciones])
 
+  // Contrato: el del fundo si lo tiene; si no (los checklist nuevos ya no piden fundo), la línea de
+  // operación del vehículo.
+  function contratoDe(r: VInspeccion): string {
+    return r.contrato || lineas?.get(r.id) || 'Sin contrato'
+  }
+
+  function estadoFalla(r: VInspeccion, idx: number): string {
+    if (!resoluciones) return '—'
+    const e = estadoPorFalla.get(`${r.id}:${idx + 1}`)
+    return e ? (ESTADO_OT[e] ?? e) : 'Sin OT'
+  }
+
+  // Una falla está resuelta solo cuando su orden de trabajo está cerrada.
   function nResueltas(r: VInspeccion): number {
-    return Math.min(resueltasPorInspeccion.get(r.id)?.size ?? 0, nFallas(r))
+    return PREGUNTAS.filter((p, idx) => r[p.key] === true && estadoPorFalla.get(`${r.id}:${idx + 1}`) === 'cerrada').length
   }
 
   const data = useMemo(() => {
@@ -94,12 +116,13 @@ function TableroContent() {
       fallas,
       resueltas,
       pendientes: fallas - resueltas,
+      vehiculosConFalla: new Set(data.filter(r => nFallas(r) > 0).map(r => r.patente)).size,
       pctResueltas: pct(resueltas, fallas),
       promedioDia: dias.size ? (total / dias.size).toFixed(1) : '0',
       diarios: data.filter(r => r.tipo === 'diario').length,
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, resueltasPorInspeccion])
+  }, [data, estadoPorFalla])
 
   const porDia = useMemo(() => {
     const m: Record<string, { fecha: string; sinFalla: number; conFalla: number }> = {}
@@ -121,21 +144,28 @@ function TableroContent() {
     [data],
   )
 
-  const porFundo = useMemo(() => {
-    const m: Record<string, { fundo: string; total: number; conFalla: number }> = {}
+  const porContrato = useMemo(() => {
+    const m: Record<string, { contrato: string; checklist: number; patentes: Set<string>; conFalla: number; fallas: number; resueltas: number }> = {}
     data.forEach(r => {
-      const k = r.fundo || 'Sin fundo'
-      m[k] ??= { fundo: k, total: 0, conFalla: 0 }
-      m[k].total++
-      if (nFallas(r) > 0) m[k].conFalla++
+      const k = contratoDe(r)
+      m[k] ??= { contrato: k, checklist: 0, patentes: new Set(), conFalla: 0, fallas: 0, resueltas: 0 }
+      m[k].checklist++
+      m[k].patentes.add(r.patente)
+      const f = nFallas(r)
+      if (f > 0) m[k].conFalla++
+      m[k].fallas += f
+      m[k].resueltas += nResueltas(r)
     })
-    return Object.values(m).sort((a, b) => b.total - a.total)
-  }, [data])
+    return Object.values(m)
+      .map(c => ({ ...c, vehiculos: c.patentes.size }))
+      .sort((a, b) => b.checklist - a.checklist)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, lineas, estadoPorFalla])
 
   const lista = useMemo(() => {
     const q = busqueda.trim().toLowerCase()
     if (!q) return data
-    return data.filter(r => `${r.patente} ${r.conductor} ${r.fundo ?? ''}`.toLowerCase().includes(q))
+    return data.filter(r => `${r.patente} ${r.conductor} ${contratoDe(r)}`.toLowerCase().includes(q))
   }, [data, busqueda])
 
   const paginas = Math.max(1, Math.ceil(lista.length / PAGE_SIZE))
@@ -149,10 +179,10 @@ function TableroContent() {
       { header: 'Tipo', value: r => r.tipo },
       { header: 'Patente', value: r => r.patente },
       { header: 'Conductor', value: r => r.conductor },
-      { header: 'Fundo', value: r => r.fundo },
-      { header: 'Contrato', value: r => r.contrato },
+      { header: 'Contrato', value: r => contratoDe(r) },
       { header: 'Operativo', value: r => (r.operativo ? 'Sí' : 'No') },
       { header: 'Fallas', value: r => nFallas(r) },
+      { header: 'Fallas pendientes', value: r => (resoluciones ? nFallas(r) - nResueltas(r) : '') },
       { header: 'Resueltas', value: r => (resoluciones ? nResueltas(r) : '') },
       ...PREGUNTAS.map(p => ({
         header: p.label,
@@ -161,6 +191,32 @@ function TableroContent() {
       { header: 'Observación general', value: r => r.obs_general },
     ])
     downloadCsv(`checklist_${new Date().toISOString().slice(0, 10)}.csv`, csv)
+  }
+
+  // Patentes con fallas (cada falla con su fecha de reporte y estado de la OT) y patentes sin fallas.
+  function detallePorPatente(): { conFallas: InformePatente[]; sinFallas: string[] } {
+    const m = new Map<string, InformePatente>()
+    ;[...data].sort((a, b) => a.fecha.localeCompare(b.fecha)).forEach(r => {
+      const g = m.get(r.patente) ?? { patente: r.patente, contrato: '', checklist: 0, conFalla: 0, fallas: [] }
+      g.checklist++
+      g.contrato = contratoDe(r)
+      const fallas: InformeFalla[] = []
+      PREGUNTAS.forEach((p, idx) => {
+        if (r[p.key] === true) {
+          fallas.push({ fecha: `${fmtDate(r.fecha)} ${hora(r.fecha)}`.trim(), item: p.label, obs: r[p.obs] ?? '', estado: estadoFalla(r, idx) })
+        }
+      })
+      if (fallas.length) g.conFalla++
+      g.fallas.push(...fallas)
+      m.set(r.patente, g)
+    })
+    const todas = [...m.values()]
+    return {
+      conFallas: todas
+        .filter(g => g.fallas.length)
+        .sort((a, b) => b.fallas.length - a.fallas.length || a.patente.localeCompare(b.patente)),
+      sinFallas: todas.filter(g => !g.fallas.length).map(g => g.patente),
+    }
   }
 
   async function generarInforme() {
@@ -176,6 +232,7 @@ function TableroContent() {
       if (filters.patente) partes.push(`Patente: ${filters.patente}`)
       if (filters.soloConProblemas) partes.push('Solo con problemas')
       if (tipo !== 'todos') partes.push(`Tipo: ${tipo === 'diario' ? 'Diario' : 'Completo'}`)
+      const detalle = detallePorPatente()
       const hoy = new Date()
       await descargarInformePng(
         {
@@ -184,19 +241,23 @@ function TableroContent() {
           generado: `${hoy.toLocaleDateString('es-CL')} ${hoy.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`,
           kpis: [
             { label: 'Checklist realizados', value: fmtNum(metricas.total) },
-            { label: 'Vehículos', value: fmtNum(metricas.vehiculos) },
+            { label: 'Vehículos revisados', value: fmtNum(metricas.vehiculos) },
             { label: 'Conductores', value: fmtNum(metricas.conductores) },
             { label: 'Promedio por día', value: metricas.promedioDia },
-            { label: 'Con fallas', value: `${metricas.pctConFalla}% (${fmtNum(metricas.conFalla)})`, alerta: metricas.pctConFalla >= 30 },
+            { label: 'Checklist con falla', value: `${metricas.pctConFalla}% (${fmtNum(metricas.conFalla)})`, alerta: metricas.pctConFalla >= 30 },
+            { label: 'Vehículos con falla', value: `${pct(metricas.vehiculosConFalla, metricas.vehiculos)}% (${fmtNum(metricas.vehiculosConFalla)})`, alerta: metricas.vehiculosConFalla > 0 },
             { label: 'No operativos', value: fmtNum(metricas.noOperativos), alerta: metricas.noOperativos > 0 },
             { label: 'Fallas reportadas', value: fmtNum(metricas.fallas) },
+            { label: 'Fallas por checklist', value: metricas.total ? (metricas.fallas / metricas.total).toFixed(2) : '0' },
             { label: 'Fallas resueltas', value: resoluciones ? `${metricas.pctResueltas}% (${fmtNum(metricas.resueltas)})` : '—' },
             { label: 'Fallas pendientes', value: resoluciones ? fmtNum(metricas.pendientes) : '—', alerta: !!resoluciones && metricas.pendientes > 0 },
             { label: 'Diarios / Completos', value: `${fmtNum(metricas.diarios)} / ${fmtNum(metricas.total - metricas.diarios)}` },
           ],
           porDia,
           porItem,
-          porFundo,
+          porContrato,
+          porPatente: detalle.conFallas,
+          sinFallas: detalle.sinFallas,
         },
         `informe_checklist_${hoy.toISOString().slice(0, 10)}.png`,
       )
@@ -323,30 +384,41 @@ function TableroContent() {
         </PanelSection>
       </div>
 
-      <PanelSection title="Por fundo" hint="Checklist y porcentaje con fallas">
+      <PanelSection title="Por contrato" hint="Línea de operación del vehículo · % con falla sobre los checklist del contrato">
         <div className="card p-0 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full divide-y divide-gray-200">
               <thead>
                 <tr>
-                  <th className="table-th">Fundo</th>
+                  <th className="table-th">Contrato</th>
                   <th className="table-th text-center">Checklist</th>
-                  <th className="table-th text-center">Con fallas</th>
-                  <th className="table-th text-center">% con fallas</th>
+                  <th className="table-th text-center">Vehículos</th>
+                  <th className="table-th text-center">Con falla</th>
+                  <th className="table-th text-center">% con falla</th>
+                  <th className="table-th text-center">Fallas</th>
+                  <th className="table-th text-center">Resueltas</th>
+                  <th className="table-th text-center">Pendientes</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {porFundo.length === 0 && (
-                  <tr><td colSpan={4} className="table-td text-center text-gray-400 py-8">Sin datos en el periodo.</td></tr>
+                {porContrato.length === 0 && (
+                  <tr><td colSpan={8} className="table-td text-center text-gray-400 py-8">Sin datos en el periodo.</td></tr>
                 )}
-                {porFundo.map(f => {
-                  const p = pct(f.conFalla, f.total)
+                {porContrato.map(c => {
+                  const p = pct(c.conFalla, c.checklist)
+                  const pendientes = c.fallas - c.resueltas
                   return (
-                    <tr key={f.fundo} className="hover:bg-gray-50">
-                      <td className="table-td font-medium">{f.fundo}</td>
-                      <td className="table-td text-center font-mono">{f.total}</td>
-                      <td className="table-td text-center font-mono">{f.conFalla}</td>
+                    <tr key={c.contrato} className="hover:bg-gray-50">
+                      <td className="table-td font-medium">{c.contrato}</td>
+                      <td className="table-td text-center font-mono">{c.checklist}</td>
+                      <td className="table-td text-center font-mono">{c.vehiculos}</td>
+                      <td className="table-td text-center font-mono">{c.conFalla}</td>
                       <td className="table-td text-center font-bold" style={{ color: complianceColor(100 - p) }}>{p}%</td>
+                      <td className="table-td text-center font-mono">{c.fallas}</td>
+                      <td className="table-td text-center font-mono">{resoluciones ? c.resueltas : '—'}</td>
+                      <td className={`table-td text-center font-mono ${resoluciones && pendientes > 0 ? 'font-bold text-fault' : ''}`}>
+                        {resoluciones ? pendientes : '—'}
+                      </td>
                     </tr>
                   )
                 })}
@@ -362,7 +434,7 @@ function TableroContent() {
             type="search"
             value={busqueda}
             onChange={e => { setBusqueda(e.target.value); setPagina(0) }}
-            placeholder="Buscar patente, conductor o fundo…"
+            placeholder="Buscar patente, conductor o contrato…"
             className="input max-w-xs"
           />
           <span className="text-xs text-gray-500">{fmtNum(lista.length)} resultado{lista.length !== 1 ? 's' : ''}</span>
@@ -379,7 +451,7 @@ function TableroContent() {
                   <th className="table-th">Fecha</th>
                   <th className="table-th">Patente</th>
                   <th className="table-th">Conductor</th>
-                  <th className="table-th">Fundo</th>
+                  <th className="table-th">Contrato</th>
                   <th className="table-th text-center">Tipo</th>
                   <th className="table-th text-center">Fallas</th>
                   <th className="table-th text-center">Estado</th>
@@ -398,7 +470,7 @@ function TableroContent() {
                       <td className="table-td whitespace-nowrap">{fmtDate(r.fecha)} <span className="text-xs text-gray-400">{hora(r.fecha)}</span></td>
                       <td className="table-td font-mono font-medium">{r.patente}</td>
                       <td className="table-td">{r.conductor}</td>
-                      <td className="table-td">{r.fundo ?? '—'}</td>
+                      <td className="table-td">{contratoDe(r)}</td>
                       <td className="table-td text-center">
                         <span className={r.tipo === 'diario' ? 'badge-warn' : 'badge-ok'}>{r.tipo === 'diario' ? 'Diario' : 'Completo'}</span>
                       </td>
