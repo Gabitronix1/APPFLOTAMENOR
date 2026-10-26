@@ -21,6 +21,7 @@ export interface PerfilCacheRow {
   userId: string
   rol: string
   operadorId: string | null
+  accesoArchivoGuias?: boolean
 }
 
 export interface EventLogRow {

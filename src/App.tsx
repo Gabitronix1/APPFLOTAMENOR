@@ -28,6 +28,7 @@ import { UsoSinSenal } from './pages/UsoSinSenal'
 import {
   ROLES_ADMINISTRATIVOS,
   ROLES_ARCHIVO_GUIAS,
+  puedeVerArchivoGuias,
   ROLES_DASHBOARD_FLOTA_MENOR,
   ROLES_GUIAS_DESPACHO,
   ROLES_GUIAS_DESPACHO_GESTION,
@@ -71,7 +72,7 @@ function AppLayout() {
             <Route path="guias-despacho" element={<GuiasDespacho />} />
             <Route path="guias-despacho/:id" element={<GuiaDespachoDetalle />} />
           </Route>
-          <Route element={<RequireRol roles={ROLES_ARCHIVO_GUIAS} />}>
+          <Route element={<RequireRol roles={ROLES_ARCHIVO_GUIAS} permitir={puedeVerArchivoGuias} />}>
             <Route path="archivo-guias" element={<ArchivoGuias />} />
           </Route>
           <Route element={<RequireRol roles={ROLES_DASHBOARD_FLOTA_MENOR} />}>

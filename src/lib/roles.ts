@@ -48,6 +48,11 @@ export const ROLES_GUIAS_DESPACHO: Rol[] = ['conductor_logistico', ...ROLES_GUIA
 // La BD lo refuerza con RLS (puede_archivo_guias).
 export const ROLES_ARCHIVO_GUIAS: Rol[] = ['encargado_bodega', 'jefe_cdg']
 
+// Además de los roles, el acceso puede otorgarse por persona (perfiles.acceso_archivo_guias).
+export function puedeVerArchivoGuias(perfil: { rol: Rol; acceso_archivo_guias?: boolean } | null | undefined): boolean {
+  return !!perfil && (ROLES_ARCHIVO_GUIAS.includes(perfil.rol) || !!perfil.acceso_archivo_guias)
+}
+
 // Roles que una persona puede "solicitar" al autoregistrarse desde el Login (ver
 // Edge Function solicitar-acceso): solo roles de terreno, nunca jefaturas/administrativos.
 // Un jefe confirma (o cambia) el rol final al aprobar la solicitud en Maestros > Usuarios.

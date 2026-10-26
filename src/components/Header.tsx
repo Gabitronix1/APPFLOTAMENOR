@@ -7,7 +7,7 @@ import { useOnline } from '../hooks/useOnline'
 import {
   ROL_LABELS,
   ROLES_ADMINISTRATIVOS,
-  ROLES_ARCHIVO_GUIAS,
+  puedeVerArchivoGuias,
   ROLES_DASHBOARD_FLOTA_MENOR,
   ROLES_GUIAS_DESPACHO,
   ROLES_GUIAS_DESPACHO_GESTION,
@@ -140,7 +140,7 @@ export function Header() {
   const puedeJefe = !!perfil && ROLES_JEFES.includes(perfil.rol)
   const puedeGuias = !!perfil && ROLES_GUIAS_DESPACHO.includes(perfil.rol)
   const puedeGuiasGestion = !!perfil && ROLES_GUIAS_DESPACHO_GESTION.includes(perfil.rol)
-  const puedeArchivoGuias = !!perfil && ROLES_ARCHIVO_GUIAS.includes(perfil.rol)
+  const puedeArchivoGuias = puedeVerArchivoGuias(perfil)
   const puedeTableroChecklist = !!perfil && ROLES_TABLERO_CHECKLIST.includes(perfil.rol)
   const puedeDashboard = !!perfil && ROLES_DASHBOARD_FLOTA_MENOR.includes(perfil.rol)
 

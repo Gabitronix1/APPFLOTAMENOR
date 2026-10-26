@@ -19,6 +19,7 @@ export interface Perfil {
   id: string
   rol: Rol
   operador_id: string | null
+  acceso_archivo_guias?: boolean
 }
 
 export type EstadoSolicitudAcceso = 'pendiente' | 'aprobada' | 'rechazada'

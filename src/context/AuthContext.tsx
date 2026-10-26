@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const cached = await db.perfilCache.get(userId).catch(() => undefined)
     if (perfilUserId.current !== userId) return
     if (cached) {
-      setPerfil({ id: userId, rol: cached.rol as Perfil['rol'], operador_id: cached.operadorId })
+      setPerfil({ id: userId, rol: cached.rol as Perfil['rol'], operador_id: cached.operadorId, acceso_archivo_guias: cached.accesoArchivoGuias })
       setLoading(false)
     } else if (!navigator.onLine) {
       // Sin copia local ni señal: entra igual (el Checklist no requiere rol); el perfil se
@@ -77,11 +77,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (navigator.onLine) {
       try {
-        const { data, error } = await supabase.from('perfiles').select('id, rol, operador_id').eq('id', userId).single()
+        const { data, error } = await supabase.from('perfiles').select('id, rol, operador_id, acceso_archivo_guias').eq('id', userId).single()
         if (perfilUserId.current !== userId) return
         if (!error && data) {
           setPerfil(data)
-          await db.perfilCache.put({ userId, rol: data.rol, operadorId: data.operador_id })
+          await db.perfilCache.put({ userId, rol: data.rol, operadorId: data.operador_id, accesoArchivoGuias: data.acceso_archivo_guias })
         } else if (!cached) {
           // Cuenta autoregistrada aún sin rol aprobado.
           setPerfil(null)
