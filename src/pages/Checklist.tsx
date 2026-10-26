@@ -251,10 +251,10 @@ export function Checklist() {
       vin: input.vin || null,
       motor: input.motor || null,
       condicion: input.condicion || null,
-      area: input.area || null,
+      area: null,
       linea: input.linea || null,
-      responsable_nombre: input.responsableNombre || null,
-      responsable_cargo: input.responsableCargo || null,
+      responsable_nombre: null,
+      responsable_cargo: null,
       afecta_indicadores: true,
     }
     setVehiculosLocales(prev => [...prev, vehiculo])
@@ -273,9 +273,6 @@ export function Checklist() {
         vin: input.vin || null,
         motor: input.motor || null,
         condicion: input.condicion || null,
-        area: input.area || null,
-        responsable_nombre: input.responsableNombre || null,
-        responsable_cargo: input.responsableCargo || null,
       },
     })
     setPatenteId(id)

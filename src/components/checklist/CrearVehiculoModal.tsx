@@ -13,9 +13,6 @@ export interface NuevoVehiculoInput {
   vin: string
   motor: string
   condicion: CondicionVehiculo | ''
-  area: string
-  responsableNombre: string
-  responsableCargo: string
 }
 
 interface Props {
@@ -52,12 +49,9 @@ export function CrearVehiculoModal({ query, categorias, lineas, patentesExistent
   const [modelo, setModelo] = useState('')
   const [anno, setAnno] = useState('')
   const [condicion, setCondicion] = useState<CondicionVehiculo | ''>('')
-  const [area, setArea] = useState('')
   const [linea, setLinea] = useState('')
   const [vin, setVin] = useState('')
   const [motor, setMotor] = useState('')
-  const [responsableNombre, setResponsableNombre] = useState('')
-  const [responsableCargo, setResponsableCargo] = useState('')
 
   const anioActual = new Date().getFullYear()
   const annoNum = anno ? Number(anno) : null
@@ -90,9 +84,6 @@ export function CrearVehiculoModal({ query, categorias, lineas, patentesExistent
       vin: vin.trim().toUpperCase(),
       motor: motor.trim().toUpperCase(),
       condicion,
-      area: area.trim(),
-      responsableNombre: responsableNombre.trim(),
-      responsableCargo: responsableCargo.trim(),
     })
   }
 
@@ -166,10 +157,7 @@ export function CrearVehiculoModal({ query, categorias, lineas, patentesExistent
           </div>
           {!annoValido && <p className="text-xs text-fault -mt-2">Año no válido.</p>}
 
-          <div className="grid grid-cols-2 gap-3">
-            <Campo label="Área">
-              <input className="input" value={area} onChange={e => setArea(e.target.value)} placeholder="Ej: Cosecha" />
-            </Campo>
+          <div>
             <Campo label="Línea">
               <SearchSelect
                 options={lineaOptions}
@@ -183,30 +171,11 @@ export function CrearVehiculoModal({ query, categorias, lineas, patentesExistent
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <Campo label="VIN (chasis)">
+            <Campo label="VIN (chasis) (opcional)">
               <input className="input uppercase font-mono" value={vin} onChange={e => setVin(e.target.value)} />
             </Campo>
-            <Campo label="N° de motor">
+            <Campo label="N° de motor (opcional)">
               <input className="input uppercase font-mono" value={motor} onChange={e => setMotor(e.target.value)} />
-            </Campo>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Campo label="Responsable">
-              <input
-                className="input"
-                value={responsableNombre}
-                onChange={e => setResponsableNombre(e.target.value)}
-                placeholder="Nombre"
-              />
-            </Campo>
-            <Campo label="Cargo del responsable">
-              <input
-                className="input"
-                value={responsableCargo}
-                onChange={e => setResponsableCargo(e.target.value)}
-                placeholder="Ej: Supervisor"
-              />
             </Campo>
           </div>
 
