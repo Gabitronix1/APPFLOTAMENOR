@@ -587,7 +587,7 @@ export function Checklist() {
                     </div>
                     {r.falla && (
                       <textarea
-                        placeholder="Observación (opcional)..."
+                        placeholder={p.key === 'p12' ? 'Indicar documento faltante y/o fecha de vencimiento' : 'Observación (opcional)...'}
                         value={r.observacion}
                         onChange={e => setObs(idx, e.target.value)}
                         rows={2}

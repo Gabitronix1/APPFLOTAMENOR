@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState, FormEvent, ChangeEvent } from 'react'
 import JSZip from 'jszip'
 import { supabase } from '../lib/supabase'
+import { db, type GuiaUploadRow } from '../lib/db'
+import { useOnline } from '../hooks/useOnline'
 
 const BUCKET = 'archivo-guias'
 const CONTRATOS = ['AP', 'P1', 'P2', 'P4', 'P5'] as const
@@ -46,6 +48,45 @@ async function comprimirImagen(file: File): Promise<Blob> {
   }
 }
 
+// Sin señal (o con señal que no deja pasar datos) una subida puede quedar colgada para
+// siempre: cada intento tiene un plazo y, si vence, la foto queda guardada para reintentar.
+const TIMEOUT_SUBIDA_MS = 60_000
+
+function conTimeout<T>(p: PromiseLike<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('Tiempo de espera agotado')), ms)
+    Promise.resolve(p).then(
+      v => { clearTimeout(t); resolve(v) },
+      e => { clearTimeout(t); reject(e) },
+    )
+  })
+}
+
+// Sube una guía pendiente. Es idempotente: la ruta y el id están fijados desde que se
+// guardó en el celular, así un reintento (por ejemplo si la respuesta se perdió) no duplica.
+async function subirPendiente(g: GuiaUploadRow): Promise<void> {
+  const up = await conTimeout(
+    supabase.storage.from(BUCKET).upload(g.path, g.blob, {
+      contentType: g.blob.type || 'image/jpeg',
+      upsert: true,
+    }),
+    TIMEOUT_SUBIDA_MS,
+  )
+  if (up.error) throw new Error(up.error.message)
+  const ins = await conTimeout(
+    supabase.from('archivo_guias_archivos').insert({
+      id: g.id,
+      contrato: g.contrato,
+      carpeta_id: g.carpetaId,
+      nombre: g.nombre,
+      storage_path: g.path,
+    }),
+    TIMEOUT_SUBIDA_MS,
+  )
+  // 23505: ya se había insertado en un intento anterior.
+  if (ins.error && ins.error.code !== '23505') throw new Error(ins.error.message)
+}
+
 function limpiarNombre(n: string): string {
   return n.replace(/[\\/:*?"<>|]+/g, '-').trim() || 'sin-nombre'
 }
@@ -82,6 +123,9 @@ export function ArchivoGuias() {
   const [visor, setVisor] = useState<Archivo | null>(null)
   const [saving, setSaving] = useState(false)
   const [descargando, setDescargando] = useState(false)
+  const online = useOnline()
+  const [pendientes, setPendientes] = useState<(GuiaUploadRow & { preview: string })[]>([])
+  const subiendoRef = useRef(false)
   const camaraRef = useRef<HTMLInputElement>(null)
   const galeriaRef = useRef<HTMLInputElement>(null)
 
@@ -151,37 +195,103 @@ export function ArchivoGuias() {
     })
   }
 
+  const recargarPendientes = useCallback(async () => {
+    const filas = await db.guiaUploads.orderBy('createdAt').toArray()
+    setPendientes(prev => {
+      prev.forEach(p => URL.revokeObjectURL(p.preview))
+      return filas.map(f => ({ ...f, preview: URL.createObjectURL(f.blob) }))
+    })
+  }, [])
+
+  const procesarPendientes = useCallback(async () => {
+    if (subiendoRef.current) return
+    subiendoRef.current = true
+    try {
+      const filas = await db.guiaUploads.orderBy('createdAt').toArray()
+      let subio = false
+      for (const g of filas) {
+        try {
+          await subirPendiente(g)
+          await db.guiaUploads.delete(g.id)
+          subio = true
+        } catch (e) {
+          await db.guiaUploads.update(g.id, {
+            attempts: g.attempts + 1,
+            lastError: e instanceof Error ? e.message : String(e),
+          })
+          // Si falló, lo más probable es que no haya señal: se reintenta más tarde.
+          break
+        }
+      }
+      await recargarPendientes()
+      if (subio) void cargar()
+    } finally {
+      subiendoRef.current = false
+    }
+  }, [cargar, recargarPendientes])
+
+  // Reintenta al abrir la pantalla, al volver la señal, al volver a la app y cada 20 s
+  // mientras haya guías pendientes.
+  useEffect(() => {
+    void recargarPendientes().then(() => procesarPendientes())
+  }, [recargarPendientes, procesarPendientes])
+
+  useEffect(() => {
+    const reintentar = () => {
+      if (navigator.onLine) void procesarPendientes()
+    }
+    const onVis = () => {
+      if (document.visibilityState === 'visible') reintentar()
+    }
+    window.addEventListener('online', reintentar)
+    document.addEventListener('visibilitychange', onVis)
+    const t = setInterval(reintentar, 20_000)
+    return () => {
+      window.removeEventListener('online', reintentar)
+      document.removeEventListener('visibilitychange', onVis)
+      clearInterval(t)
+    }
+  }, [procesarPendientes])
+
+  useEffect(() => () => pendientesRef.current.forEach(p => URL.revokeObjectURL(p.preview)), [])
+  const pendientesRef = useRef(pendientes)
+  pendientesRef.current = pendientes
+
+  // La foto se guarda primero en el celular y se sube en segundo plano: así nunca queda la
+  // pantalla "cargando" sin señal ni se pierde la guía si se corta la subida.
   async function guardarSubida(e: FormEvent) {
     e.preventDefault()
     if (!subida || !contrato || !subida.nombre.trim()) return
     setSaving(true)
     setError(null)
-    const blob = await comprimirImagen(subida.file)
-    const ext = blob.type === 'image/jpeg' ? 'jpg' : (subida.file.name.split('.').pop() ?? 'jpg')
-    const path = `${contrato}/${crypto.randomUUID()}.${ext}`
-    const up = await supabase.storage.from(BUCKET).upload(path, blob, {
-      contentType: blob.type || 'image/jpeg',
-      upsert: false,
-    })
-    if (up.error) {
+    try {
+      const blob = await conTimeout(comprimirImagen(subida.file), 30_000).catch(() => subida.file as Blob)
+      const ext = blob.type === 'image/jpeg' ? 'jpg' : (subida.file.name.split('.').pop() ?? 'jpg')
+      await db.guiaUploads.add({
+        id: crypto.randomUUID(),
+        contrato,
+        carpetaId: carpetaActual,
+        nombre: subida.nombre.trim(),
+        path: `${contrato}/${crypto.randomUUID()}.${ext}`,
+        blob,
+        createdAt: Date.now(),
+        attempts: 0,
+      })
+    } catch (err) {
       setSaving(false)
-      setError(up.error.message)
+      setError(err instanceof Error ? err.message : 'No se pudo guardar la guía en el teléfono')
       return
     }
-    const ins = await supabase.from('archivo_guias_archivos').insert({
-      contrato,
-      carpeta_id: carpetaActual,
-      nombre: subida.nombre.trim(),
-      storage_path: path,
-    })
     setSaving(false)
-    if (ins.error) {
-      await supabase.storage.from(BUCKET).remove([path])
-      setError(ins.error.message)
-      return
-    }
     setSubida(null)
-    void cargar()
+    await recargarPendientes()
+    void procesarPendientes()
+  }
+
+  async function descartarPendiente(id: string) {
+    if (!window.confirm('¿Descartar esta guía sin subirla?')) return
+    await db.guiaUploads.delete(id)
+    await recargarPendientes()
   }
 
   async function crearCarpeta(e: FormEvent) {
@@ -320,6 +430,39 @@ export function ArchivoGuias() {
       </p>
 
       {error && <div className="text-fault text-sm mb-4">{error}</div>}
+
+      {pendientes.length > 0 && (
+        <div className="mb-4 rounded-xl border border-warn/40 bg-warn/10 p-3 text-sm text-dark">
+          <p className="font-semibold">
+            {pendientes.length} guía{pendientes.length !== 1 ? 's' : ''} pendiente{pendientes.length !== 1 ? 's' : ''} de subir
+          </p>
+          <p className="text-xs text-gray-600 mt-0.5">
+            {online
+              ? 'Subiendo… si la señal es mala se reintenta sola. No cierres la sesión.'
+              : 'Sin señal: quedan guardadas en el teléfono y se suben solas cuando vuelva la conexión.'}
+          </p>
+          <div className="flex flex-wrap gap-2 mt-2">
+            {pendientes.map(p => (
+              <div key={p.id} className="flex items-center gap-2 bg-white rounded-lg border border-gray-200 p-1.5 pr-2">
+                <img src={p.preview} alt={p.nombre} className="w-10 h-10 object-cover rounded" />
+                <span className="text-xs max-w-[110px] truncate">{p.contrato} · {p.nombre}</span>
+                <button
+                  onClick={() => void descartarPendiente(p.id)}
+                  className="text-gray-400 hover:text-fault text-sm"
+                  aria-label={`Descartar ${p.nombre}`}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+          {online && (
+            <button onClick={() => void procesarPendientes()} className="btn-secondary btn-sm mt-2">
+              Reintentar ahora
+            </button>
+          )}
+        </div>
+      )}
 
       {!contrato ? (
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
@@ -484,7 +627,7 @@ export function ArchivoGuias() {
               Se guardará en {contrato}
               {ruta.length ? ` / ${ruta.map(r => r.nombre).join(' / ')}` : ''}.
             </p>
-            <Botones onCancel={() => setSubida(null)} saving={saving} label="Subir" />
+            <Botones onCancel={() => setSubida(null)} saving={saving} label="Guardar" />
           </form>
         </Modal>
       )}

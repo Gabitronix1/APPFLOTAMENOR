@@ -43,6 +43,10 @@ export const PREGUNTAS = [
     key: 'p11' as const, obs: 'obs11' as const, label: 'Puertas y Portón', short: 'Puertas',
     descripcion: 'Abra y cierre todas las puertas y el portón trasero usando la manilla interna y externa. Marca "Mal estado" solo si alguna puerta definitivamente no abre o no cierra.',
   },
+  {
+    key: 'p12' as const, obs: 'obs12' as const, label: 'Documentación', short: 'Document.',
+    descripcion: 'Revisar si existen y están vigentes los documentos del vehículo: Padrón/Permiso de Circulación, SOAP, Revisión Técnica, Acreditación.',
+  },
 ]
 
 export type PKey = typeof PREGUNTAS[number]['key']
@@ -65,13 +69,14 @@ export const CRITICIDAD_ITEM: Record<PKey, { base: 'P' | 'D'; agravante?: { tipo
   p9: { base: 'P', agravante: { tipo: 'afecta_visual', comentario: 'Afecta el campo visual' } }, // Espejos
   p10: { base: 'P', agravante: { tipo: 'camion_combustible', comentario: 'Camión combustible' } }, // Kit de Emergencia
   p11: { base: 'D' }, // Puertas y Portón
+  p12: { base: 'P' }, // Documentación
 }
 
 // Checklist "diario" (tipo 'diario' en la BD): las preguntas que la matriz marca como detención
 // inmediata (D) de base —frenos y dirección, asientos y cinturones, puertas y portón—,
-// más Tablero (testigo rojo/ABS), Luces (circulación nocturna) y Parabrisas (lluvia),
+// más Tablero (testigo rojo/ABS), Luces (circulación nocturna), Parabrisas (lluvia) y Documentación,
 // que escalan a D con su agravante y son las que más pesan en la operación diaria.
-export const PREGUNTAS_CRITICAS: readonly PKey[] = ['p4', 'p5', 'p3', 'p8', 'p7', 'p11']
+export const PREGUNTAS_CRITICAS: readonly PKey[] = ['p4', 'p5', 'p3', 'p8', 'p7', 'p11', 'p12']
 
 // Textos alternativos para los botones "Buen estado"/"Mal estado" en ítems donde
 // esa redacción genérica no calza bien (ej: el tablero no tiene "buen/mal estado", tiene testigos).
@@ -83,6 +88,7 @@ export const ESTADO_LABELS_OVERRIDE: Partial<Record<PKey, { ok: string; falla: s
   p8: { ok: 'Sin daños', falla: 'Hay trizaduras o plumillas malas' },
   p10: { ok: 'Completo y vigente', falla: 'Incompleto o vencido' },
   p11: { ok: 'Cierran bien', falla: 'No enganchan bien' },
+  p12: { ok: 'Documentos OK', falla: 'Incompleto o Vencido' },
 }
 
 export const BRAND = {

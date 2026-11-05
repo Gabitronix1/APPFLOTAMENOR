@@ -56,6 +56,7 @@ export interface VInspeccion {
   p9: boolean
   p10: boolean
   p11: boolean
+  p12: boolean
   obs1: string | null
   obs2: string | null
   obs3: string | null
@@ -67,6 +68,7 @@ export interface VInspeccion {
   obs9: string | null
   obs10: string | null
   obs11: string | null
+  obs12: string | null
   n_fallas: number
   n_resueltas: number
   tipo: 'completo' | 'diario'

@@ -47,6 +47,19 @@ export interface SubmittedLogRow {
   label: string
 }
 
+/** Foto de guía (Archivo de guías) guardada en el celular hasta que se logre subir. */
+export interface GuiaUploadRow {
+  id: string
+  contrato: string
+  carpetaId: string | null
+  nombre: string
+  path: string
+  blob: Blob
+  createdAt: number
+  attempts: number
+  lastError?: string
+}
+
 class FlotaDB extends Dexie {
   syncQueue!: Table<QueueItem, string>
   catalogCache!: Table<CatalogCacheRow, string>
@@ -54,6 +67,7 @@ class FlotaDB extends Dexie {
   submittedLog!: Table<SubmittedLogRow, string>
   eventLog!: Table<EventLogRow, string>
   drafts!: Table<DraftRow, string>
+  guiaUploads!: Table<GuiaUploadRow, string>
 
   constructor() {
     super('flota_offline_db')
@@ -68,6 +82,9 @@ class FlotaDB extends Dexie {
     })
     this.version(3).stores({
       drafts: 'key',
+    })
+    this.version(4).stores({
+      guiaUploads: 'id, createdAt',
     })
   }
 }
