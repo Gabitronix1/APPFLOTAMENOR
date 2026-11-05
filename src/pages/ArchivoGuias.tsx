@@ -62,6 +62,24 @@ function conTimeout<T>(p: PromiseLike<T>, ms: number): Promise<T> {
   })
 }
 
+// Traduce el error técnico de un intento a algo que el usuario entienda. `red` indica que
+// el problema es la conexión (conviene esperar); si no, es otro problema y se informa tal cual.
+function describirError(e: unknown): { texto: string; red: boolean } {
+  const msg = e instanceof Error ? e.message : String(e)
+  const m = msg.toLowerCase()
+  if (!navigator.onLine) return { texto: 'Sin señal: se subirá cuando vuelva la conexión', red: true }
+  if (m.includes('tiempo de espera')) return { texto: 'Señal débil: la subida tardó más de 1 minuto, se reintentará', red: true }
+  if (m.includes('failed to fetch') || m.includes('network') || m.includes('load failed') || m.includes('fetch'))
+    return { texto: 'Sin conexión con el servidor, se reintentará', red: true }
+  if (m.includes('jwt') || m.includes('token') || m.includes('unauthorized') || m.includes('not authenticated'))
+    return { texto: `Sesión vencida: cierra sesión y vuelve a entrar (${msg})`, red: false }
+  if (m.includes('row-level security') || m.includes('permission') || m.includes('policy') || m.includes('403'))
+    return { texto: `Sin permiso para subir guías (${msg})`, red: false }
+  if (m.includes('too large') || m.includes('payload') || m.includes('413') || m.includes('maximum allowed size'))
+    return { texto: `La foto es demasiado grande (${msg})`, red: false }
+  return { texto: `Error del servidor: ${msg}`, red: false }
+}
+
 // Sube una guía pendiente. Es idempotente: la ruta y el id están fijados desde que se
 // guardó en el celular, así un reintento (por ejemplo si la respuesta se perdió) no duplica.
 async function subirPendiente(g: GuiaUploadRow): Promise<void> {
@@ -215,12 +233,11 @@ export function ArchivoGuias() {
           await db.guiaUploads.delete(g.id)
           subio = true
         } catch (e) {
-          await db.guiaUploads.update(g.id, {
-            attempts: g.attempts + 1,
-            lastError: e instanceof Error ? e.message : String(e),
-          })
-          // Si falló, lo más probable es que no haya señal: se reintenta más tarde.
-          break
+          const { texto, red } = describirError(e)
+          await db.guiaUploads.update(g.id, { attempts: g.attempts + 1, lastError: texto })
+          // Si es la conexión, las demás también fallarían: se reintenta más tarde. Si es
+          // otro problema (solo de esta foto), se sigue con las siguientes.
+          if (red) break
         }
       }
       await recargarPendientes()
@@ -253,9 +270,9 @@ export function ArchivoGuias() {
     }
   }, [procesarPendientes])
 
-  useEffect(() => () => pendientesRef.current.forEach(p => URL.revokeObjectURL(p.preview)), [])
   const pendientesRef = useRef(pendientes)
   pendientesRef.current = pendientes
+  useEffect(() => () => pendientesRef.current.forEach(p => URL.revokeObjectURL(p.preview)), [])
 
   // La foto se guarda primero en el celular y se sube en segundo plano: así nunca queda la
   // pantalla "cargando" sin señal ni se pierde la guía si se corta la subida.
@@ -437,18 +454,30 @@ export function ArchivoGuias() {
             {pendientes.length} guía{pendientes.length !== 1 ? 's' : ''} pendiente{pendientes.length !== 1 ? 's' : ''} de subir
           </p>
           <p className="text-xs text-gray-600 mt-0.5">
-            {online
+            {online && pendientes.some(p => p.lastError)
+              ? 'No se pudo subir todavía: revisa el motivo abajo. Se reintenta sola cada 20 segundos.'
+              : online
               ? 'Subiendo… si la señal es mala se reintenta sola. No cierres la sesión.'
               : 'Sin señal: quedan guardadas en el teléfono y se suben solas cuando vuelva la conexión.'}
           </p>
           <div className="flex flex-wrap gap-2 mt-2">
             {pendientes.map(p => (
-              <div key={p.id} className="flex items-center gap-2 bg-white rounded-lg border border-gray-200 p-1.5 pr-2">
-                <img src={p.preview} alt={p.nombre} className="w-10 h-10 object-cover rounded" />
-                <span className="text-xs max-w-[110px] truncate">{p.contrato} · {p.nombre}</span>
+              <div key={p.id} className="w-full flex items-center gap-2 bg-white rounded-lg border border-gray-200 p-1.5 pr-2">
+                <img src={p.preview} alt={p.nombre} className="w-10 h-10 object-cover rounded shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium truncate">{p.contrato} · {p.nombre}</p>
+                  {p.lastError ? (
+                    <p className="text-[11px] text-fault leading-snug" data-testid="error-pendiente">
+                      ⚠️ {p.lastError}
+                      {p.attempts > 1 ? ` · ${p.attempts} intentos` : ''}
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-gray-500">En espera de subir…</p>
+                  )}
+                </div>
                 <button
                   onClick={() => void descartarPendiente(p.id)}
-                  className="text-gray-400 hover:text-fault text-sm"
+                  className="text-gray-400 hover:text-fault text-sm shrink-0"
                   aria-label={`Descartar ${p.nombre}`}
                 >
                   ✕
