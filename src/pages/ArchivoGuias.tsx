@@ -124,8 +124,12 @@ function guardarBlob(blob: Blob, nombre: string) {
   setTimeout(() => URL.revokeObjectURL(url), 10_000)
 }
 
-function sinExtension(nombre: string): string {
-  return nombre.replace(/\.[a-z0-9]{2,5}$/i, '')
+// Foto elegida que todavía no se guarda: cada una lleva su propio nombre.
+interface FotoNueva {
+  id: string
+  file: File
+  preview: string
+  nombre: string
 }
 
 export function ArchivoGuias() {
@@ -136,7 +140,9 @@ export function ArchivoGuias() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [nuevaCarpeta, setNuevaCarpeta] = useState<string | null>(null)
-  const [subida, setSubida] = useState<{ file: File; preview: string; nombre: string } | null>(null)
+  const [fotos, setFotos] = useState<FotoNueva[]>([])
+  const [progreso, setProgreso] = useState<string | null>(null)
+  const [ampliada, setAmpliada] = useState<string | null>(null)
   const [renombrando, setRenombrando] = useState<{ id: string; nombre: string } | null>(null)
   const [visor, setVisor] = useState<Archivo | null>(null)
   const [saving, setSaving] = useState(false)
@@ -188,11 +194,9 @@ export function ArchivoGuias() {
     void cargar()
   }, [cargar])
 
-  useEffect(() => {
-    return () => {
-      if (subida) URL.revokeObjectURL(subida.preview)
-    }
-  }, [subida])
+  const fotosRef = useRef(fotos)
+  fotosRef.current = fotos
+  useEffect(() => () => fotosRef.current.forEach(f => URL.revokeObjectURL(f.preview)), [])
 
   function elegirContrato(c: Contrato | null) {
     setContrato(c)
@@ -201,16 +205,37 @@ export function ArchivoGuias() {
     setArchivos([])
   }
 
+  // Las fotos elegidas (de la cámara o varias de la galería) se suman a la lista del
+  // formulario. El nombre parte vacío: el que trae el archivo del celular son solo
+  // números (IMG_20261109_…) que había que borrar a mano.
   function onArchivo(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
+    const files = Array.from(e.target.files ?? [])
     e.target.value = ''
-    if (!file) return
-    const hoy = new Date().toISOString().slice(0, 10)
-    setSubida({
-      file,
-      preview: URL.createObjectURL(file),
-      nombre: file.name.startsWith('image.') ? `Guía ${hoy}` : sinExtension(file.name),
+    if (!files.length) return
+    setFotos(prev => [
+      ...prev,
+      ...files.map(file => ({
+        id: crypto.randomUUID(),
+        file,
+        preview: URL.createObjectURL(file),
+        nombre: '',
+      })),
+    ])
+  }
+
+  function quitarFoto(id: string) {
+    setFotos(prev => {
+      const f = prev.find(x => x.id === id)
+      if (f) URL.revokeObjectURL(f.preview)
+      return prev.filter(x => x.id !== id)
     })
+  }
+
+  function cerrarSubida() {
+    if (saving) return
+    if (fotos.length > 1 && !window.confirm(`¿Descartar las ${fotos.length} fotos sin guardar?`)) return
+    fotos.forEach(f => URL.revokeObjectURL(f.preview))
+    setFotos([])
   }
 
   const recargarPendientes = useCallback(async () => {
@@ -278,31 +303,46 @@ export function ArchivoGuias() {
   // pantalla "cargando" sin señal ni se pierde la guía si se corta la subida.
   async function guardarSubida(e: FormEvent) {
     e.preventDefault()
-    if (!subida || !contrato || !subida.nombre.trim()) return
+    if (!fotos.length || !contrato || fotos.some(f => !f.nombre.trim())) return
     setSaving(true)
     setError(null)
-    try {
-      const blob = await conTimeout(comprimirImagen(subida.file), 30_000).catch(() => subida.file as Blob)
-      const ext = blob.type === 'image/jpeg' ? 'jpg' : (subida.file.name.split('.').pop() ?? 'jpg')
-      await db.guiaUploads.add({
-        id: crypto.randomUUID(),
-        contrato,
-        carpetaId: carpetaActual,
-        nombre: subida.nombre.trim(),
-        path: `${contrato}/${crypto.randomUUID()}.${ext}`,
-        blob,
-        createdAt: Date.now(),
-        attempts: 0,
-      })
-    } catch (err) {
-      setSaving(false)
-      setError(err instanceof Error ? err.message : 'No se pudo guardar la guía en el teléfono')
-      return
+    const lista = fotos
+    const base = Date.now()
+    const guardadas: string[] = []
+    let fallo: string | null = null
+    for (const [i, f] of lista.entries()) {
+      setProgreso(lista.length > 1 ? `Guardando ${i + 1} de ${lista.length}…` : null)
+      try {
+        const blob = await conTimeout(comprimirImagen(f.file), 30_000).catch(() => f.file as Blob)
+        const ext = blob.type === 'image/jpeg' ? 'jpg' : (f.file.name.split('.').pop() ?? 'jpg')
+        await db.guiaUploads.add({
+          id: crypto.randomUUID(),
+          contrato,
+          carpetaId: carpetaActual,
+          nombre: f.nombre.trim(),
+          path: `${contrato}/${crypto.randomUUID()}.${ext}`,
+          blob,
+          // +i mantiene el orden en que se eligieron aunque caigan en el mismo milisegundo.
+          createdAt: base + i,
+          attempts: 0,
+        })
+        guardadas.push(f.id)
+      } catch (err) {
+        fallo = err instanceof Error ? err.message : 'No se pudo guardar la guía en el teléfono'
+        break
+      }
     }
+    // Las que ya quedaron en la cola salen del formulario; si alguna falló, las que faltan
+    // siguen ahí para reintentar sin perder los nombres escritos.
+    lista.filter(f => guardadas.includes(f.id)).forEach(f => URL.revokeObjectURL(f.preview))
+    setFotos(prev => prev.filter(f => !guardadas.includes(f.id)))
     setSaving(false)
-    setSubida(null)
-    await recargarPendientes()
-    void procesarPendientes()
+    setProgreso(null)
+    if (fallo) setError(fallo)
+    if (guardadas.length) {
+      await recargarPendientes()
+      void procesarPendientes()
+    }
   }
 
   async function descartarPendiente(id: string) {
@@ -531,7 +571,7 @@ export function ArchivoGuias() {
               📷 Tomar foto
             </button>
             <button onClick={() => galeriaRef.current?.click()} className="btn-secondary btn-sm">
-              🖼️ Subir imagen
+              🖼️ Subir imágenes
             </button>
             <button
               onClick={() => setNuevaCarpeta(ruta.length === 0 ? nombreMesActual() : '')}
@@ -547,7 +587,7 @@ export function ArchivoGuias() {
               {descargando ? 'Preparando…' : `⬇️ Descargar ${ruta.length ? 'carpeta' : 'contrato'} (ZIP)`}
             </button>
             <input ref={camaraRef} type="file" accept="image/*" capture="environment" onChange={onArchivo} className="hidden" />
-            <input ref={galeriaRef} type="file" accept="image/*" onChange={onArchivo} className="hidden" />
+            <input ref={galeriaRef} type="file" accept="image/*" multiple onChange={onArchivo} className="hidden" />
           </div>
 
           {loading && <p className="text-sm text-gray-400 animate-pulse">Cargando…</p>}
@@ -637,26 +677,105 @@ export function ArchivoGuias() {
         </Modal>
       )}
 
-      {subida && (
-        <Modal titulo="Guardar guía" onClose={() => setSubida(null)}>
+      {fotos.length > 0 && (
+        <Modal titulo={fotos.length > 1 ? `Guardar ${fotos.length} guías` : 'Guardar guía'} onClose={cerrarSubida}>
           <form onSubmit={e => void guardarSubida(e)} className="space-y-4">
-            <img src={subida.preview} alt="Vista previa" className="w-full max-h-64 object-contain rounded-lg bg-gray-100" />
-            <div>
-              <label className="label">Nombre de la guía</label>
-              <input
-                autoFocus
-                className="input"
-                value={subida.nombre}
-                onChange={e => setSubida({ ...subida, nombre: e.target.value })}
-                placeholder="Ej: Guía 123456"
-                required
-              />
+            {fotos.length === 1 ? (
+              <>
+                <img src={fotos[0].preview} alt="Vista previa" className="w-full max-h-64 object-contain rounded-lg bg-gray-100" />
+                <div>
+                  <label className="label" htmlFor={`nombre-${fotos[0].id}`}>Nombre de la guía</label>
+                  <input
+                    id={`nombre-${fotos[0].id}`}
+                    autoFocus
+                    className="input"
+                    value={fotos[0].nombre}
+                    onChange={e => setFotos(prev => prev.map((x, j) => (j === 0 ? { ...x, nombre: e.target.value } : x)))}
+                    placeholder="Ej: Guía 123456"
+                    required
+                  />
+                </div>
+              </>
+            ) : (
+              <div className="space-y-2">
+                {fotos.map((f, i) => (
+                  <div key={f.id} className="rounded-lg border border-gray-200 p-1.5">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setAmpliada(ampliada === f.id ? null : f.id)}
+                        className="shrink-0"
+                        aria-label={`Ver foto ${i + 1} en grande`}
+                      >
+                        <img src={f.preview} alt={`Foto ${i + 1}`} className="w-16 h-16 object-cover rounded bg-gray-100" />
+                      </button>
+                      <input
+                        // Solo se enfoca al aparecer: así al agregar fotos el cursor queda en la
+                        // primera nueva sin nombre.
+                        autoFocus={i === fotos.findIndex(x => !x.nombre.trim())}
+                        className="input flex-1 min-w-0"
+                        value={f.nombre}
+                        onChange={e =>
+                          setFotos(prev => prev.map(x => (x.id === f.id ? { ...x, nombre: e.target.value } : x)))
+                        }
+                        placeholder={`Nombre guía ${i + 1}`}
+                        aria-label={`Nombre de la guía ${i + 1}`}
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => quitarFoto(f.id)}
+                        disabled={saving}
+                        className="text-gray-400 hover:text-fault text-sm shrink-0 px-1"
+                        aria-label={`Quitar foto ${i + 1}`}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    {ampliada === f.id && (
+                      <img
+                        src={f.preview}
+                        alt={`Foto ${i + 1} ampliada`}
+                        onClick={() => setAmpliada(null)}
+                        className="w-full max-h-[60vh] object-contain rounded bg-gray-100 mt-1.5"
+                      />
+                    )}
+                  </div>
+                ))}
+                <p className="text-xs text-gray-400">Toca una miniatura para verla en grande.</p>
+              </div>
+            )}
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => camaraRef.current?.click()}
+                disabled={saving}
+                className="btn-secondary btn-sm"
+              >
+                + 📷 Otra foto
+              </button>
+              <button
+                type="button"
+                onClick={() => galeriaRef.current?.click()}
+                disabled={saving}
+                className="btn-secondary btn-sm"
+              >
+                + 🖼️ De la galería
+              </button>
             </div>
+
             <p className="text-xs text-gray-400">
-              Se guardará en {contrato}
+              Se guardará{fotos.length > 1 ? 'n' : ''} en {contrato}
               {ruta.length ? ` / ${ruta.map(r => r.nombre).join(' / ')}` : ''}.
             </p>
-            <Botones onCancel={() => setSubida(null)} saving={saving} label="Guardar" />
+            {error && <p className="text-fault text-sm">{error}</p>}
+            {progreso && <p className="text-sm text-gray-500">{progreso}</p>}
+            <Botones
+              onCancel={cerrarSubida}
+              saving={saving}
+              label={fotos.length > 1 ? `Guardar ${fotos.length} guías` : 'Guardar'}
+            />
           </form>
         </Modal>
       )}
