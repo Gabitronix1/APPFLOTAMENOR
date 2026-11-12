@@ -98,6 +98,8 @@ export interface Tablero {
   calendario: { dias: string[]; filas: { ev: EstadoVivo; celdas: CeldaCalendario[] }[] }
   ot: ResumenOT
   historial: Map<string, Inspeccion[]>
+  vehiculoPorId: Map<string, Vehiculo>
+  estadoPorId: Map<string, EstadoVivo>
 }
 
 function uniq(arr: string[]): string[] {
@@ -393,6 +395,8 @@ export function useTableroGestion(
       calendario,
       ot,
       historial,
+      vehiculoPorId: new Map(vehiculosTodos.map(v => [v.id, v])),
+      estadoPorId: estadoVivo,
     }
   }, [vehiculosTodos, inspTodas, ots, f, hoy, ahora, historial, estadoVivo, inspPorId, opciones])
 }

@@ -12,6 +12,7 @@ import { FranjaAhora, KpisPeriodo } from './Resumen'
 import { BandejaAccion } from './BandejaAccion'
 import type { TabBandeja } from './BandejaAccion'
 import { MatrizSalud } from './MatrizSalud'
+import { ListaChecklist } from './ListaChecklist'
 import { FichaVehiculo } from './FichaVehiculo'
 import { SecContratos, SecCumplimiento, SecFallas, SecMantenimiento, SecTendencias } from './Analisis'
 
@@ -19,6 +20,7 @@ const NAV: [string, string][] = [
   ['ahora', 'Ahora'],
   ['bandeja', 'Bandeja'],
   ['matriz', 'Matriz'],
+  ['checklist', 'Checklist realizados'],
   ['periodo', 'Período'],
   ['tendencias', 'Tendencias'],
   ['fallas', 'Fallas'],
@@ -37,7 +39,7 @@ export function GestionFlotaMenor() {
   const [tab, setTab] = useState<TabBandeja>('detencion')
   const [fichaId, setFichaId] = useState<string | null>(null)
 
-  const ficha = useMemo(() => (fichaId ? t.estados.find(e => e.vehiculo.id === fichaId) ?? null : null), [fichaId, t.estados])
+  const ficha = useMemo(() => (fichaId ? t.estadoPorId.get(fichaId) ?? null : null), [fichaId, t.estadoPorId])
   const onVer = useCallback((ev: EstadoVivo) => setFichaId(ev.vehiculo.id), [])
   const cerrarFicha = useCallback(() => setFichaId(null), [])
 
@@ -106,6 +108,7 @@ export function GestionFlotaMenor() {
       <FranjaAhora t={t} filtros={filtros} setFiltros={setFiltros} irA={irA} />
       <BandejaAccion t={t} tab={tab} setTab={setTab} filtros={filtros} setFiltros={setFiltros} onVer={onVer} />
       <MatrizSalud estados={t.estados} umbral={filtros.umbral} onVer={onVer} />
+      <ListaChecklist t={t} onVer={onVer} />
       <KpisPeriodo t={t} />
       <SecTendencias t={t} />
       <SecFallas t={t} />
