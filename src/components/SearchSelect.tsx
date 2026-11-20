@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, type ReactNode } from 'react'
 
 export interface SelectOption {
   value: string
@@ -14,6 +14,10 @@ interface SearchSelectProps {
   /** Si se entrega, muestra una acción "+ Crear ..." bajo la lista cuando hay texto escrito en el buscador. */
   onCreate?: (query: string) => void
   createLabel?: (query: string) => string
+  /** Cómo comparar el texto buscado con las opciones (p. ej. ignorar guiones en patentes). */
+  matchKey?: (text: string) => string
+  /** Contenido extra cuando lo buscado no coincide con ninguna opción; `elegir` selecciona una. */
+  noResults?: (query: string, elegir: (value: string) => void) => ReactNode
 }
 
 export function SearchSelect({
@@ -24,6 +28,8 @@ export function SearchSelect({
   disabled,
   onCreate,
   createLabel,
+  matchKey = t => t.toLowerCase(),
+  noResults,
 }: SearchSelectProps) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -32,8 +38,14 @@ export function SearchSelect({
 
   const selected = options.find(o => o.value === value)
   const filtered = query
-    ? options.filter(o => o.label.toLowerCase().includes(query.toLowerCase()))
+    ? options.filter(o => matchKey(o.label).includes(matchKey(query)))
     : options
+
+  function elegir(v: string) {
+    onChange(v)
+    setOpen(false)
+    setQuery('')
+  }
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -92,7 +104,7 @@ export function SearchSelect({
                 <button
                   key={o.value}
                   type="button"
-                  onClick={() => { onChange(o.value); setOpen(false); setQuery('') }}
+                  onClick={() => elegir(o.value)}
                   className={`w-full min-h-[44px] text-left px-4 py-2.5 text-sm transition-colors ${
                     value === o.value
                       ? 'text-primary font-semibold bg-primary/5'
@@ -103,6 +115,7 @@ export function SearchSelect({
                 </button>
               ))
             )}
+            {noResults && query.trim() && filtered.length === 0 && noResults(query.trim(), elegir)}
             {onCreate && query.trim() && (
               <button
                 type="button"

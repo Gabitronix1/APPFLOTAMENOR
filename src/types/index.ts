@@ -20,6 +20,7 @@ export interface Perfil {
   rol: Rol
   operador_id: string | null
   acceso_archivo_guias?: boolean
+  puede_crear_patentes?: boolean
 }
 
 export type EstadoSolicitudAcceso = 'pendiente' | 'aprobada' | 'rechazada'

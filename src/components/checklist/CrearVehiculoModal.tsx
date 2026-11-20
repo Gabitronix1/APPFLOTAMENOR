@@ -1,6 +1,7 @@
 import { useState, FormEvent, ReactNode } from 'react'
 import { SearchSelect } from '../SearchSelect'
 import type { CategoriaPatente, CondicionVehiculo, LineaOperacion } from '../../types'
+import { formatoPatenteValido, normalizarPatente, patentesParecidas } from '../../lib/patentes'
 
 export interface NuevoVehiculoInput {
   patente: string
@@ -19,15 +20,19 @@ interface Props {
   query: string
   categorias: CategoriaPatente[]
   lineas: LineaOperacion[]
-  /** Patentes ya registradas, para avisar si se intenta crear una repetida. */
-  patentesExistentes?: string[]
+  /** Vehículos ya registrados, para avisar si se intenta crear uno repetido o casi igual. */
+  existentes?: VehiculoExistente[]
+  /** Elegir un vehículo ya registrado en vez de crear uno nuevo. */
+  onUsarExistente?: (id: string) => void
   onClose: () => void
   onCreated: (vehiculo: NuevoVehiculoInput) => void
   onCrearLinea: (codigo: string) => void
 }
 
-function normalizarPatente(valor: string): string {
-  return valor.replace(/[^0-9a-zA-Z]/g, '').toUpperCase()
+export interface VehiculoExistente {
+  id: string
+  patente: string
+  descripcion: string | null
 }
 
 function Campo({ label, children, className = '' }: { label: string; children: ReactNode; className?: string }) {
@@ -41,8 +46,9 @@ function Campo({ label, children, className = '' }: { label: string; children: R
 
 // Cualquier usuario puede agregar un vehículo que no esté en la lista, también sin señal:
 // queda guardado en el celular y se sube a Maestros cuando vuelve la conexión.
-export function CrearVehiculoModal({ query, categorias, lineas, patentesExistentes = [], onClose, onCreated, onCrearLinea }: Props) {
-  const [patente, setPatente] = useState(query.trim().toUpperCase())
+export function CrearVehiculoModal({ query, categorias, lineas, existentes = [], onUsarExistente, onClose, onCreated, onCrearLinea }: Props) {
+  const [patente, setPatente] = useState(normalizarPatente(query))
+  const [confirmado, setConfirmado] = useState(false)
   const [categoriaId, setCategoriaId] = useState('')
   const [descripcion, setDescripcion] = useState('')
   const [marca, setMarca] = useState('')
@@ -56,8 +62,17 @@ export function CrearVehiculoModal({ query, categorias, lineas, patentesExistent
   const anioActual = new Date().getFullYear()
   const annoNum = anno ? Number(anno) : null
   const annoValido = annoNum === null || (Number.isInteger(annoNum) && annoNum >= 1950 && annoNum <= anioActual + 1)
-  const repetida = patentesExistentes.some(p => normalizarPatente(p) === normalizarPatente(patente))
-  const canSave = normalizarPatente(patente).length >= 4 && !repetida && annoValido
+  const repetida = existentes.find(p => normalizarPatente(p.patente) === patente)
+  const parecidas = repetida ? [] : patentesParecidas(patente, existentes)
+  const formatoRaro = patente.length >= 4 && !formatoPatenteValido(patente)
+  // Si se parece a una existente o no tiene formato de placa chilena, se pide confirmar.
+  const requiereConfirmar = parecidas.length > 0 || formatoRaro
+  const canSave = patente.length >= 4 && !repetida && annoValido && (!requiereConfirmar || confirmado)
+
+  function cambiarPatente(valor: string) {
+    setPatente(normalizarPatente(valor))
+    setConfirmado(false)
+  }
 
   const lineaOptions = lineas.map(l => ({
     value: l.codigo,
@@ -74,7 +89,7 @@ export function CrearVehiculoModal({ query, categorias, lineas, patentesExistent
     e.preventDefault()
     if (!canSave) return
     onCreated({
-      patente: patente.trim().toUpperCase(),
+      patente,
       categoriaId,
       linea,
       descripcion: descripcion.trim(),
@@ -102,11 +117,62 @@ export function CrearVehiculoModal({ query, categorias, lineas, patentesExistent
               autoFocus
               className="input uppercase font-mono"
               value={patente}
-              onChange={e => setPatente(e.target.value.toUpperCase())}
+              onChange={e => cambiarPatente(e.target.value)}
               placeholder="Ej: ABCD12"
               required
             />
-            {repetida && <p className="text-xs text-fault mt-1">Esa patente ya está registrada: búscala en la lista.</p>}
+            <p className="text-xs text-gray-400 mt-1">Sin guiones ni espacios: se guarda como ABCD12.</p>
+            {repetida && (
+              <div className="mt-2 rounded-lg border border-fault/30 bg-fault/5 px-3 py-2 text-xs text-fault">
+                <p className="font-semibold">Esa patente ya está registrada.</p>
+                {onUsarExistente && (
+                  <button type="button" onClick={() => onUsarExistente(repetida.id)} className="mt-1 font-bold underline">
+                    Usar {repetida.patente}
+                    {repetida.descripcion ? ` — ${repetida.descripcion}` : ''}
+                  </button>
+                )}
+              </div>
+            )}
+            {parecidas.length > 0 && (
+              <div className="mt-2 rounded-lg border border-warn/40 bg-warn/5 px-3 py-2 text-xs text-gray-700 space-y-1.5">
+                <p className="font-semibold text-warn">¿Es alguno de estos? Ya están registrados y se parecen mucho:</p>
+                {parecidas.map(p => (
+                  <div key={p.id} className="flex items-center justify-between gap-2">
+                    <span>
+                      <span className="font-mono font-bold">{p.patente}</span>
+                      {p.descripcion ? ` — ${p.descripcion}` : ''}
+                    </span>
+                    {onUsarExistente && (
+                      <button
+                        type="button"
+                        onClick={() => onUsarExistente(p.id)}
+                        className="shrink-0 rounded-md bg-primary px-2.5 py-1 font-bold text-white"
+                      >
+                        Usar este
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            {formatoRaro && (
+              <p className="text-xs text-warn mt-2">
+                No tiene formato de patente chilena (ABCD12 o AB1234). Revisa que esté bien escrita.
+              </p>
+            )}
+            {requiereConfirmar && (
+              <label className="mt-2 flex items-start gap-2 text-sm text-gray-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={confirmado}
+                  onChange={e => setConfirmado(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 accent-primary"
+                />
+                {parecidas.length > 0
+                  ? 'Revisé la placa: es un vehículo distinto y la patente está bien escrita.'
+                  : 'Revisé la placa: la patente está bien escrita.'}
+              </label>
+            )}
           </Campo>
 
           <div className="grid grid-cols-2 gap-3">

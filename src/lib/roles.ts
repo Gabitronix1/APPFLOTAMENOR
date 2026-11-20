@@ -53,6 +53,12 @@ export function puedeVerArchivoGuias(perfil: { rol: Rol; acceso_archivo_guias?: 
   return !!perfil && (ROLES_ARCHIVO_GUIAS.includes(perfil.rol) || !!perfil.acceso_archivo_guias)
 }
 
+// Crear patentes nuevas: solo personas autorizadas una a una (perfiles.puede_crear_patentes),
+// hoy el Departamento de Gestión y Flota Menor. La BD lo refuerza con RLS (puede_crear_patentes).
+export function puedeCrearPatentes(perfil: { puede_crear_patentes?: boolean } | null | undefined): boolean {
+  return !!perfil?.puede_crear_patentes
+}
+
 // Roles que una persona puede "solicitar" al autoregistrarse desde el Login (ver
 // Edge Function solicitar-acceso): solo roles de terreno, nunca jefaturas/administrativos.
 // Un jefe confirma (o cambia) el rol final al aprobar la solicitud en Maestros > Usuarios.

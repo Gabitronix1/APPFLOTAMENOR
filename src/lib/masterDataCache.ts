@@ -19,6 +19,12 @@ export async function fetchTiposPreventiva<T>(): Promise<T[]> {
   return (data ?? []) as unknown as T[]
 }
 
+// Últimos kilometrajes de cada patente (guía del odómetro en el Checklist).
+export async function fetchKmPatentes<T>(): Promise<T[]> {
+  const { data } = await supabase.rpc('historial_km_patentes')
+  return (data ?? []) as unknown as T[]
+}
+
 interface CodigoFallaRow {
   id: string
   nombre: string
@@ -75,6 +81,7 @@ interface CatalogSpec {
 const ALL_CATALOGS: CatalogSpec[] = [
   { name: 'operadores', fetch: () => fetchTable('operadores', 'apellido') },
   { name: 'patentes', fetch: () => fetchTable('patentes', 'patente') },
+  { name: 'km_patentes', fetch: () => fetchKmPatentes() },
   { name: 'fundos', fetch: () => fetchTable('fundos', 'nombre') },
   { name: 'categorias_vehiculo', fetch: () => fetchCatalog('categorias_vehiculo') },
   { name: 'tipos_preventiva', fetch: () => fetchTiposPreventiva() },

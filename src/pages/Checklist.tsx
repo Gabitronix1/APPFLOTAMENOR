@@ -10,7 +10,17 @@ import { CrearConductorModal, type NuevoConductorInput } from '../components/che
 import { CrearVehiculoModal, type NuevoVehiculoInput } from '../components/checklist/CrearVehiculoModal'
 import { appendToCatalogCache } from '../lib/masterDataCache'
 import { PREGUNTAS, PREGUNTAS_CRITICAS, CRITICIDAD_ITEM, ESTADO_LABELS_OVERRIDE, type PKey } from '../lib/constants'
-import { esRolAdministrativo } from '../lib/roles'
+import { esRolAdministrativo, puedeCrearPatentes } from '../lib/roles'
+import { normalizarPatente, patentesParecidas } from '../lib/patentes'
+import {
+  checklistReciente,
+  evaluarKm,
+  formatoKm,
+  haceCuanto,
+  referenciaKm,
+  type HistorialKm,
+  type LecturaKm,
+} from '../lib/kilometraje'
 import type { Operador, Patente, LineaOperacion } from '../types'
 import { Logo } from '../components/Logo'
 
@@ -100,7 +110,9 @@ export function Checklist() {
   const navigate = useNavigate()
   const { perfil, provisional } = useAuth()
   const puedeCrearMaestros = esRolAdministrativo(perfil?.rol)
-  const { operadores, patentes, categoriasVehiculo, lineasOperacion, loading } = useFormData()
+  // Agregar vehículos nuevos: solo personas autorizadas (Gestión y Flota Menor).
+  const puedeAgregarPatentes = puedeCrearPatentes(perfil)
+  const { operadores, patentes, categoriasVehiculo, lineasOperacion, kmPatentes, loading } = useFormData()
   const { enqueue } = useOfflineQueue()
 
   const today = new Date().toISOString().slice(0, 10)
@@ -122,6 +134,10 @@ export function Checklist() {
   const [modo, setModo] = useState<'completo' | 'diario'>('completo')
   const [done, setDone] = useState(false)
   const [isOffline, setIsOffline] = useState(!navigator.onLine)
+  // Confirmación explícita cuando el kilometraje no calza con el historial del vehículo.
+  const [kmConfirmado, setKmConfirmado] = useState(false)
+  // Checklists enviados en esta sesión (aún sin sincronizar), para que la guía de km los considere.
+  const [lecturasLocales, setLecturasLocales] = useState<Record<string, LecturaKm[]>>({})
 
   // Conductores/vehículos/líneas creados en esta sesión (aún no confirmados por el servidor),
   // para que aparezcan de inmediato en los buscadores sin esperar la sincronización.
@@ -198,6 +214,10 @@ export function Checklist() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patenteId, patentes, vehiculosLocales, categoriasVehiculo])
 
+  useEffect(() => {
+    setKmConfirmado(false)
+  }, [patenteId, odometro])
+
   function setFalla(idx: number, v: boolean) {
     setRespuestas(prev => prev.map((r, i) =>
       i === idx ? { ...r, falla: v, observacion: v ? r.observacion : '' } : r
@@ -237,6 +257,7 @@ export function Checklist() {
   }
 
   async function handleCrearVehiculo(input: NuevoVehiculoInput) {
+    if (!puedeAgregarPatentes) return
     const id = crypto.randomUUID()
     const vehiculo: Patente = {
       id,
@@ -304,14 +325,15 @@ export function Checklist() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!operadorId || !patenteId) return
+    if (!canSubmit) return
+    const fecha = new Date().toISOString()
     await enqueue({
       type: 'checklist',
       inspeccion: {
         operador_id: operadorId,
         patente_id: patenteId,
         kilometraje: odometro,
-        fecha: new Date().toISOString(),
+        fecha,
         uuid_local: crypto.randomUUID(),
         obs_general: obsGeneral || null,
         operativo,
@@ -333,7 +355,23 @@ export function Checklist() {
       })),
     })
     await borrador.limpiar()
+    // El checklist recién hecho pasa a ser la referencia de km de la patente (también sin señal).
+    const conductor = allOperadores.find(o => o.id === operadorId)
+    const nueva: LecturaKm = {
+      fecha,
+      km: odometro,
+      tipo: modo,
+      conductor: conductor ? `${conductor.nombre} ${conductor.apellido}` : null,
+    }
+    const locales = [...(lecturasLocales[patenteId] ?? []), nueva]
+    setLecturasLocales(prev => ({ ...prev, [patenteId]: locales }))
+    const historial: HistorialKm = { id: patenteId, lecturas: [...lecturasDe(patenteId), nueva].slice(-12) }
+    void appendToCatalogCache('km_patentes', historial)
     setDone(true)
+  }
+
+  function lecturasDe(id: string): LecturaKm[] {
+    return [...(kmPatentes.find(h => h.id === id)?.lecturas ?? []), ...(lecturasLocales[id] ?? [])]
   }
 
   if (done) {
@@ -366,7 +404,15 @@ export function Checklist() {
     value: l.codigo,
     label: l.nombre && l.nombre !== l.codigo ? `${l.codigo} — ${l.nombre}` : l.codigo,
   }))
-  const canSubmit = !!operadorId && !!patenteId
+
+  // Guía del odómetro: último km confiable de la patente y si lo escrito calza con él.
+  const lecturas = patenteId ? lecturasDe(patenteId) : []
+  const refKm = referenciaKm(lecturas)
+  const evalKm = patenteId ? evaluarKm(odometro, refKm) : null
+  const requiereConfirmarKm = evalKm?.nivel === 'warn'
+  const reciente = patenteId ? checklistReciente(lecturas, modo) : null
+
+  const canSubmit = !!operadorId && !!patenteId && (!requiereConfirmarKm || kmConfirmado)
 
   const preguntasVisibles = PREGUNTAS
     .map((p, idx) => ({ p, idx }))
@@ -378,6 +424,21 @@ export function Checklist() {
     fallasActivas.map(p => ({ key: p.key, label: p.label })),
     { nocturna, lluvia, testigoAbs, testigoRojo, camionCombustible, afectaVisual },
   )
+  // Avisos antes de enviar (no bloquean, salvo el km que se confirma arriba).
+  const fallasSinDetalle = preguntasVisibles.filter(({ idx }) => respuestas[idx]?.falla && !respuestas[idx].observacion.trim())
+  const avisos: string[] = []
+  if (requiereConfirmarKm && !kmConfirmado) avisos.push('Revisa el kilometraje: no calza con los registros anteriores de este vehículo.')
+  if (reciente)
+    avisos.push(
+      `Este vehículo ya tiene un checklist ${modo === 'diario' ? 'diario' : 'completo'} ${haceCuanto(new Date(reciente.fecha))}${reciente.conductor ? ` (${reciente.conductor})` : ''}. Envíalo solo si es una revisión nueva.`,
+    )
+  if (fallasSinDetalle.length > 0)
+    avisos.push(
+      `${fallasSinDetalle.length === 1 ? 'Hay 1 ítem' : `Hay ${fallasSinDetalle.length} ítems`} en mal estado sin descripción (${fallasSinDetalle.map(f => f.p.label).join(', ')}). Describir la falla ayuda a mantención a saber qué revisar.`,
+    )
+  if (operativo && sugerencia.tono === 'fault')
+    avisos.push('Marcaste el vehículo como operativo, pero la revisión indica detención inmediata. Confirma si de verdad puede circular.')
+
   const idxTablero = PREGUNTAS.findIndex(p => p.key === 'p5')
   const idxEspejos = PREGUNTAS.findIndex(p => p.key === 'p9')
 
@@ -466,20 +527,58 @@ export function Checklist() {
                       value={patenteId}
                       onChange={setPatenteId}
                       placeholder="Seleccionar patente..."
-                      onCreate={q => setCrearVehiculoQuery(q)}
-                      createLabel={q => `Agregar vehículo "${q}"`}
+                      matchKey={normalizarPatente}
+                      noResults={(q, elegir) => {
+                        const parecidas = patentesParecidas(q, allPatentes)
+                        return (
+                          <div className="px-4 py-3 text-sm space-y-2">
+                            {parecidas.length > 0 && (
+                              <>
+                                <p className="text-xs font-semibold text-warn">¿Quisiste decir…?</p>
+                                {parecidas.map(p => (
+                                  <button
+                                    key={p.id}
+                                    type="button"
+                                    onClick={() => elegir(p.id)}
+                                    className="w-full text-left rounded-lg border border-warn/30 bg-warn/5 px-3 py-2 hover:bg-warn/10"
+                                  >
+                                    <span className="font-mono font-bold">{p.patente}</span>
+                                    {p.descripcion ? <span className="text-gray-500"> — {p.descripcion}</span> : null}
+                                  </button>
+                                ))}
+                              </>
+                            )}
+                            {!puedeAgregarPatentes && (
+                              <p className="text-xs text-gray-500">
+                                {parecidas.length > 0 ? 'Si no es ninguna de estas, ' : 'No se encontró esa patente. Revisa la placa y, '}
+                                pide a Control de Gestión o a Flota Menor que agreguen el vehículo.
+                              </p>
+                            )}
+                          </div>
+                        )
+                      }}
+                      onCreate={puedeAgregarPatentes ? q => setCrearVehiculoQuery(q) : undefined}
+                      createLabel={q => `Agregar vehículo "${normalizarPatente(q)}"`}
                     />
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setCrearVehiculoQuery('')}
-                    aria-label="Agregar vehículo"
-                    title="Agregar vehículo"
-                    className="shrink-0 w-12 rounded-xl border border-primary/40 text-primary text-2xl leading-none hover:bg-primary/5"
-                  >
-                    +
-                  </button>
+                  {puedeAgregarPatentes && (
+                    <button
+                      type="button"
+                      onClick={() => setCrearVehiculoQuery('')}
+                      aria-label="Agregar vehículo"
+                      title="Agregar vehículo"
+                      className="shrink-0 w-12 rounded-xl border border-primary/40 text-primary text-2xl leading-none hover:bg-primary/5"
+                    >
+                      +
+                    </button>
+                  )}
                 </div>
+                {reciente && (
+                  <p className="text-xs text-warn mt-1">
+                    Ya tiene checklist {modo === 'diario' ? 'diario' : 'completo'} {haceCuanto(new Date(reciente.fecha))}
+                    {reciente.conductor ? ` (${reciente.conductor})` : ''}.
+                  </p>
+                )}
               </div>
               <div>
                 <label className="label">Tipo de vehículo</label>
@@ -535,6 +634,55 @@ export function Checklist() {
                     +
                   </button>
                 </div>
+                {odometro > 0 && (
+                  <p className="text-center text-sm text-gray-600 mt-1">
+                    Estás ingresando <span className="font-mono font-bold text-dark">{formatoKm(odometro)}</span> km
+                  </p>
+                )}
+                {patenteId && refKm && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Último registro: <span className="font-semibold">{formatoKm(refKm.km)} km</span>, {haceCuanto(refKm.fecha)}
+                    {refKm.conductor ? ` (${refKm.conductor})` : ''}.
+                    {evalKm?.rango && ` Hoy debería marcar entre ${formatoKm(evalKm.rango.min)} y ${formatoKm(evalKm.rango.max)} km.`}
+                  </p>
+                )}
+                {evalKm && (evalKm.nivel !== 'ok' || odometro > 0) && (
+                  <div
+                    className={`mt-2 rounded-xl border px-3 py-2 text-sm ${
+                      evalKm.nivel === 'warn'
+                        ? 'border-warn/40 bg-warn/5 text-gray-700'
+                        : evalKm.nivel === 'info'
+                          ? 'border-gray-200 bg-gray-50 text-gray-600'
+                          : 'border-primary/20 bg-primary/5 text-primary'
+                    }`}
+                  >
+                    <p>{evalKm.texto}</p>
+                    {evalKm.sugerido !== undefined && (
+                      <button
+                        type="button"
+                        onClick={() => setOdometro(evalKm.sugerido!)}
+                        className="mt-2 w-full h-10 rounded-lg bg-primary text-white text-sm font-bold"
+                      >
+                        Corregir a {formatoKm(evalKm.sugerido)} km
+                      </button>
+                    )}
+                    {requiereConfirmarKm && (
+                      <label className="mt-2 flex items-start gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={kmConfirmado}
+                          onChange={e => setKmConfirmado(e.target.checked)}
+                          className="mt-0.5 w-4 h-4 accent-primary"
+                        />
+                        <span>
+                          {odometro > 0
+                            ? `Revisé el tablero: marca ${formatoKm(odometro)} km.`
+                            : 'No puedo ver el odómetro (tablero apagado o con falla).'}
+                        </span>
+                      </label>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -721,6 +869,17 @@ export function Checklist() {
               </div>
             </div>
 
+            {avisos.length > 0 && (
+              <div className="rounded-xl border border-warn/40 bg-warn/5 px-4 py-3">
+                <p className="text-xs font-bold uppercase tracking-wide text-warn mb-1">Antes de enviar</p>
+                <ul className="list-disc pl-4 space-y-1 text-sm text-gray-700">
+                  {avisos.map(a => (
+                    <li key={a}>{a}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={!canSubmit}
@@ -739,12 +898,16 @@ export function Checklist() {
           onCreated={conductor => void handleCrearConductor(conductor)}
         />
       )}
-      {crearVehiculoQuery !== null && (
+      {crearVehiculoQuery !== null && puedeAgregarPatentes && (
         <CrearVehiculoModal
           query={crearVehiculoQuery}
           categorias={categoriasVehiculo}
           lineas={allLineas}
-          patentesExistentes={allPatentes.map(p => p.patente)}
+          existentes={allPatentes}
+          onUsarExistente={id => {
+            setPatenteId(id)
+            setCrearVehiculoQuery(null)
+          }}
           onClose={() => setCrearVehiculoQuery(null)}
           onCreated={vehiculo => void handleCrearVehiculo(vehiculo)}
           onCrearLinea={handleCrearLinea}
